@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#071522" />
+    <meta
+      name="description"
+      content="잊힌 신호를 되찾고 침묵의 서고를 돌파해 눈먼 기록관과 맞서는 3막 액션 404 페이지"
+    />
+    <title>404 — Route Not Found</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas" aria-label="404 기억 경로 복구 액션 게임"></canvas>
+
+      <header class="topbar">
+        <a class="wordmark" href="../" aria-label="게임 폴더로 돌아가기">
+          <span class="wordmark-mark" aria-hidden="true"></span>
+          <span>VOID / ROUTE</span>
+        </a>
+        <div class="route-state" aria-live="polite">
+          <span class="route-state-dot"></span>
+          <span id="route-state-label">ROUTE LOST</span>
+        </div>
+      </header>
+
+      <main class="interface">
+        <section id="intro" class="intro" aria-labelledby="error-title">
+          <p class="eyebrow">ERROR 0x0194 · ARCHIVE PATH COLLAPSED</p>
+          <div class="error-lockup">
+            <h1 id="error-title">404</h1>
+            <p>NOT<br />FOUND</p>
+          </div>
+          <p class="lede">
+            요청한 길은 기억 보관소 아래에서 세 조각으로 찢겼습니다.<br />
+            신호를 되찾고, 침묵의 서고를 돌파해 마지막 색인을 닫으세요.
+          </p>
+          <button id="start-btn" class="primary-action" type="button">
+            <span>기억 경로 추적</span>
+            <span aria-hidden="true">↗</span>
+          </button>
+          <div class="control-line" aria-label="조작법">
+            <span><kbd>A</kbd><kbd>D</kbd> 이동</span>
+            <span><kbd>W</kbd> 도약</span>
+            <span><kbd>⇧</kbd> 대시</span>
+            <span><kbd>X</kbd><kbd>J</kbd> 공격</span>
+          </div>
+        </section>
+
+        <section id="completion" class="completion" hidden aria-labelledby="completion-title">
+          <p class="eyebrow">FINAL INDEX · ROUTE RESTORED</p>
+          <h2 id="completion-title">삭제된 길이<br />되돌아왔습니다.</h2>
+          <p>눈먼 기록관이 멈췄습니다. 복구된 좌표 중 다음 경로를 선택하세요.</p>
+          <nav class="game-routes" aria-label="복구된 게임 경로">
+            <a href="https://boss-forge-seven.vercel.app/">
+              <span>01</span><strong>BOSS FORGE</strong><em>두 개의 룬으로 보스에 맞설 빌드를 새긴다</em><b>↗</b>
+            </a>
+            <a href="https://echo-heist-gamma.vercel.app/">
+              <span>02</span><strong>ECHO HEIST</strong><em>과거의 잔상과 함께 기억을 훔친다</em><b>↗</b>
+            </a>
+            <a href="https://patch-run-weld.vercel.app/">
+              <span>03</span><strong>PATCH//RUN</strong><em>깨진 규칙 위에서 끝까지 살아남는다</em><b>↗</b>
+            </a>
+          </nav>
+          <button id="replay-btn" class="text-action" type="button">세 개의 막 다시 추적 ↺</button>
+        </section>
+      </main>
+
+      <aside id="hud" class="hud" hidden aria-label="게임 상태">
+        <div class="act-register" aria-live="polite">
+          <span id="act-index">ACT I / III</span>
+          <strong id="act-name">THE LOST APPROACH</strong>
+          <p id="act-objective">세 개의 끊어진 신호 문양을 회수하세요.</p>
+        </div>
+        <div class="signal-meter">
+          <span id="progress-label">SIGNAL</span>
+          <div id="signal-pips" class="signal-pips" aria-label="신호 0/3">
+            <i></i><i></i><i></i>
+          </div>
+          <strong id="signal-count">0 / 3</strong>
+        </div>
+        <div class="life-meter">
+          <span>INTEGRITY</span>
+          <div id="life-pips" class="life-pips" aria-label="내구도 3/3">
+            <i></i><i></i><i></i>
+          </div>
+        </div>
+      </aside>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+      <div class="touch-controls" aria-label="터치 조작">
+        <button type="button" data-control="left" aria-label="왼쪽">←</button>
+        <button type="button" data-control="right" aria-label="오른쪽">→</button>
+        <button type="button" data-control="jump" aria-label="도약">↑</button>
+        <button type="button" data-control="attack" aria-label="공격">✦</button>
+        <button type="button" data-control="dash" aria-label="대시">»</button>
+      </div>
+
+      <footer class="footer-line">
+        <p><span>X / J</span> STRIKE · <span>F</span> FULLSCREEN · <span>R</span> RESTART</p>
+        <p>THE ARCHIVE REMEMBERS EVERY BROKEN LINK</p>
+      </footer>
+
+      <div class="grain" aria-hidden="true"></div>
+      <div class="scanline" aria-hidden="true"></div>
+    </div>
+    <script type="module" src="/game.js"></script>
+  </body>
+</html>
