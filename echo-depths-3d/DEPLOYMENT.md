@@ -246,3 +246,8 @@ The 2026-08-15 external release entry is present in `CODEX_LOG.md`.
 ## Windows certificate note
 
 This Windows host initially reported `SELF_SIGNED_CERT_IN_CHAIN` from Node while a Windows TLS diagnostic reached Vercel when using the trusted system certificate store. Keeping TLS validation enabled, `NODE_OPTIONS=--use-system-ca` allowed `vercel whoami`, deploy, promotion, inspection, and Playwright HTTP checks to complete. Do not replace this with disabled TLS verification.
+
+
+## Chapter 3 descent fix candidate pending
+
+Source commit (not yet committed at this snapshot): descent-stair fix in src/levels/layouts.ts. Local evidence: npm ci 0 vulnerabilities, strict Vite build PASS (38 modules), Vitest 96/96, Playwright 15/15 in 3.6 minutes, and a spatial-sweep screenshot pass that confirms the player can descend the new stairs. No KayKit asset or sibling project changed.

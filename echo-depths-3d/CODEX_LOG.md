@@ -210,3 +210,13 @@ All entries use Asia/Seoul dates.
 - Diagnosed the Vercel CLI `fetch failed` as Node's `SELF_SIGNED_CERT_IN_CHAIN` against the local trusted interception certificate. `NODE_OPTIONS=--use-system-ca` retained TLS validation and made `vercel whoami` succeed; TLS validation was not disabled.
 - Rebuilt the source, refreshed the prebuilt static output, and deployed candidate `dpl_4woHwEHVLuGd8kXj8LAVGJg5Ypaz` at `https://echo-depths-3d-dsx4v836g-ai-build3.vercel.app`. It reached Ready and passed production smoke 6/6 in 1.1 minutes.
 - Promoted production `dpl_48KTUWgRHef83bXB9u7Xd9koT3CC` at `https://echo-depths-3d-kvrfv1856-ai-build3.vercel.app`. The public alias returned HTTP 200 and the final public smoke passed 6/6 in 1.2 minutes. Vercel used 68 prebuilt files and reported Ready with no application runtime logs.
+
+
+## 2026-08-18 -- Chapter 3 descent stair repair
+
+The split-atrium (Chapter 3) descent ramp shipped as a thin tilted box whose upper half was buried inside the upper floor box and whose lower half floated above atrium-lower with no walkable connection. The published objective and solution describe a present player who descends to the atrium-lower catch zone, but no path actually linked the upper shelf to the lower floor.
+
+- Replaced the broken atrium-descent in src/levels/layouts.ts with three flat descent-step-N floor pieces positioned south of the upper shelf, each offset one unit east and one unit down from the previous. Top surfaces: step-1 y=2.0, step-2 y=1.0, step-3 y=0.2 (matching atrium-lower). The player now walks south off the upper shelf and steps east and down through the three stairs to reach atrium-lower cleanly.
+- Moved memory-core from [-3.8, 3.75, 2.5] to [-3.0, 3.75, 1.6]. The new position sits closer to the upper shelf south edge, so the authored throw arc naturally aims over the descent stairs into the atrium-lower catch zone.
+- Local evidence: npm run build strict TS PASS (38 modules), Vitest 96/96, Playwright 15/15 in 3.6 minutes. The spatial sweep screenshot pass confirms the player reaches the lower level via the new stairs.
+- No KayKit assets, sibling projects, or puzzle logic changed. The authored solution sequence in GAME.md Chapter 3 still applies unchanged.

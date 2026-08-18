@@ -105,7 +105,7 @@ The player and core begin on the west upper shelf. A wide physical descent leads
 
 1. Begin recording, pick up `memory-core` with `E`, face the lower atrium/catch route, hold `K` or right mouse to preview the arc, and release to throw.
 2. Continue the recorded route to `bridge-lever`, press and hold `E`, and finish the tape at the lever.
-3. After rewind, take the present route toward the lower catch area while the echo repeats the throw.
+3. After rewind, take the present route toward the lower catch area. The upper shelf now connects to atrium-lower through three descent stairs south of the shelf (top surfaces y=2.0, y=1.0, y=0.2), so the player steps south off the upper shelf and down through the stairs to atrium-lower while the echo repeats the throw.
 4. Hold `E` inside the catch volume to receive the echo-thrown core. The world catch uses a forgiving proximity check and does not demand a single exact frame.
 5. Use the bridge while the echo keeps it aligned. Throw the core toward the east receiver, then strike the loose core with a directional attack to redirect its horizontal velocity.
 6. Land the redirected core in `core-receiver`, cross the east route, and use the exit.

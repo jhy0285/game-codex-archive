@@ -119,3 +119,8 @@ The unrelated intake modification at `echo-heist/package-lock.json` remains outs
 - Source `b2e687a` makes Chapters 1–5 immediately selectable before the player has cleared any stage. Stage 00 remains the separate Start-flow orientation room.
 - `STARTING_UNLOCKED_THROUGH` owns the temporary policy and is set to `5`; setting it back to `1` will restore the former sequential unlock flow without changing UI or completion logic.
 - Strict Vite build, 16 files / 96 Vitest tests, the focused fresh Chapter Select assertion, and all 15 Playwright stories pass. The source is included in candidate `dpl_4woHwEHVLuGd8kXj8LAVGJg5Ypaz` and promoted production `dpl_48KTUWgRHef83bXB9u7Xd9koT3CC`; the public alias returned HTTP 200 and final smoke passed 6/6 in 1.2 minutes.
+
+
+## 2026-08-18 -- Chapter 3 descent fix
+
+The split-atrium descent was a thin tilted box hidden inside the upper floor box and floating above atrium-lower, so the player had no walkable path from the upper shelf to the lower catch zone. The fix in src/levels/layouts.ts adds three descent-step floor pieces south of the upper shelf (top surfaces y=2.0, y=1.0, y=0.2) and nudges memory-core east so its throw arc naturally lands in the catch zone. Local build PASS, Vitest 96/96, Playwright 15/15 in 3.6 minutes. No KayKit asset or sibling project changed.

@@ -146,14 +146,21 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
     fog: 0x100c1a,
     boxes: [
       floor('atrium-upper-west', [-4.6, 2.5, 1.4], [3.6, 0.45, 4.0]),
-      floor('atrium-descent', [-3.3, 1.45, 1.35], [3.0, 0.18, 1.0], 'stone', [0, 0, -0.5]),
+      // Descent stairs: replace the broken atrium-descent with three walkable steps
+      // that descend from the upper floor's south edge (y=2.0 top) down to atrium-lower level.
+      // Each step extends SOUTH of the upper floor (z=[-3.5, -1.5]) so the player walks straight
+      // south off the upper shelf and lands on step 1 (almost flush with the upper's underside).
+      // The easting offset lets the player step east onto each subsequent stair.
+      floor('descent-step-1', [-1.5, 1.85, -2.5], [2.5, 0.15, 1.0]), // top y=2.0, south of upper (z=-3.5..-1.5)
+      floor('descent-step-2', [-0.5, 0.85, -2.5], [2.5, 0.15, 1.0]), // top y=1.0, offset east 1
+      floor('descent-step-3', [0.5, 0.05, -2.5], [2.5, 0.15, 1.0]), // top y=0.2, matches atrium-lower
       floor('atrium-lower', [-0.6, -0.25, 0], [4.9, 0.45, 4.3]),
       floor('atrium-east', [7.0, 0, -0.5], [2.8, 0.45, 3.7]),
       wall('atrium-north', [0, 3.2, -4.5], [10.5, 3.2, 0.35]),
     ],
     devices: [
       { id: 'bridge-lever', kind: 'lever', position: [-5.4, 3.2, -1.1] },
-      { id: 'memory-core', kind: 'core', position: [-3.8, 3.75, 2.5] },
+      { id: 'memory-core', kind: 'core', position: [-3.0, 3.75, 1.6] },
       { id: 'rotating-bridge', kind: 'bridge', position: [3.35, 0, -0.9], size: [2.7, 0.18, 0.52], axis: 'z' },
       { id: 'core-receiver', kind: 'receiver', position: [6.6, 0.88, 1.6] },
       { id: 'atrium-door', kind: 'door', position: [9.45, 2.15, -0.4], size: [0.32, 2.1, 1.2] },
