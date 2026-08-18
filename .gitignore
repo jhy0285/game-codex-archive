@@ -1,0 +1,39 @@
+# Dependencies and generated builds
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+
+# Browser and test artifacts
+**/test-results/
+**/playwright-report/
+**/output/
+**/.playwright-cli/
+**/blob-report/
+
+# Temporary generation and caches
+**/tmp/
+**/.asset-downloads/
+**/.cache/
+**/.vite/
+*.log
+
+# Local platform and deployment metadata
+**/.vercel/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.p12
+*.pfx
+
+# Migration-only local material
+**/.git.migration-backup/
+game-migration-*.zip
+game-migration-*.7z
+*.sha256

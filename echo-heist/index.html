@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#090617" />
+    <meta
+      name="description"
+      content="ECHO HEIST — record a route, bind an echo, and escape a neon time vault with your past self."
+    />
+    <link
+      rel="preload"
+      href="/assets/fonts/silkscreen/Silkscreen-Regular.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/assets/fonts/silkscreen/Silkscreen-Bold.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <title>ECHO HEIST</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <aside id="rotate-device" role="status" aria-live="polite">
+      <div class="rotate-device__icon" aria-hidden="true">↻</div>
+      <strong id="rotate-title">ROTATE TO LANDSCAPE</strong>
+      <span id="rotate-body">The heist pauses here. Turn your phone sideways to see the whole puzzle and full-size controls.</span>
+    </aside>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

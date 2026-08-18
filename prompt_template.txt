@@ -1,0 +1,475 @@
+TARGET_GAME = TEMPLATE
+
+You are the principal engineer responsible for ONE competition game.
+
+Today is 2026-08-11.
+Internal release deadline: 2026-08-25.
+Competition submission deadline: 2026-08-26.
+
+This repository contains only TARGET_GAME.
+
+TECH STACK IS FIXED:
+
+* Vite
+* TypeScript
+* Phaser
+* Vitest
+* Playwright
+
+Do not replace the stack.
+Do not introduce React.
+Do not introduce a backend.
+Do not add multiplayer.
+Do not add accounts.
+Do not add databases.
+
+Your job in THIS RUN is to produce a working Gate 1 prototype, not a plan.
+
+First inspect the repository.
+
+Then create these files at repository root:
+
+AGENTS.md
+GAME.md
+MILESTONES.md
+TASKS.md
+TEST.md
+PLAYTEST.md
+CODEX_LOG.md
+
+Then implement the Gate 1 game.
+
+==================================================
+PROJECT RULES
+=============
+
+Put the following rules into AGENTS.md.
+
+1. GAME.md is the authoritative game-design contract.
+2. MILESTONES.md is the authoritative schedule.
+3. Never add features that are not needed by the current milestone.
+4. New ideas must go into GAME.md under "Parking Lot"; do not implement them automatically.
+5. Prefer a small working implementation over reusable architecture.
+6. Avoid broad refactors during gameplay feature work.
+7. No multiplayer.
+8. No account system.
+9. No backend.
+10. No inventory system.
+11. No campaign.
+12. No dialogue system.
+13. No level editor.
+14. No monetization.
+15. Browser load-to-play friction must stay extremely low.
+16. Restart must always be fast.
+17. Gameplay readability is more important than visual complexity.
+18. Every task must have observable acceptance criteria.
+19. After changing gameplay, run build/tests.
+20. Use Playwright to open the actual game where practical.
+21. Do not claim a human playtest happened unless a human actually performed it.
+22. Keep TASKS.md synchronized with reality.
+23. Record meaningful Codex work in CODEX_LOG.md.
+24. Never silently change the core game design because implementation is difficult.
+25. The internal release deadline is 2026-08-25.
+26. 2026-08-26 is buffer only.
+
+==================================================
+MILESTONES
+==========
+
+Put this into MILESTONES.md.
+
+Gate 1 — Core Toy
+2026-08-11 to 2026-08-13
+
+Goal:
+Prove the unique mechanic works.
+
+Gate 2 — Fun Prototype
+2026-08-14 to 2026-08-16
+
+Goal:
+The unique mechanic must create a visible interesting moment within 30-60 seconds.
+
+Alpha
+2026-08-17 to 2026-08-20
+
+Goal:
+Start → Play → Escalation → End → Score → Restart.
+
+Feature freeze:
+End of 2026-08-20.
+
+Polish
+2026-08-21 to 2026-08-22
+
+Only:
+feedback, readability, sound, effects, UI, onboarding, performance.
+
+Blind Test
+2026-08-23
+
+Submission Package
+2026-08-24
+
+Release Candidate
+2026-08-25
+
+==================================================
+GAME DEFINITIONS
+================
+
+Use ONLY the definition matching TARGET_GAME.
+
+---
+
+## PATCH
+
+Title:
+PATCH//RUN
+
+Hook:
+Every 20 seconds a permanent patch changes one rule of the arena. Patches stack and create increasingly chaotic interactions.
+
+Core experience:
+Top-down arena action.
+
+Controls:
+WASD movement
+mouse aim
+left click shoot
+Space dash
+
+Gate 1 MUST contain:
+
+* player movement
+* aiming
+* shooting
+* exactly one enemy archetype
+* enemy pursues player
+* player health
+* damage
+* death
+* restart
+* patch countdown visible on screen
+* exactly 3 prototype patches
+* patch effects permanently stack during the run
+* at least one visible interaction between two active patches
+
+Use these EXACT three prototype patches:
+
+1. RICOCHET
+   Player bullets bounce off arena walls once.
+
+2. GROWTH
+   Each time a player bullet bounces, its visual size and damage increase.
+
+3. FRIENDLY FIRE
+   Player bullets that bounce can also damage enemies they subsequently hit normally; ensure the RICOCHET + GROWTH interaction is visually obvious.
+
+For Gate 1, apply the three patches automatically in this fixed order every 20 seconds:
+
+20 sec → RICOCHET
+40 sec → GROWTH
+60 sec → FRIENDLY FIRE
+
+Show a large PATCH notification when each activates.
+
+Do not implement random patch selection yet.
+
+Gate 1 PASS criteria:
+
+* game launches
+* player movement feels responsive
+* player can aim and shoot
+* enemies can kill player
+* player can kill enemies
+* timer visibly reaches patch events
+* all three patches activate
+* RICOCHET + GROWTH interaction is obvious
+* death screen appears
+* restart begins a clean new run
+
+---
+
+## ECHO
+
+Title:
+ECHO HEIST
+
+Hook:
+Every loop records your actions. On the next loop, your previous self repeats those actions and can help the current player.
+
+Core experience:
+Compact time-loop puzzle/action game.
+
+Controls:
+WASD movement
+E interaction
+
+Gate 1 MUST contain:
+
+* player movement
+* one room
+* one pressure switch
+* one locked door
+* one goal zone behind the door
+* fixed 20-second loop
+* record player movement/actions during loop
+* replay previous loop as visible ghost
+* ghost can activate the pressure switch
+* current player can walk through door while ghost holds switch
+* loop reset
+* full restart
+
+Do NOT add enemies yet.
+Do NOT add a second ghost yet.
+Do NOT add multiple rooms.
+
+Required Gate 1 puzzle:
+
+Loop 1:
+Player walks onto switch near the left side of room and remains there until loop ends.
+
+Loop 2:
+Ghost repeats Loop 1 and holds switch.
+Door opens.
+Current player walks through door and reaches goal.
+
+Gate 1 PASS criteria:
+
+* loop timer is visible
+* recording begins automatically
+* loop resets correctly
+* previous player appears as ghost
+* ghost follows recorded path reliably
+* ghost triggers switch
+* door responds correctly
+* current player reaches previously inaccessible goal
+* restart completely clears recording state
+
+Prioritize deterministic reliable replay over visual quality.
+
+---
+
+## BOSS
+
+Title:
+BOSS FORGE
+
+Hook:
+You choose the boss's attacks yourself, then immediately have to survive the boss you created.
+
+Core experience:
+Short boss configuration followed by boss fight.
+
+Controls:
+WASD movement
+mouse aim
+left click attack
+Space dodge
+
+Gate 1 MUST contain:
+
+PHASE 1:
+Boss configuration screen.
+
+Provide exactly three selectable attack modules:
+
+1. RADIAL BURST
+   Boss fires 8 projectiles in all directions.
+
+2. AIMED SHOT
+   Boss fires a projectile toward current player position.
+
+3. ROTATING BEAM
+   Boss emits a clearly telegraphed rotating beam attack.
+
+Player must choose exactly TWO modules.
+
+PHASE 2:
+Fight.
+
+Boss uses only the two modules selected by player.
+
+Include:
+
+* player movement
+* player attack
+* dodge
+* player health
+* boss health
+* clear attack telegraphs
+* win
+* death
+* restart
+* return to configuration
+
+Different module selections must produce noticeably different fights.
+
+Gate 1 PASS criteria:
+
+* configuration screen works
+* exactly two modules can be selected
+* fight starts
+* boss uses selected modules only
+* attacks are readable
+* player can damage boss
+* player can die
+* boss can die
+* win/lose screen appears
+* restart returns to configuration
+
+==================================================
+GAME.md
+=======
+
+Create a short GAME.md containing:
+
+* title
+* one-line hook
+* player fantasy
+* controls
+* first 10 seconds
+* first 30 seconds
+* target 3-minute experience
+* core loop
+* win condition
+* lose condition
+* score condition
+* Must Build
+* Should Build
+* Never Build
+* Parking Lot
+
+Do not write an essay.
+
+==================================================
+TASKS.md
+========
+
+Use exactly these headings:
+
+# NOW
+
+# NEXT
+
+# LATER
+
+# BLOCKED
+
+# DONE
+
+Every task needs a concrete completion condition.
+
+==================================================
+TEST.md
+=======
+
+Set up:
+
+* npm run build
+* npm test using Vitest
+* Playwright smoke test
+* gameplay regression checklist
+
+Add package.json scripts if necessary.
+
+Playwright smoke test must at minimum verify:
+
+* page opens
+* game canvas exists
+* no fatal page error
+* restart flow is reachable when practical
+
+==================================================
+PLAYTEST.md
+===========
+
+Create a dated machine-verification section for today.
+
+Do NOT pretend this is human playtesting.
+
+Record:
+
+* what was exercised
+* obvious confusion risks
+* bugs discovered
+* fixes applied
+* what still requires a human playtest
+
+==================================================
+CODEX_LOG.md
+============
+
+Record:
+
+* date
+* requested task
+* implementation decisions made by Codex
+* technical problems found
+* fixes
+* tests performed
+* results
+* game-design decisions that were explicitly provided by the human and therefore not invented by Codex
+
+This document will later be used as evidence for the competition's Codex Collaboration section.
+
+==================================================
+IMPLEMENTATION REQUIREMENTS
+===========================
+
+Delete the default Vite demo UI.
+
+Implement the game using Phaser.
+
+Keep source code simple.
+
+Suggested structure:
+
+src/
+main.ts
+game/
+config.ts
+scenes/
+systems/
+entities/
+
+Do not create abstraction layers unless Gate 1 needs them.
+
+Use primitive shapes and simple generated graphics.
+Do not search for or spend time on art assets.
+
+Do not stop after planning.
+
+Implement the complete Gate 1 prototype.
+
+After implementation:
+
+1. run npm test
+2. run npm run build
+3. start the development server
+4. use Playwright to load the game
+5. check the browser console for fatal errors
+6. exercise the Gate 1 loop as much as automation reasonably allows
+7. fix blocking defects
+8. rerun tests/build
+9. update TASKS.md
+10. update TEST.md
+11. update PLAYTEST.md
+12. update CODEX_LOG.md
+
+If Playwright browser automation is unavailable for any reason, do not stop the project. Complete build/test verification and clearly record the missing browser verification.
+
+Do not implement Gate 2.
+
+At the very end give me exactly:
+
+1. GATE 1 STATUS: PASS / PARTIAL / FAIL
+2. WHAT WORKS
+3. TESTS RUN
+4. HUMAN TESTS I MUST PERFORM
+5. KNOWN ISSUES
+6. FILES CHANGED
+7. NEXT THREE TASKS
+
+Begin now. Do not return only a plan.

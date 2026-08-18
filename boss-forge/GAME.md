@@ -1,0 +1,22 @@
+# BOSS FORGE
+
+- **Title:** BOSS FORGE
+- **One-line hook:** Choose the boss's attacks, then immediately survive the boss you created.
+- **Player fantasy:** Forge a dangerous rival, read its patterns, dodge cleanly, and prove the build is beatable.
+- **Controls:** WASD move, mouse aim, left click attack, Space dodge, F fullscreen, R return to configuration.
+- **First 10 seconds:** Read three attack modules, select exactly two, and enter the arena.
+- **First 30 seconds:** Recognize both selected patterns, dodge their telegraphs, and damage the boss.
+- **Target 3-minute experience:** Configure, fight, win or lose, and quickly retry with another two-module boss.
+- **Core loop:** Select two modules -> fight only those attacks -> read, dodge, shoot -> win/lose -> reconfigure.
+- **Win condition:** Reduce boss health to zero.
+- **Lose condition:** Player health reaches zero.
+- **Score condition:** Gate 1 has no numeric score; victory is the outcome.
+- **Must Build:** Configuration with exactly three modules and exactly two selections; player movement, aim, attack, dodge, health; boss health; readable radial burst, aimed shot, and rotating beam; selected attacks only; win, death, and restart to configuration.
+- **Should Build:** Strong hit feedback, readable cooldown/health UI, clear control onboarding, reliable automated state inspection.
+- **Never Build:** Multiplayer, accounts, backend, inventory, campaign, dialogue, level editor, monetization.
+- **Parking Lot:**
+  - **Boss Recipe (Gate 2 candidate):** Choose four action cards — two Attack, one Movement, one Defense. The boss may vary order and timing, but may never use behavior outside those cards.
+  - **Readable pattern director:** Compose short card chains with a clear tell, action, recovery, and punish window. Every build must reveal one signature combination within 30 seconds.
+  - **Candidate cards:** Slam/volley attacks; stalk/leap/orbit movement; guard/stagger-shell/counter defense.
+  - **Combat depth:** Successful dodges expose the furnace core for a brief high-damage punish window; stronger card recipes can increase score value.
+  - **Later presentation:** Sound, additional authored art, and score/time ranking.

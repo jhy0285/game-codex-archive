@@ -1,0 +1,33 @@
+{
+  "character": "/assets/kaykit/characters/Knight.glb",
+  "animations": [
+    "/assets/kaykit/animations/Rig_Medium_General.glb",
+    "/assets/kaykit/animations/Rig_Medium_MovementBasic.glb",
+    "/assets/kaykit/animations/Rig_Medium_MovementAdvanced.glb",
+    "/assets/kaykit/animations/Rig_Medium_CombatMelee.glb",
+    "/assets/kaykit/animations/Rig_Medium_Tools.glb"
+  ],
+  "environment": [
+    "/assets/kaykit/environment/floor_tile_large.gltf",
+    "/assets/kaykit/environment/floor_tile_small.gltf",
+    "/assets/kaykit/environment/wall.gltf",
+    "/assets/kaykit/environment/wall_corner.gltf",
+    "/assets/kaykit/environment/wall_half.gltf",
+    "/assets/kaykit/environment/wall_doorway.gltf",
+    "/assets/kaykit/environment/stairs.gltf",
+    "/assets/kaykit/environment/stairs_wide.gltf",
+    "/assets/kaykit/environment/stairs_narrow.gltf",
+    "/assets/kaykit/environment/column.gltf",
+    "/assets/kaykit/environment/pillar.gltf",
+    "/assets/kaykit/environment/box_large.gltf",
+    "/assets/kaykit/environment/box_small.gltf",
+    "/assets/kaykit/environment/crates_stacked.gltf",
+    "/assets/kaykit/environment/floor_tile_big_spikes.gltf",
+    "/assets/kaykit/environment/torch_lit.gltf"
+  ],
+  "resources": [
+    "/assets/kaykit/resources/Parts_Cog.gltf",
+    "/assets/kaykit/resources/Fuel_A_Barrel.gltf",
+    "/assets/kaykit/resources/Wood_Log_A.gltf"
+  ]
+}

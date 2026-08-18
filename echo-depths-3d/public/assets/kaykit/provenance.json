@@ -1,0 +1,430 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-08-14",
+  "author": "Kay Lousberg",
+  "acquisition": {
+    "method": "Official itch.io anonymous 'No thanks, just take me to the downloads' flow",
+    "authenticationRequired": false,
+    "paymentRequired": false,
+    "archivesIncludedInPublic": false
+  },
+  "license": {
+    "spdx": "CC0-1.0",
+    "name": "Creative Commons Zero v1.0 Universal",
+    "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "attributionRequired": false,
+    "suggestedCredit": "Kay Lousberg, www.kaylousberg.com",
+    "archiveWording": "This content is free to use in personal, educational and commercial projects."
+  },
+  "productionSelection": {
+    "fileCount": 50,
+    "totalBytes": 5703863,
+    "textureOptimization": "The two shared 1024x1024 PNG color maps were downscaled to 512x512 with high-quality bicubic resampling for the mobile runtime. Geometry, animation data, UVs, and source style were not altered."
+  },
+  "animationStateCoverage": {
+    "Idle": {
+      "file": "/assets/kaykit/animations/Rig_Medium_General.glb",
+      "clip": "Idle_A"
+    },
+    "Walk": {
+      "file": "/assets/kaykit/animations/Rig_Medium_MovementBasic.glb",
+      "clip": "Walking_A"
+    },
+    "Run": {
+      "file": "/assets/kaykit/animations/Rig_Medium_MovementBasic.glb",
+      "clip": "Running_A"
+    },
+    "Jump": {
+      "file": "/assets/kaykit/animations/Rig_Medium_MovementBasic.glb",
+      "clip": "Jump_Start"
+    },
+    "Fall": {
+      "file": "/assets/kaykit/animations/Rig_Medium_MovementBasic.glb",
+      "clip": "Jump_Idle"
+    },
+    "Land": {
+      "file": "/assets/kaykit/animations/Rig_Medium_MovementBasic.glb",
+      "clip": "Jump_Land"
+    },
+    "Carry": {
+      "file": "/assets/kaykit/animations/Rig_Medium_Tools.glb",
+      "clip": "Holding_A"
+    },
+    "Throw": {
+      "file": "/assets/kaykit/animations/Rig_Medium_General.glb",
+      "clip": "Throw"
+    },
+    "Interact": {
+      "file": "/assets/kaykit/animations/Rig_Medium_General.glb",
+      "clip": "Interact"
+    },
+    "Attack": {
+      "file": "/assets/kaykit/animations/Rig_Medium_CombatMelee.glb",
+      "clip": "Melee_1H_Attack_Slice_Horizontal"
+    },
+    "Dash": {
+      "file": "/assets/kaykit/animations/Rig_Medium_MovementAdvanced.glb",
+      "clip": "Dodge_Forward"
+    },
+    "Hit": {
+      "file": "/assets/kaykit/animations/Rig_Medium_General.glb",
+      "clip": "Hit_A"
+    },
+    "Defeat": {
+      "file": "/assets/kaykit/animations/Rig_Medium_General.glb",
+      "clip": "Death_A"
+    }
+  },
+  "archives": [
+    {
+      "archiveName": "KayKit_Adventurers_2.0_FREE.zip",
+      "stagedPath": "work/kaykit-downloads/KayKit_Adventurers_2.0_FREE.zip",
+      "bytes": 13024345,
+      "sha256": "abe48f4763fba0896bab486ee9e6d08ca6b5b3884b9601f235c8847ae94dc479",
+      "officialUrl": "https://kaylousberg.itch.io/kaykit-adventurers",
+      "purchaseUrl": "https://kaylousberg.itch.io/kaykit-adventurers/purchase",
+      "freeTier": "Free 2.0",
+      "license": "CC0-1.0",
+      "selectedFiles": [
+        {
+          "sourcePath": "KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb",
+          "publicUrl": "/assets/kaykit/characters/Knight.glb",
+          "bytes": 341688,
+          "sha256": "e484370733824a0740683e7f6040aae0d20e5efd4107dde1175d6a2ad7e2f199"
+        },
+        {
+          "sourcePath": "KayKit_Adventurers_2.0_FREE/License.txt",
+          "publicUrl": "/assets/kaykit/licenses/Adventurers-License.txt",
+          "bytes": 1554,
+          "sha256": "d4adc31660d1db22eb60eba648e01db41577548f6fa1a3576cb4a6283dae0a58"
+        }
+      ]
+    },
+    {
+      "archiveName": "KayKit_Character_Animations_1.1.zip",
+      "stagedPath": "work/kaykit-downloads/KayKit_Character_Animations_1.1.zip",
+      "bytes": 14858957,
+      "sha256": "65882f31f905ad2e953819648a59287cdeab8f623908d5ef701971d3758be20f",
+      "officialUrl": "https://kaylousberg.itch.io/kaykit-character-animations",
+      "purchaseUrl": "https://kaylousberg.itch.io/kaykit-character-animations/purchase",
+      "freeTier": "Free 1.1",
+      "license": "CC0-1.0",
+      "selectedFiles": [
+        {
+          "sourcePath": "KayKit_Character_Animations_1.1/Animations/gltf/Rig_Medium/Rig_Medium_General.glb",
+          "publicUrl": "/assets/kaykit/animations/Rig_Medium_General.glb",
+          "bytes": 828240,
+          "sha256": "5f725c0f745f36078c7238968cd5c04843cbc6260689eb6e7f5e2bbd7ffdd7ad"
+        },
+        {
+          "sourcePath": "KayKit_Character_Animations_1.1/Animations/gltf/Rig_Medium/Rig_Medium_MovementBasic.glb",
+          "publicUrl": "/assets/kaykit/animations/Rig_Medium_MovementBasic.glb",
+          "bytes": 689624,
+          "sha256": "11422afd50abf7e8c92ea107e2e0bc94abd38023d6d15f55ad580347efbfa29e"
+        },
+        {
+          "sourcePath": "KayKit_Character_Animations_1.1/Animations/gltf/Rig_Medium/Rig_Medium_MovementAdvanced.glb",
+          "publicUrl": "/assets/kaykit/animations/Rig_Medium_MovementAdvanced.glb",
+          "bytes": 719628,
+          "sha256": "8b2317cf81e3f24149e4b791c27e1932bebd46cd378ed962e7d27d642fad8c56"
+        },
+        {
+          "sourcePath": "KayKit_Character_Animations_1.1/Animations/gltf/Rig_Medium/Rig_Medium_CombatMelee.glb",
+          "publicUrl": "/assets/kaykit/animations/Rig_Medium_CombatMelee.glb",
+          "bytes": 999416,
+          "sha256": "c55e6ec1c79e83ae21d46fe1cd921c1b64be8b9a524a24517e51c6ba99231459"
+        },
+        {
+          "sourcePath": "KayKit_Character_Animations_1.1/Animations/gltf/Rig_Medium/Rig_Medium_Tools.glb",
+          "publicUrl": "/assets/kaykit/animations/Rig_Medium_Tools.glb",
+          "bytes": 1461204,
+          "sha256": "e3b62dc122c5073373376a846e354137add2088ddcce8731c389fc5c20734aad"
+        },
+        {
+          "sourcePath": "KayKit_Character_Animations_1.1/License.txt",
+          "publicUrl": "/assets/kaykit/licenses/Character-Animations-License.txt",
+          "bytes": 1548,
+          "sha256": "373b159044d1a886ed15f57ca5a7673ba14e2623c460283452705f2056912ed9"
+        }
+      ]
+    },
+    {
+      "archiveName": "KayKit_Dungeon_Pack_1.1_FREE.zip",
+      "stagedPath": "work/kaykit-downloads/KayKit_Dungeon_Pack_1.1_FREE.zip",
+      "bytes": 32868755,
+      "sha256": "6acb859d1aefae074f937d1e6f13656a7312b2bdb6d9f1232ebdade8d93d6a1c",
+      "officialUrl": "https://kaylousberg.itch.io/kaykit-dungeon-pack",
+      "purchaseUrl": "https://kaylousberg.itch.io/kaykit-dungeon-pack/purchase",
+      "freeTier": "Free 1.1",
+      "license": "CC0-1.0",
+      "selectedFiles": [
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/floor_tile_large.gltf",
+          "publicUrl": "/assets/kaykit/environment/floor_tile_large.gltf",
+          "bytes": 2999,
+          "sha256": "c9c8807b44e18ecf1cb058b45f237008a23503e95e2d2282498730c87a734af1"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/floor_tile_large.bin",
+          "publicUrl": "/assets/kaykit/environment/floor_tile_large.bin",
+          "bytes": 9928,
+          "sha256": "d4649c85286ff59fbf4b3fc8e5b228dc63ee2bb6914dbe716ca88acc9937ab23"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/floor_tile_small.gltf",
+          "publicUrl": "/assets/kaykit/environment/floor_tile_small.gltf",
+          "bytes": 2997,
+          "sha256": "f0010a6d9debe6856e73c2706566a846d87b05135d5ef02b242e5ccbe169905c"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/floor_tile_small.bin",
+          "publicUrl": "/assets/kaykit/environment/floor_tile_small.bin",
+          "bytes": 3596,
+          "sha256": "3ec7d573d3dc154e99688ddd01ac726d35a14955ce8ba2bd3815b87ae845885d"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/wall.gltf",
+          "publicUrl": "/assets/kaykit/environment/wall.gltf",
+          "bytes": 2940,
+          "sha256": "e7262d242545816fde7ab138be802a50e5e4af0a5a392682a32c5657184d4de1"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/wall.bin",
+          "publicUrl": "/assets/kaykit/environment/wall.bin",
+          "bytes": 35284,
+          "sha256": "cb081f98e2abd7f857d812534fe40c8b151b628a5b15f1c1c532fd93b46c29b2"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/wall_corner.gltf",
+          "publicUrl": "/assets/kaykit/environment/wall_corner.gltf",
+          "bytes": 2988,
+          "sha256": "0e11f419d2bac3495978a57b5130f42c2bc50231e9335c8b7687bcfef4e33f59"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/wall_corner.bin",
+          "publicUrl": "/assets/kaykit/environment/wall_corner.bin",
+          "bytes": 31172,
+          "sha256": "d7003d519c8ac34d2d65a6cf7ddb710f385f6efcf8554c484e88fcad7e39eb6f"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/wall_half.gltf",
+          "publicUrl": "/assets/kaykit/environment/wall_half.gltf",
+          "bytes": 3000,
+          "sha256": "7601b663ca48010159da2800ec572116e8a2a06af981caedef6030aa5db65714"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/wall_half.bin",
+          "publicUrl": "/assets/kaykit/environment/wall_half.bin",
+          "bytes": 19360,
+          "sha256": "b516893f924f06bf41c45b67321c51e94ac6dfa751c995939766eb4449b5e40a"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/wall_doorway.gltf",
+          "publicUrl": "/assets/kaykit/environment/wall_doorway.gltf",
+          "bytes": 5045,
+          "sha256": "0c3a76c0a92b541e103de3244468c2f22cf75d97242f4572a32119738b3e9427"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/wall_doorway.bin",
+          "publicUrl": "/assets/kaykit/environment/wall_doorway.bin",
+          "bytes": 52360,
+          "sha256": "e6fb2825c6f4d86f61aab8c7aab773826add3bc9be727dcdfe7510ab2792e785"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/stairs.gltf",
+          "publicUrl": "/assets/kaykit/environment/stairs.gltf",
+          "bytes": 2990,
+          "sha256": "40e14349e811d092c2e45b32197dde9f522d811f75e693537eb6fd3450249cd7"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/stairs.bin",
+          "publicUrl": "/assets/kaykit/environment/stairs.bin",
+          "bytes": 25700,
+          "sha256": "f048336109afcaa340062e58cb4598e44615cc565bc04a17090c6e069fbc6633"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/stairs_wide.gltf",
+          "publicUrl": "/assets/kaykit/environment/stairs_wide.gltf",
+          "bytes": 3005,
+          "sha256": "b2a1c1f88ff616ddbf5e8c59146fa6d00fcc52e8980c8956946d309461daea9d"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/stairs_wide.bin",
+          "publicUrl": "/assets/kaykit/environment/stairs_wide.bin",
+          "bytes": 25700,
+          "sha256": "0c45683ad3c434864b9beb436e8a28aab0edee963aa3d91a052b222c85eca64a"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/stairs_narrow.gltf",
+          "publicUrl": "/assets/kaykit/environment/stairs_narrow.gltf",
+          "bytes": 3009,
+          "sha256": "b16f82968b832cc50e5a21701b2584575405cdf7ae6d7a470846ab3faed86397"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/stairs_narrow.bin",
+          "publicUrl": "/assets/kaykit/environment/stairs_narrow.bin",
+          "bytes": 25700,
+          "sha256": "e0d5cadf1205d9e345091802e3a2cf0d220acd323637458d051dfabc2c95addf"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/column.gltf",
+          "publicUrl": "/assets/kaykit/environment/column.gltf",
+          "bytes": 3012,
+          "sha256": "2208960efa3f835a4dbd87e7ed942a81f57f7eb793388d5db65590c5936a8403"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/column.bin",
+          "publicUrl": "/assets/kaykit/environment/column.bin",
+          "bytes": 3208,
+          "sha256": "e82740f9fda6b695caf0c956c7d74ae31db307eaa344cdd75fe548fd0482387e"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/pillar.gltf",
+          "publicUrl": "/assets/kaykit/environment/pillar.gltf",
+          "bytes": 2985,
+          "sha256": "e82b97258de31743aa7874abebd27764e4a48b19d686f6e1493ce8209ac894b0"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/pillar.bin",
+          "publicUrl": "/assets/kaykit/environment/pillar.bin",
+          "bytes": 8528,
+          "sha256": "6fc17e077a7f071f44aa24ee6dce92a719d910363cabfc17ea0cf849983d048f"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/box_large.gltf",
+          "publicUrl": "/assets/kaykit/environment/box_large.gltf",
+          "bytes": 3019,
+          "sha256": "03bf4a953d7b0a990d0757e5a765e542ce542d6ddd5757df976a920d6c6ab94c"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/box_large.bin",
+          "publicUrl": "/assets/kaykit/environment/box_large.bin",
+          "bytes": 11368,
+          "sha256": "df37123c30133988db4cf6c0b1b98dabd3b92778b42261f18979c0bd37158c96"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/box_small.gltf",
+          "publicUrl": "/assets/kaykit/environment/box_small.gltf",
+          "bytes": 2972,
+          "sha256": "98acd9d7ee3aaa8649022e6c2d0e754c2f4189f92af5c4f5490d13c1a982cd8f"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/box_small.bin",
+          "publicUrl": "/assets/kaykit/environment/box_small.bin",
+          "bytes": 11368,
+          "sha256": "7eb8cdbe293befba6e98152e430ea8798a5d189ec0eea51de03f9bf3f5097174"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/crates_stacked.gltf",
+          "publicUrl": "/assets/kaykit/environment/crates_stacked.gltf",
+          "bytes": 3070,
+          "sha256": "ffd45fe1637f6ced570b489771958034ae41f077debca69eafd7c825318062ab"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/crates_stacked.bin",
+          "publicUrl": "/assets/kaykit/environment/crates_stacked.bin",
+          "bytes": 82068,
+          "sha256": "7ef3950564c1746f7f6dd0175903e6b76507351168dbb68e9516bb322ca6e48f"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/floor_tile_big_spikes.gltf",
+          "publicUrl": "/assets/kaykit/environment/floor_tile_big_spikes.gltf",
+          "bytes": 4927,
+          "sha256": "347de7dafb698bb53756d5874615f4d541bd85c9c8923f7d25402b338644fb94"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/floor_tile_big_spikes.bin",
+          "publicUrl": "/assets/kaykit/environment/floor_tile_big_spikes.bin",
+          "bytes": 41140,
+          "sha256": "48af7bba78c3d1b286cd026db1047362e942bcec032c228e1c96b9d6d4c3898f"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/torch_lit.gltf",
+          "publicUrl": "/assets/kaykit/environment/torch_lit.gltf",
+          "bytes": 3045,
+          "sha256": "2962691576e45f5b80debe2ce35f99d9f929f9d013ad9f7bc8e96341beef48e5"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/torch_lit.bin",
+          "publicUrl": "/assets/kaykit/environment/torch_lit.bin",
+          "bytes": 11764,
+          "sha256": "1ac41275544c951d7db724b78452b5a27399718691b83de3c1ba727d8b9e5944"
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/Assets/gltf/dungeon_texture.png",
+          "publicUrl": "/assets/kaykit/environment/dungeon_texture.png",
+          "bytes": 60114,
+          "sha256": "03b9ebd6840ebafbb771d4137dd48c0c01d4a05fb0a312edf50dc1c85bdaaeb1",
+          "runtimeModification": "Downscaled from 1024x1024 to 512x512 with high-quality bicubic resampling."
+        },
+        {
+          "sourcePath": "KayKit_Dungeon_Pack_1.1_FREE/License.txt",
+          "publicUrl": "/assets/kaykit/licenses/Dungeon-Pack-License.txt",
+          "bytes": 1374,
+          "sha256": "3ad9bfddc7e218841ee558f6c462369230021192183a29e5ed1793942c752290"
+        }
+      ]
+    },
+    {
+      "archiveName": "KayKit_ResourceBits_1.0_FREE.zip",
+      "stagedPath": "work/kaykit-downloads/KayKit_ResourceBits_1.0_FREE.zip",
+      "bytes": 8520574,
+      "sha256": "7056f1310896a4612a67703fd6d5af389fcccdeb46df0a89e2322aa8e3bcfcf7",
+      "officialUrl": "https://kaylousberg.itch.io/resource-bits",
+      "purchaseUrl": "https://kaylousberg.itch.io/resource-bits/purchase",
+      "freeTier": "Free 1.0",
+      "license": "CC0-1.0",
+      "selectedFiles": [
+        {
+          "sourcePath": "KayKit_ResourceBits_1.0_FREE/Assets/gltf/Parts_Cog.gltf",
+          "publicUrl": "/assets/kaykit/resources/Parts_Cog.gltf",
+          "bytes": 3047,
+          "sha256": "85103a0fd958df1223dbb3f05dd821f0b7d2dc890da170fe127d9130ef77ac4c"
+        },
+        {
+          "sourcePath": "KayKit_ResourceBits_1.0_FREE/Assets/gltf/Parts_Cog.bin",
+          "publicUrl": "/assets/kaykit/resources/Parts_Cog.bin",
+          "bytes": 8832,
+          "sha256": "fd2df471dfd61dadd626cbe97fd91046e1c0cdf84d302eb4f75633f5e26f2a2e"
+        },
+        {
+          "sourcePath": "KayKit_ResourceBits_1.0_FREE/Assets/gltf/Fuel_A_Barrel.gltf",
+          "publicUrl": "/assets/kaykit/resources/Fuel_A_Barrel.gltf",
+          "bytes": 3000,
+          "sha256": "1d6ac7a453c7f721e9ce33c93cf562d1819105b0d71bbd05d77f9a15655a8611"
+        },
+        {
+          "sourcePath": "KayKit_ResourceBits_1.0_FREE/Assets/gltf/Fuel_A_Barrel.bin",
+          "publicUrl": "/assets/kaykit/resources/Fuel_A_Barrel.bin",
+          "bytes": 30648,
+          "sha256": "d6e29b6fdfa513ea12530beffd96cfe88198a50e0fc5d1fb38f9f08e4b221f04"
+        },
+        {
+          "sourcePath": "KayKit_ResourceBits_1.0_FREE/Assets/gltf/Wood_Log_A.gltf",
+          "publicUrl": "/assets/kaykit/resources/Wood_Log_A.gltf",
+          "bytes": 3056,
+          "sha256": "39827330b7d77d528149bd57197b4204f72d471cc2cda290fb4a18a6165a1e68"
+        },
+        {
+          "sourcePath": "KayKit_ResourceBits_1.0_FREE/Assets/gltf/Wood_Log_A.bin",
+          "publicUrl": "/assets/kaykit/resources/Wood_Log_A.bin",
+          "bytes": 40312,
+          "sha256": "cc8de89a2079438987df3b0157118b81bb506dd1a89367ec0273ab28e056e7a7"
+        },
+        {
+          "sourcePath": "KayKit_ResourceBits_1.0_FREE/Assets/gltf/resource_bits_texture.png",
+          "publicUrl": "/assets/kaykit/resources/resource_bits_texture.png",
+          "bytes": 58869,
+          "sha256": "aa3eaf778cf52cb663c1d32dd4b5847689c99259652dc3b20bee1be6788d1896",
+          "runtimeModification": "Downscaled from 1024x1024 to 512x512 with high-quality bicubic resampling."
+        },
+        {
+          "sourcePath": "KayKit_ResourceBits_1.0_FREE/License.txt",
+          "publicUrl": "/assets/kaykit/licenses/Resource-Bits-License.txt",
+          "bytes": 1462,
+          "sha256": "cfeda9f60f4c03bb8b342ab4448c944ea5dccc84cd697b4b8eaedcdaa46fcc34"
+        }
+      ]
+    }
+  ]
+}

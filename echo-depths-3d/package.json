@@ -1,0 +1,26 @@
+{
+  "name": "echo-depths-3d",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "node ./node_modules/@playwright/test/cli.js test",
+    "test:production": "node ./node_modules/@playwright/test/cli.js test --config=playwright.production.config.ts"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.20.0",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/three": "^0.185.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#07131b" />
+    <meta name="description" content="ECHO DEPTHS — a 3D time-echo cooperative puzzle action game." />
+    <title>ECHO DEPTHS</title>
+  </head>
+  <body>
+    <main id="app" aria-live="polite">
+      <canvas id="game-canvas" aria-label="ECHO DEPTHS 3D game"></canvas>
+      <div id="loading-screen" class="screen screen--visible">
+        <div class="loading-mark" aria-hidden="true"></div>
+        <p class="eyebrow" data-i18n="loadingEyebrow">TEMPORAL VAULT // INITIALIZING</p>
+        <h1>ECHO DEPTHS</h1>
+        <p id="loading-label">Synchronizing the descent…</p>
+        <div class="progress-track" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="loading-progress"></div>
+        </div>
+      </div>
+      <section id="language-screen" class="screen" aria-labelledby="language-heading">
+        <p class="eyebrow">TEMPORAL VAULT // 05</p>
+        <h1 id="language-heading">ECHO DEPTHS</h1>
+        <p class="language-prompt">Choose your language · 언어를 선택하세요</p>
+        <div class="language-actions">
+          <button type="button" data-language="ko">한국어 <span>2</span></button>
+          <button type="button" data-language="en">English <span>1</span></button>
+        </div>
+      </section>
+      <section id="title-screen" class="screen" aria-labelledby="game-title">
+        <div class="title-copy">
+          <p class="eyebrow" data-i18n="titleEyebrow"></p>
+          <h1 id="game-title">ECHO<br />DEPTHS</h1>
+          <p class="title-hook" data-i18n="titleHook"></p>
+          <p class="title-rule" data-i18n="titleRule"></p>
+          <div class="title-actions">
+            <button type="button" id="start-button" class="primary" data-i18n="start"></button>
+            <button type="button" id="chapter-button" data-i18n="chapterSelect"></button>
+            <button type="button" id="title-settings" data-i18n="settings"></button>
+            <button type="button" id="title-fullscreen" data-i18n="fullscreen"></button>
+            <button type="button" id="sound-button" data-i18n="soundOn"></button>
+          </div>
+          <details class="controls-card">
+            <summary data-i18n="controls"></summary>
+            <p data-i18n="controlsDesktop"></p>
+            <p data-i18n="controlsEcho"></p>
+          </details>
+        </div>
+        <div id="chapter-select" class="chapter-select" hidden></div>
+      </section>
+      <section id="hud" class="hud" hidden>
+        <div class="hud__top">
+          <div class="chapter-lockup">
+            <span id="chapter-number"></span>
+            <strong id="chapter-name"></strong>
+          </div>
+          <div class="hud__status">
+            <div id="echo-status"></div>
+            <div id="timer-status"></div>
+          </div>
+          <div class="hud__tools">
+            <button type="button" id="hud-sound" aria-label="Sound">◐</button>
+            <button type="button" id="hud-fullscreen" aria-label="Fullscreen">⛶</button>
+            <button type="button" id="pause-button" aria-label="Pause">Ⅱ</button>
+          </div>
+        </div>
+        <div id="objective-panel">
+          <span data-i18n="objective"></span>
+          <strong id="objective-text"></strong>
+        </div>
+        <div id="feedback" role="status"></div>
+        <div id="interact-prompt"></div>
+        <div id="echo-timeline"><div id="echo-timeline-fill"></div></div>
+        <aside id="tutorial-panel" class="tutorial-panel" hidden aria-live="polite" aria-labelledby="tutorial-title">
+          <p class="eyebrow" data-i18n="tutorialEyebrow"></p>
+          <h2 id="tutorial-title"></h2>
+          <p id="tutorial-copy"></p>
+          <ol id="tutorial-steps" class="tutorial-steps"></ol>
+          <div class="tutorial-actions">
+            <button type="button" id="tutorial-continue" class="primary" data-i18n="tutorialContinue" hidden></button>
+            <button type="button" id="tutorial-skip" data-i18n="tutorialSkip"></button>
+          </div>
+        </aside>
+      </section>
+      <section id="pause-screen" class="screen overlay" hidden>
+        <p class="eyebrow" data-i18n="paused"></p>
+        <h2 data-i18n="pauseTitle"></h2>
+        <div class="overlay-actions">
+          <button type="button" id="resume-button" class="primary" data-i18n="resume"></button>
+          <button type="button" id="restart-button" data-i18n="restartChapter"></button>
+          <button type="button" id="pause-settings" data-i18n="settings"></button>
+          <button type="button" id="pause-fullscreen" data-i18n="fullscreen"></button>
+          <button type="button" id="quit-button" data-i18n="returnTitle"></button>
+        </div>
+      </section>
+      <section id="settings-screen" class="screen overlay" role="dialog" aria-modal="true" hidden aria-labelledby="settings-heading">
+        <p class="eyebrow" data-i18n="settingsEyebrow"></p>
+        <h2 id="settings-heading" data-i18n="settingsTitle"></h2>
+        <p class="settings-copy" data-i18n="settingsBody"></p>
+        <div class="settings-panel">
+          <div class="settings-group" role="group" aria-labelledby="settings-language-label">
+            <strong id="settings-language-label" data-i18n="settingsLanguage"></strong>
+            <div class="settings-options">
+              <button type="button" data-settings-language="en" data-i18n="languageEnglish"></button>
+              <button type="button" data-settings-language="ko" data-i18n="languageKorean"></button>
+            </div>
+          </div>
+          <div class="settings-group" role="group" aria-labelledby="settings-sound-label">
+            <strong id="settings-sound-label" data-i18n="settingsSound"></strong>
+            <button type="button" id="settings-sound" data-i18n="soundOn"></button>
+          </div>
+          <div class="settings-group" role="group" aria-labelledby="settings-display-label">
+            <strong id="settings-display-label" data-i18n="settingsDisplay"></strong>
+            <button type="button" id="settings-fullscreen" data-i18n="fullscreen"></button>
+          </div>
+          <div class="settings-group settings-group--controls" role="group" aria-labelledby="settings-controls-label">
+            <strong id="settings-controls-label" data-i18n="settingsControls"></strong>
+            <dl class="control-grid">
+              <div><dt><kbd>WASD</kbd> <kbd>↑↓←→</kbd></dt><dd data-i18n="controlMove"></dd></div>
+              <div><dt><kbd>Mouse drag</kbd> <kbd>Q / C</kbd></dt><dd data-i18n="controlCamera"></dd></div>
+              <div><dt><kbd>Space</kbd></dt><dd data-i18n="controlJump"></dd></div>
+              <div><dt><kbd>E</kbd></dt><dd data-i18n="controlInteract"></dd></div>
+              <div><dt><kbd>R</kbd></dt><dd data-i18n="controlEcho"></dd></div>
+              <div><dt><kbd>J</kbd> <kbd>LMB</kbd></dt><dd data-i18n="controlAttack"></dd></div>
+              <div><dt><kbd>K</kbd> <kbd>RMB</kbd></dt><dd data-i18n="controlThrow"></dd></div>
+              <div><dt><kbd>Shift</kbd></dt><dd data-i18n="controlDash"></dd></div>
+              <div><dt><kbd>Esc</kbd> <kbd>F</kbd></dt><dd data-i18n="controlSystem"></dd></div>
+            </dl>
+          </div>
+        </div>
+        <button type="button" id="settings-close" class="primary" data-i18n="settingsBack"></button>
+      </section>
+      <section id="chapter-complete" class="screen overlay" hidden>
+        <p class="eyebrow" data-i18n="chapterComplete"></p>
+        <h2 id="complete-title"></h2>
+        <p id="complete-summary"></p>
+        <button type="button" id="continue-button" class="primary" data-i18n="continue"></button>
+      </section>
+      <section id="ending-screen" class="screen" hidden>
+        <p class="eyebrow" data-i18n="endingEyebrow"></p>
+        <h2 data-i18n="endingTitle"></h2>
+        <div id="ending-stats"></div>
+        <div class="ending-rank"><span data-i18n="rank"></span><strong id="final-rank">S</strong></div>
+        <div class="overlay-actions">
+          <button type="button" id="replay-button" class="primary" data-i18n="replay"></button>
+          <button type="button" id="ending-chapters" data-i18n="chapterSelect"></button>
+        </div>
+      </section>
+      <section id="rotation-screen" class="screen overlay" hidden>
+        <div class="rotate-device" aria-hidden="true"></div>
+        <h2 data-i18n="rotateTitle"></h2>
+        <p data-i18n="rotateBody"></p>
+      </section>
+      <section id="error-screen" class="screen overlay" hidden>
+        <p class="eyebrow" data-i18n="errorEyebrow"></p>
+        <h2 data-i18n="errorTitle"></h2>
+        <p id="error-message"></p>
+        <button type="button" id="error-reload" data-i18n="reload"></button>
+      </section>
+      <div id="mobile-controls" hidden aria-label="Touch controls">
+        <div id="move-zone" class="touch-zone" aria-label="Move"><div id="move-stick"></div></div>
+        <div id="camera-zone" class="camera-zone" aria-label="Camera"></div>
+        <div class="touch-actions">
+          <button type="button" data-action="jump" data-i18n="jump"></button>
+          <button type="button" data-action="interact" data-i18n="use"></button>
+          <button type="button" data-action="attack" data-i18n="attack"></button>
+          <button type="button" data-action="throw" data-i18n="throw"></button>
+          <button type="button" data-action="dash" data-i18n="dash"></button>
+          <button type="button" data-action="echo" class="echo-action" data-i18n="echo"></button>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

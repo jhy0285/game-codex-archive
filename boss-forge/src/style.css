@@ -1,0 +1,38 @@
+:root {
+  font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  color: #eee5cf;
+  background: #050706;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background:
+    radial-gradient(circle at 50% 28%, rgba(91, 137, 126, 0.12), transparent 38%),
+    linear-gradient(180deg, #0a0d0c 0%, #050706 72%);
+}
+
+#app {
+  display: grid;
+  place-items: center;
+}
+
+canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 28px 100px rgba(0, 0, 0, 0.72);
+}

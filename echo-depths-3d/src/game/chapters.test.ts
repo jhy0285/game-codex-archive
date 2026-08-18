@@ -1,0 +1,85 @@
+import { describe, expect, it } from 'vitest'
+import { CHAPTERS, ObjectiveFacts } from './chapters'
+import {
+  evaluateChapterObjectives,
+  objectiveFactsFromWorld,
+} from './objectives'
+
+describe('authored chapter objectives', () => {
+  it('defines five ordered chapters with unique authored devices', () => {
+    expect(CHAPTERS).toHaveLength(5)
+    expect(CHAPTERS.map((chapter) => chapter.index)).toEqual([1, 2, 3, 4, 5])
+    expect(new Set(CHAPTERS.map((chapter) => chapter.id)).size).toBe(5)
+    for (const chapter of CHAPTERS) {
+      expect(chapter.objectives.length).toBeGreaterThanOrEqual(3)
+      expect(chapter.victoryFacts.length).toBeGreaterThanOrEqual(3)
+      expect(chapter.echoMaxTicks).toBeGreaterThan(0)
+    }
+  })
+
+  it.each(CHAPTERS)('$id completes only when every victory fact is present', (chapter) => {
+    const complete = evaluateChapterObjectives(chapter, chapter.victoryFacts)
+    expect(complete.complete).toBe(true)
+    expect(complete.objectives.every((objective) => objective.complete)).toBe(true)
+
+    for (const omitted of chapter.victoryFacts) {
+      const partial = chapter.victoryFacts.filter((fact) => fact !== omitted)
+      const evaluation = evaluateChapterObjectives(chapter, partial)
+      expect(evaluation.complete).toBe(false)
+      expect(evaluation.missingVictoryFacts).toContain(omitted)
+    }
+  })
+
+  it('requires hazard defeat rather than ordinary watcher damage', () => {
+    const evaluation = evaluateChapterObjectives('watchers-gallery', [
+      ObjectiveFacts.WatcherLuredByEcho,
+      ObjectiveFacts.PlayerAtExit,
+    ])
+    expect(evaluation.complete).toBe(false)
+    expect(evaluation.missingVictoryFacts).toEqual([ObjectiveFacts.WatcherDefeatedByHazard])
+  })
+
+  it('requires echo distraction, height seal, both devices, and a live timer in the finale', () => {
+    const evaluation = evaluateChapterObjectives('paradox-well', [
+      ObjectiveFacts.CoreInWellReceiver,
+      ObjectiveFacts.GuardianDistractedByEcho,
+      ObjectiveFacts.EchoOnFinalPlate,
+      ObjectiveFacts.PlayerHoldingFinalLever,
+      ObjectiveFacts.PlayerAtExit,
+    ])
+    expect(evaluation.complete).toBe(false)
+    expect(evaluation.missingVictoryFacts).toEqual([
+      ObjectiveFacts.CoreThrownDownWell,
+      ObjectiveFacts.GuardianRearSealBrokenFromHeight,
+      ObjectiveFacts.EscapeTimerActive,
+    ])
+  })
+
+  it('does not treat a directly socketed well core as the required upper-to-lower delivery', () => {
+    const chapter = CHAPTERS[4]
+    if (!chapter) throw new Error('Paradox Well definition is missing')
+    const withoutThrow = chapter.victoryFacts.filter((fact) => fact !== ObjectiveFacts.CoreThrownDownWell)
+
+    const evaluation = evaluateChapterObjectives(chapter, withoutThrow)
+
+    expect(evaluation.complete).toBe(false)
+    expect(evaluation.missingVictoryFacts).toEqual([ObjectiveFacts.CoreThrownDownWell])
+  })
+
+  it('maps renderer/world facts into typed objective facts', () => {
+    expect(objectiveFactsFromWorld([
+      'bridge-lever-echo',
+      'core-caught',
+      'core-redirected',
+      'receiver-filled',
+      'core-route-complete',
+    ], true)).toEqual([
+      ObjectiveFacts.EchoHoldingBridgeLever,
+      ObjectiveFacts.CoreCaughtByPlayer,
+      ObjectiveFacts.CoreRedirectedByAttack,
+      ObjectiveFacts.CoreInAtriumReceiver,
+      ObjectiveFacts.BridgeLocked,
+      ObjectiveFacts.PlayerAtExit,
+    ])
+  })
+})

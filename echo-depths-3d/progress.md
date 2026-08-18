@@ -1,0 +1,121 @@
+# ECHO DEPTHS Progress
+
+Snapshot: 2026-08-18, Asia/Seoul.
+
+## Current state
+
+The independent `echo-depths-3d` source tree contains a skippable Stage 00 PC orientation room before the five-chapter 3D time-echo campaign, ending, strict TypeScript source, pure-rule and physics tests, KayKit character/animation integration, bilingual HTML/CSS UI, desktop/mobile input, and deterministic browser-facing state API.
+
+The local verification record currently shows:
+
+- strict TypeScript after source recovery: PASS;
+- Vite production build: final post-recovery PASS;
+- Vitest after the first-descent sensor/gate repair: PASS, 16 files and 77 tests;
+- Playwright functional/layout verification: PASS, 9/9 in 2.7 minutes;
+- local production-bundle smoke: PASS, 6/6 in 1.4 minutes;
+- representative chapter/settings/echo/ending/mobile capture inspection: PASS;
+- post-review snapshot, guardian, live-synchronizer, ramp/core-route, sensor, lifecycle, and feedback corrections: strict compiler, unit, production-bundle, and browser checks passed;
+- human physical-input and subjective play review: not recorded;
+- runtime implementation `0ea2318` and hosted-smoke hardening `4e77423` committed on `main`, with the final release records included in the release push;
+- isolated Vercel project, verified candidate, promoted production deployment, public alias, and build-log review: complete.
+- PC interaction/layout repair `0c4630a` pushed to `main`; protected candidate `dpl_A97dm31JWoJPN7u8kUvSCGTGjDyW` passed 5/5 in 1.3 minutes and promoted production `dpl_5oyUeBUT7ra13ZAeFeCNWSTbJWhT` passed public smoke 5/5 in 1.1 minutes.
+- First-descent sensor/gate follow-up `31884e1`: verified candidate `dpl_F6rWbcdYon6Q9mVUUzaEPvVGeRAT` passed protected smoke 6/6 in 2.3 minutes and promoted production `dpl_76sKrPvgfYcSJCoLUqXAxD8UdbQJ` passed public smoke 6/6 in 2.1 minutes.
+- PC follow-up `3a9b0f9` is pushed and remote-head verified. Local validation passed strict TypeScript, Vite build, Vitest 83/83, Playwright 13/13 in 3.3 minutes, local production smoke 6/6 in 44.9 seconds, and Stage 00 1440×900 visual review. Candidate `dpl_8EMLhJqJPs4RAu6mNYfMgCz1cu9S` passed 6/6 in 53.7 seconds; production `dpl_H6tdJdqpqS82QWid7dFpHbgzpzFi` is Ready, the public alias returned HTTP 200, and public smoke passed 6/6 in 1.1 minutes.
+- Carry-anchor follow-up `b1d4981` is pushed and remote-head verified. It separates the visible hand-side cargo mesh from its authored drop collider. Strict TypeScript, Vitest 84/84, Playwright 13/13 in 3.0 minutes, and local smoke 6/6 in 50.4 seconds pass; candidate `dpl_3xxaY6kiZowbhANr9D6NkuHam2RZ` passed 6/6 in 1.2 minutes and promoted production `dpl_FJYteX8jJN6tRvSqiKnkyGfwJ1Vx` returned HTTP 200 and passed 6/6 in 1.3 minutes.
+- Late-chapter clearability source `6046e00` is pushed and verified: Chapter 3 has a physical west-to-east route and catchable echo throw, Chapter 4's trap begins outside the watcher overlap and lure holds a readable strike lane, and Chapter 5's powered echo-held lower seal reliably lures the guardian. Strict build, Vitest 88/88, Playwright 13/13 in 3.1 minutes, targeted Chapter 2 browser completion in 54.2 seconds, and Chapter 3–5 screenshot review pass. Candidate `dpl_3AN2dPKpusX5waCJnAMoTv7i1Wc2` passed 6/6 in 56.5 seconds; production `dpl_DT6wvejwq8Txz1BtMTpfvRaiP17s` is Ready, the alias returned HTTP 200, and public smoke passed 6/6 in 56.7 seconds.
+- Pressure-scanner presentation source `6b17461` is pushed and released: the Chapter 1 echo plate, Chapter 2 cargo plate, and Chapter 5 lower seal use low-profile security-scanner assemblies rather than flat circular buttons. Sensor bounds and puzzle rules remain intact; the panel and four beacons report active state. Build, Vitest 89/89, Playwright 13/13, and PC Chapter 1 capture review pass. Candidate `dpl_8uP6jsXu17BHB1WUo79ipXe3H7HR` passed 6/6 in 1.1 minutes; production `dpl_2EoEkQKZQmJmn91VJnFtFHcuwh9y` is Ready, the alias returned HTTP 200, and public smoke passed 6/6 in 54.4 seconds.
+- Industrial device presentation source `0c9b60e` is pushed and released: all Stage 00–Chapter 5 levers, doors, moving decks, cargo, cores, traps, exits, receivers, enemies, and pillars now use layered industrial meshes with chapter accent lighting. Existing Rapier bodies, sensors, coordinates, and authored routes are unchanged. Build, Vitest 90/90, PC budget/all-chapter capture review, and Playwright 13/13 in 3.9 minutes pass. Candidate `dpl_24QfQ97NV5ZfJSnvNe7pJ97pc6vz` passed 6/6 in 2.0 minutes; production `dpl_GmnucrocKXFNKB5qqFarh4rdV8Df` is Ready, the alias returned HTTP 200, and public smoke passed 6/6 in 1.8 minutes.
+
+The prior production release record remains valid for its source commit. The PC interaction/layout repair is released on the current production alias; human feel review remains intentionally separate.
+
+## Implemented game
+
+- Three.js quarter-view WebGL dungeon with HTML/CSS loading, language, title, chapter select, HUD, pause, completion, ending, rotation, and error layers.
+- Rapier 3D world with a capsule kinematic controller, stairs, slopes, gravity, jump, landing, dash, dynamic cargo/core bodies, fixed sensors enabled for kinematic overlap, elevators, platforms, doors, traps, and enemies.
+- 60 Hz echo input tape with full motor/world record-start snapshots, present-to-echo ownership transfer, quantized movement/facing/actions, one replacement echo, shared simulation path, terminal interaction hold, route feedback, and non-colliding actors.
+- Five authored vertical chapters: tutorial plate, counterweight elevator, cross-height core/bridge, watcher cover/knockback trap, and core-powered guardian/dual-seal timed escape.
+- Ending with elapsed time, echo count, failure count, restart count, chapters cleared, rank, full replay, and chapter selection.
+- Korean and English UI catalogs with completeness tests.
+- Keyboard, mouse, virtual stick, touch camera, six touch actions, HUD pause/sound/fullscreen, pointer capture, and safe release.
+- Camera damping, look-ahead, collision shortening, obstruction fade, smoothed character facing, effects, generated audio, mobile quality limits, resize/orientation handling, and WebGL error handling.
+- Nearest-interactable outline and localized prompt, record/release temporal pulses, route feedback, and ballistic throw preview.
+- Full runtime rebuild/disposal path with a stale-generation guard, actor/device/enemy-target cleanup, and deterministic test hooks.
+- Stage 00 orientation drills and full bilingual Settings control reference; carried cargo follows the active camera heading with a short visual settle.
+- PC renderer cost guardrails: `1.5` maximum pixel ratio, 1536px desktop shadows, and 30 Hz obstruction sampling; browser regression bounds 1440×900 calls and triangles.
+
+## Assets
+
+- Four official free KayKit packs acquired from their author, Kay Lousberg, under CC0 1.0.
+- Exact production selection: 50 files, 5,703,863 bytes.
+- Current provenance audit: 50/50 length matches and 50/50 SHA-256 matches.
+- GLTFLoader loads the Knight, five animation libraries, and selected environment/resource models.
+- AnimationMixer drives Idle, Walk, Run, Jump, Fall, Land, Carry, Throw, Interact, Attack, Dash, Hit, and Defeat with crossfades and locomotion speed scaling.
+- The two shared 1024×1024 source color maps are optimized to 512×512 with bicubic resampling; the runtime PNGs total 118,983 bytes.
+- No source archive is included in `public/`, and no Hollow Knight asset or code is used.
+
+## Local verification complete
+
+The browser pass checked first-run language flow, real input, echo recording/replay, every chapter's required facts, ending/restart, fullscreen rejection, KayKit HTTP loading and active animation, four target viewports, portrait guidance, landscape touch, document bounds, visible 3D output, and runtime error/request collection. The functional run and representative visual capture review both pass locally.
+
+Runtime review corrections preserve the mutable motor/world snapshot, check guardian contact with the original distance, and require the current lower-plate plus upper-lever hold throughout the final passage. The authored ramp/downward core routes, player/echo interaction outlines, carry animation, allocation-free throw preview, fixed-sensor collision types, trap/core-loss feedback, three-ray enemy clearance, stale target cleanup, smoothed facing, temporal pulses, rebuild generation protection, audio/input reset, and actor-owned asset cleanup are connected. The PC repair also makes `E` interaction prompt-matched and unambiguous, confirms character blocking against solids and cargo, and replaces repeated non-physical set dressing with authored solid dressing. The first-descent follow-up excludes sensor bodies from capsule movement, preserves sensor overlap, and covers the real keyboard lever → echo plate → exit completion route. Strict TypeScript, 77 tests, the final build, Playwright 9/9, local production smoke 6/6, protected candidate smoke 6/6, and public production smoke 6/6 pass.
+
+## Recovery record
+
+During late runtime hardening, the system volume reached zero free bytes and failed patch writes reduced `src/world/DungeonWorld.ts` and `src/physics/RapierWorld.ts` to zero bytes. File writes were frozen, space was reclaimed, the successful local Codex patch history was used to reconstruct both sources, and the intended changes were reapplied. The recovered tree now passes strict TypeScript, Vitest 72/72, the final build, and both local browser suites.
+
+## Human-review boundary
+
+A person still needs to judge physical-keyboard feel, mouse comfort, real-device multi-touch reach and drift, camera and motion comfort, jump/dash/attack/catch feel, puzzle discovery, watcher/guardian fairness, pacing, difficulty, bilingual nuance, animation polish, audio balance, and fun. Automated state and screenshot checks do not establish these qualities.
+
+## Release boundary
+
+The required deployment target is a new Vercel project named `echo-depths-3d` with Root Directory `echo-depths-3d`. Existing sibling projects and aliases are protected, especially `echo-heist` and `https://echo-heist-gamma.vercel.app`.
+
+The project `echo-depths-3d` (`prj_s42Kw6wf1BRmonXJKpoyE29m1G9Z`) uses Root Directory `echo-depths-3d`. Candidate `dpl_6PkCsMr1xN8nRTReziHgJP45LZDd` passed 5/5 before promotion; production `dpl_9iieCJ7GovQ4yeHH8rDzT5SxCwYP` passed 5/5 at `https://echo-depths-3d.vercel.app`. The PC repair release from `0c4630a` then verified candidate `dpl_A97dm31JWoJPN7u8kUvSCGTGjDyW` (5/5 in 1.3 minutes) and production `dpl_5oyUeBUT7ra13ZAeFeCNWSTbJWhT` (public 5/5 in 1.1 minutes) on the same alias. Protected sibling projects and aliases were unchanged.
+
+## Completion handoff
+
+The code, verification record, GitHub push, isolated Vercel deployment, production alias, and public smoke are complete. Remaining observations are human-only physical control feel, real-device touch comfort, puzzle discovery, difficulty, bilingual nuance, animation/audio polish, and fun; mobile refinement is explicitly deferred rather than expanded during this closeout.
+
+The unrelated intake modification at `echo-heist/package-lock.json` remains outside this project's staging scope.
+
+## 2026-08-15 — First-two-stage completion repair
+
+- Source `3612837e6ff74eacc9d8457ae9d61b75f1b23445` closes the Chapter 1 closed-gate jump bypass, removes the stray stair bar, and keeps fixed pressure/lever/exit sensors live when a recording snapshot is restored.
+- Chapter 2 now requires the player to board the echo-powered lift, arrives at a non-intersecting upper dock, and permits a carried crate to fall through the open edge onto the required lower plate.
+- PC validation passed: strict Vite build, 16 Vitest files / 81 tests, Playwright 11/11 in 2.6 minutes, and local production smoke 6/6 in 40.6 seconds.
+- Protected candidate `dpl_B41ZFUiE1u4TKGg3PgVm1v8H4GtE` passed 6/6 in 1.0 minute. Promoted production `dpl_GFqr3mn3kSzE4qb9i3JSPDrSE6L2` is Ready; `https://echo-depths-3d.vercel.app` returned HTTP 200 and passed public smoke 6/6 in 52.7 seconds.
+- The scope is desktop PC only; mobile behavior was not extended or validated by this repair.
+
+## 2026-08-16 — PC orientation, carry, and render-cost follow-up
+
+- Stage 00 now blocks campaign start behind six optional but visible PC drills: movement, camera, jump, console interaction, crate carry, and echo release. It is safe, skippable, and excluded from campaign statistics.
+- Settings now exposes the complete desktop keyboard/mouse map in Korean and English. Carry uses camera heading for desired-direction placement and smoothly settles the visual cargo target.
+- The renderer caps pixel density at `1.5`, uses 1536px desktop shadows, and limits obstruction raycast/fade updates to 30 Hz. The 1440×900 browser regression remains below 300 calls and 300,000 triangles.
+- Source `3a9b0f9` is pushed to `main`; local evidence is complete: strict TypeScript, 83 Vitest checks, Vite build, 13 Playwright stories, 6 production-bundle smoke checks, and a tutorial screenshot review. Candidate `dpl_8EMLhJqJPs4RAu6mNYfMgCz1cu9S` passed 6/6 in 53.7 seconds, then promoted production `dpl_H6tdJdqpqS82QWid7dFpHbgzpzFi` returned HTTP 200 and passed public smoke 6/6 in 1.1 minutes.
+- Source `b1d4981` separates the hand-side visual cargo mesh from the unchanged authored carry collider. A 1.02-unit forward-gap regression covers movement and a 180-degree camera turn; Stage 00's held-crate capture was visually reviewed. Candidate `dpl_3xxaY6kiZowbhANr9D6NkuHam2RZ` passed 6/6 in 1.2 minutes; promoted production `dpl_FJYteX8jJN6tRvSqiKnkyGfwJ1Vx` returned HTTP 200 and passed public smoke 6/6 in 1.3 minutes.
+
+## 2026-08-17 — Late-chapter clearability follow-up
+
+- Chapter 3's upper-west shelf now has a climbable descent to the lower catch route. The aligned bridge no longer contributes a kinematic side wall, and the lower walk reaches the east receiver and exit floor.
+- Chapter 4's echo lure holds the watcher in a readable strike lane; the moved trap no longer defeats the watcher before the player attacks from the upper flank.
+- Chapter 5 now establishes guardian attention when the powered echo holds `lower-seal`, matching the authored cooperative route without a hidden sight-cone prerequisite.
+- Source `6046e00` passes strict TypeScript/Vite, 88 Vitest checks, the 13-story Playwright suite, targeted real Chapter 2 browser completion, and local Chapter 3–5 visual review. No KayKit asset or sibling project changed. Candidate `dpl_3AN2dPKpusX5waCJnAMoTv7i1Wc2` passed 6/6 in 56.5 seconds, and production `dpl_DT6wvejwq8Txz1BtMTpfvRaiP17s` is Ready with public HTTP 200 and smoke 6/6 in 56.7 seconds.
+
+## 2026-08-17 — PC movement and camera follow-up
+
+- Source `a7e88b1` keeps the deterministic 60 Hz motor/echo contract and authored speed caps while separating responsive normal acceleration, softer release deceleration, and strong reversal braking.
+- The PC camera now applies vertical drag through a clamped, damped orbit. Its obstruction target is sampled at 30 Hz, then retained and smoothed every render frame so close walls do not produce a 30 Hz distance pulse. Pointer deltas are capped per fixed tick to reject accidental jumps.
+- Local validation passed `npm ci` with 0 vulnerabilities, strict Vite build, 16 files / 93 Vitest tests, targeted real mouse-to-keyboard input, all 14 Playwright stories in 3.2 minutes, and PC capture review. Candidate `dpl_2mR1KvPWjb2tFffvbtsmyyvxEDEA` passed 6/6 in 1.1 minutes; production `dpl_6xtAgui3NMukXpfwJzCe3B3Rz4bV` is Ready, returned public HTTP 200, and passed smoke 6/6 in 54.5 seconds.
+
+## 2026-08-18 — Device motion audio follow-up
+
+- Source `6555825` adds synthesized device-state audio without adding binary assets: dedicated lever/carry/scanner/door/receiver cues plus one low mechanical loop per actively moving elevator, platform, or bridge.
+- `DungeonWorld` queues only real state-transition events. `GameApp` drains them on both sides of the physics step; events cannot alter Rapier state, snapshots, or the recorded echo frame contract.
+- Local evidence passed `npm ci` with 0 vulnerabilities, strict Vite build, 16 files / 96 Vitest tests, 14 Playwright stories in 3.3 minutes, and local production smoke 6/6 in 1.1 minutes. The authenticated Vercel recovery then verified candidate `dpl_4woHwEHVLuGd8kXj8LAVGJg5Ypaz` with smoke 6/6 in 1.1 minutes and promoted production `dpl_48KTUWgRHef83bXB9u7Xd9koT3CC`; the public alias returned HTTP 200 and final smoke passed 6/6 in 1.2 minutes.
+
+## 2026-08-18 — Temporary all-chapter access
+
+- Source `b2e687a` makes Chapters 1–5 immediately selectable before the player has cleared any stage. Stage 00 remains the separate Start-flow orientation room.
+- `STARTING_UNLOCKED_THROUGH` owns the temporary policy and is set to `5`; setting it back to `1` will restore the former sequential unlock flow without changing UI or completion logic.
+- Strict Vite build, 16 files / 96 Vitest tests, the focused fresh Chapter Select assertion, and all 15 Playwright stories pass. The source is included in candidate `dpl_4woHwEHVLuGd8kXj8LAVGJg5Ypaz` and promoted production `dpl_48KTUWgRHef83bXB9u7Xd9koT3CC`; the public alias returned HTTP 200 and final smoke passed 6/6 in 1.2 minutes.

@@ -1,0 +1,84 @@
+Original prompt: Read `prompt__boss.txt` and execute all of its instructions to deliver the complete BOSS FORGE Gate 1 prototype.
+
+## 2026-08-14 -- new-PC reproduction
+
+- Installed from the checked-in lockfile and reproduced Vitest 5/5, production build PASS, and Playwright 5/5.
+- Interactive in-app-browser agent QA exercised exact-two selection, combat entry, movement/shroud/pointer input, and defeat presentation with no console error. This was not a human playtest.
+- No source, mechanic, timing, coordinate, art, alias, or deployment change was required. The documented human feel/difficulty/variety review remains outstanding.
+
+## 2026-08-11
+
+- Inspected the default Vite repository and confirmed Vite, TypeScript, Phaser, Vitest, and Playwright dependencies.
+- Created the required project-contract and verification documents.
+- Replaced the default Vite UI with a single Phaser canvas and implemented configuration, all three boss attacks, player combat/dodge/health, win/lose, and configuration restart.
+- Added deterministic text-state/time hooks, focused Vitest logic coverage, and a Playwright smoke flow.
+- First Vitest run found that the Playwright smoke spec was being collected by Vitest; added a focused Vitest include rule. All five game-logic assertions themselves passed.
+- Vitest (5/5) and the production build passed. The first browser smoke attempt reached an unrelated ECHO HEIST server already using port 4173; isolated this project on strict port 4317.
+- The mandatory web-game client confirmed config state and a RADIAL BURST + AIMED SHOT fight with movement and damage, with no console errors. Its WebGL canvas captures were black in headless mode, so the primitive-shape game was switched to Canvas rendering for reliable visual verification; explicit boss HP text was also added.
+- Expanded Playwright coverage confirmed movement, dodge, firing, boss damage, boss death, and the win screen. It also found that a very short R press could fall entirely between render frames; restart now responds directly to the keydown event as well as the frame check.
+- Final verification: Vitest 5/5 passed, production build passed, Playwright 3/3 passed, the mandatory web-game client produced correct fight state with no errors, and configuration/three attacks/win/lose screenshots were visually inspected.
+- Gate 1 implementation is complete. TODO for a human: playtest feel, readability, pair differentiation, difficulty, fullscreen, and an unaided full loop; record results in PLAYTEST.md.
+
+## 2026-08-12
+
+- Human feedback: three attack-only modules feel too limited; future boss recipes should include Attack, Movement, and Defense cards whose chosen behaviors combine into varied but readable patterns.
+- Preserved the Gate 1 contract by parking expanded behavior for Gate 2; recorded a four-card recipe candidate and a guaranteed first-30-second signature combo in GAME.md.
+- Visual thesis: cold ruined forge, steel/cyan player, ember-orange forged guardian. Content stays config -> fight -> result. Motion is limited to staged config reveal, heavy boss entrance/idle, and brief hit shake.
+- Generated an original 1536x1024 ruined-forge arena plate and an original forge-guardian sprite. The first chroma removal over-erased dark armor; a narrower-threshold v2 preserved the complete silhouette and was selected for integration.
+- Browser regression found that delaying the interactive start button's alpha could reject very fast clicks; interactive card/button surfaces now render immediately while only non-interactive copy and ornament fade in.
+- Integrated and optimized the final runtime assets as `forge-arena-game.jpg` (116.54 kB) and `forge-warden-game.png` (89.22 kB), then verified all visuals and interactions.
+- Final visual-upgrade verification: Vitest 5/5, build PASS, Playwright 3/3, mandatory client PASS, no console error artifact, and all key screenshots inspected.
+- TODO: human rates the revised presentation and remaining feel/readability questions. Expanded Attack/Movement/Defense recipes remain intentionally parked for Gate 2.
+- Selected the free Bloodlines — Dark UI pack from itch.io after checking its full license. The pack permits commercial and personal use but forbids standalone redistribution.
+- Downloaded the official license and extracted only the six UI textures used by the game from the creator's official itch web demo build; recorded provenance and restrictions in THIRD_PARTY_ASSETS.md.
+- Replaced placeholder health bars and configuration/result buttons with Bloodlines textures and added its gothic notice frame to the result screen.
+- Itch UI pass verification: Vitest 5/5 PASS, production build PASS, Playwright 3/3 PASS, mandatory web-game client PASS, no console-error artifact, and configuration/fight/win captures visually inspected.
+- Bloodlines expansion direction: visual thesis is a soot-black ritual interface cut with restrained crimson metal; content plan is recipe cards -> forged loadout/HUD -> judgment panel; interaction thesis is texture swaps for hover/selection, cropped resource bars, and brief staged reveals only.
+- User confirmed this project will not be public and requested the complete pack be retained locally. The full relevant Bloodlines texture library will be copied under the project while the live UI uses each family only where it communicates an actual state.
+- Copied all 65 available Bloodlines textures into the private project library and expanded the live UI with textured recipe frames, selection/hover status plates and checks, distinct player/boss health families, forged-loadout and warning frames, a dodge recharge meter, and the alternate result-button family.
+- Expanded Bloodlines pass browser check: configuration, fight, and victory screenshots inspected; state matched each capture; mandatory client produced no error artifact. Vitest 5/5 and production build passed before browser verification.
+- Final full-pack verification: Playwright 3/3 PASS after the expanded UI; development server restarted and intentionally left running on http://127.0.0.1:4317 for the user.
+- Registered every one of the 65 copied Bloodlines PNGs in Phaser's preload cache. Final build confirmed all texture families in the production output; mandatory client rechecked the fight with matching state, inspected screenshot, and no error artifact while the dev server remained live.
+- Reviewed `TinTinWinata/hollow-knight-js` for transferable browser-game techniques: Canvas rendering, sprite-led silhouettes, layered atmosphere, camera shake, particles, explicit fullscreen, and low-friction restart. No reference code, art, audio, or franchise character design was copied.
+- Applied the visual thesis as an original soot-dark forge duel with a cyan armored runner and ember-orange machine. Content remains configuration -> selected-only fight -> result; motion centers on boss anticipation, arena drift, attack release, hit sparks, shockwaves, projectile trails, and readable dodge echoes.
+- Generated two original Forge Runner candidates with the built-in image path on removable green chroma. Visual review rejected the 3/4-view candidate for rotation readability and selected the strict overhead candidate; local chroma removal, cropping, alpha validation, and optimization produced `forge-runner-topdown-game.png` (167.04 kB).
+- Expanded `render_game_to_text` without removing existing fields: readiness/loading, cooldowns, active-attack timing/target, visible projectile positions, feedback counts, and fullscreen state are now observable. `advanceTime` remains the gameplay simulation hook.
+- Browser regression found three real synchronization issues: config was reported before interactive cards existed, very short F input could be missed, and the result overlay could freeze the HUD at the pre-lethal health value. Added an honest loading phase, direct F and Esc handling, input-ready waits, and final HUD refresh before results.
+- Final verification after all fixes: `npm test` 5/5 PASS, `npm run build` PASS, `npm run test:e2e` 3/3 PASS. Playwright now covers F enter/Esc exit plus dodge echoes; mandatory client captured config, live radial combat, and active dodge with matching text state and no console-error artifact.
+- Visually inspected AIMED SHOT telegraph, ROTATING BEAM telegraph/active, radial projectiles, dodge echoes, victory, and defeat. Warning lanes remain distinct, the new character is readable against the arena, and result HUD values now match state at zero health.
+- TODO remains human-only: record movement/aim/dodge feel, pair differentiation, difficulty, fullscreen, and unaided restart observations in PLAYTEST.md. Gate 2 recipe behaviors remain parked until the scheduled milestone.
+- Restarted the verified development build and intentionally left it available at `http://127.0.0.1:4317` for immediate play.
+
+## 2026-08-12 — Gothic Insect-Fable Re-Art Direction
+
+- User feedback correctly identified that the previous arena, armored runner, machine boss, radar-like markings, and Bloodlines panels still read as mechanical sci-fi rather than the requested Hollow-Knight-quality dark-fantasy sensibility.
+- Preserved the authoritative Gate 1 contract without changing selection count, module IDs/names, attack timing/damage, controls, win/lose logic, `render_game_to_text`, or `advanceTime`.
+- Visual thesis: a hand-painted ashen bell-sanctum in which a tiny ivory-masked forge pilgrim faces an enormous rootbound bell-smith; soot, old ivory, muted verdigris, and one ember accent carry the entire image.
+- Content plan: the configuration is one ritual-altar scene with three inscribable runes, combat is one uncluttered sanctuary with restrained oath/health notation, and the result is one arched epitaph with a direct return action.
+- Interaction thesis: selected runes bind with a subtle halo and altar-line response; the pilgrim stretches into a shroud-dodge with pale echoes; the boss compresses, recoils, leans, and expands during attack anticipation while ash/fog move at separate depths.
+- Generated original environment, player, and boss assets with the built-in image tool. Both characters used flat green chroma, official local background removal, alpha validation, cropping, and optimization; the final prompts and file lineage are recorded in `ASSET_CREDITS.md`.
+- Removed every Bloodlines and former machine-art import/preload from the runtime. The production bundle now emits only the three new original raster assets plus code-native graphics.
+- Replaced the card-dashboard configuration with a continuous altar composition while preserving the established card/button hit coordinates required by Gate 1 automation.
+- Replaced textured sci-fi HUD panels with sparse serif/small-caps oath labels, hand-drawn health lines, rune warning notation, and a shroud recharge line. Replaced the machine boss identity with the original Rootbound Bell-Smith without changing its collision or behavior contract.
+- Added three readable depth planes: distant generated chapel/shafts, animated midground fog/ash, and near-black foreground roots/ruin silhouettes. Reworked aim and attack tells toward thorn/ember/rune shapes while retaining exact gameplay coverage.
+- Asset validation: final player and boss PNGs have transparent corners and negligible chroma-edge counts; optimized sizes are 87.51 kB and 699.20 kB, with the background at 337.14 kB.
+- First verification after the re-art direction: Vitest 5/5 PASS, build PASS, Playwright 3/3 PASS. The mandatory web-game client captured the configuration with matching state and no error artifact. Direct inspection of config, aimed tell, beam tell/active, victory, and defeat captures found strong readability; the pilgrim runtime display was enlarged roughly 16% after inspection to strengthen its ivory silhouette.
+- Final local verification after the player-size adjustment: `npm test` 5/5 PASS, `npm run build` PASS, `npm run test:e2e` 3/3 PASS, and the mandatory web-game client captured a live RADIAL BURST fight with matching state and no error file. Config, combat, beam tell/active, win, and lose were directly inspected; an 80 ms render-settle wait was added to the lose capture so its already-functional return label is represented reliably in the artifact.
+- Production deployment completed to the existing `ai-build3/boss-forge` Vercel project. Deployment `5G1FfiNVMuRE7SkimgFtf9Mw9ect` was promoted and aliased to `https://boss-forge-seven.vercel.app`.
+- Remote verification: the public alias returned HTTP 200 with the expected page title; settled configuration and live RADIAL BURST canvas captures were directly inspected; `render_game_to_text` reported correct config/fight state; no client error artifact was created. The immutable deployment URL is Vercel-protected, while the requested public alias is accessible and verified.
+- TODO: human feel testing remains the existing Gate 1 follow-up; no machine-verifiable work is outstanding for this re-art direction.
+
+## 2026-08-13 — Deterministic Character Motion Pass
+
+- Motion thesis: preserve the original ivory pilgrim and rootbound bell-smith paintings while adding restrained code-native deformation, layered anatomy, and state choreography; all motion is driven by a deterministic presentation clock and never alters Gate 1 attack origins, timing, damage, collision radii, or controls.
+- Player interaction motion: eight-way aim/movement facing selects a directional octant; idle breath, alternating run stride/mantle flutter, needle-bearing fire thrust, and stretched shroud dodge each expose a named animation state and deterministic frame through `render_game_to_text`.
+- Boss interaction motion: six low-alpha two-segment root tendons articulate behind the painted shell, while shell compression/recoil, ember aperture, shadow, and a cracked dark-bell hammer choreograph radial, aimed, and rotating-beam telegraph/release/recovery stages. Early triangle claws and polygon hammer silhouettes were rejected as debug-like and fully removed.
+- Added the test-only `set_animation_audit_scenario` hook and a deterministic 10-pose Playwright matrix under `output/animation-audit/fixed`; every PNG is paired with JSON containing the exact player/boss animation state, frame, facing octant, and presentation clock.
+- Visual review of the final v3 fixed timestamps confirmed no radial-arrow limb overlay remains, tendons read as shadowed anatomy integrated with the original painting, the rounded cracked bell silhouette stays subdued, and idle/run/fire/dodge plus all three boss attack families have distinct poses.
+- No new raster asset or image-generation prompt was needed for this pass; it reuses the original generated assets credited in `ASSET_CREDITS.md` and adds only code-native shapes/deformation.
+- Found and fixed a live-phase wiring issue during the final combat audit: projectile attacks cleared their active attack on the spawn tick, making `radial_release` and `aimed_release` unreachable outside the forced pose matrix. A 150 ms presentation-only release latch now survives the spawn tick and precedes the 280 ms recovery pose; attack cooldowns, projectiles, collision, damage, and Gate 1 timing continue unchanged. Beam retains its existing 900 ms telegraph / 1650 ms active behavior.
+- Added a real live-boundary E2E that pairs PNG+JSON under `output/playwright/live-motion`: radial telegraph -> release with eight spawned projectiles -> recover; aimed telegraph -> release with the aimed projectile -> recover; beam telegraph -> active. All eight captures were directly inspected and the visual pose, attack VFX, and text state agree.
+- Final local verification: Vitest 5/5 PASS, production build PASS, Playwright 5/5 PASS (including fixed pose matrix and live release boundaries). The mandatory web-game client completed config -> movement/dodge/fire -> live AIMED SHOT with matching animation state/frame, produced `output/animation-audit/client-v3/shot-0.png` + state JSON, and created no console-error artifact; the canvas was directly inspected.
+- Production redeploy completed to the existing `ai-build3/boss-forge` Vercel project. Deployment `dpl_Hz2CyPivg5SfQ4NKHRc7xkx3YjQW` is Ready and aliased to `https://boss-forge-seven.vercel.app`.
+- Remote verification: public alias HTTP 200 with title `BOSS FORGE`; mandatory client reached a real `RADIAL BURST` telegraph fight with boss HP 290, matching animation state/frame and canvas (`output/animation-audit/remote-client-v3-fight3`), and produced no error artifact. The remote config and fight canvases were directly inspected.
+- TODO remains human-only feel testing from Gate 1; no machine-verifiable motion/deployment work is outstanding.
