@@ -609,13 +609,24 @@ export class GameApp {
     const nearest = this.player ? world.nearestInteractable(this.player.motor.position) : undefined
     const carried = world.carriedBy('player')
     if (this.player) world.highlightInteractables(this.player.motor.position, this.echo?.motor.position)
-    if (!nearest) this.hud.setInteractPrompt(null)
-    else {
-      const key = nearest.kind === 'exit' ? 'interactExit' : nearest.kind === 'crate' || nearest.kind === 'core'
-        ? carried === nearest.kind ? 'interactDrop' : 'interactCarry'
-        : nearest.kind === 'receiver' ? 'interactSynchronize' : nearest.kind === 'lever' ? 'interactLever' : 'interactUse'
-      this.hud.setInteractPrompt(`E · ${translate(this.language, key)}`)
+    let promptKey: string | null = null
+    if (nearest) {
+      if (nearest.kind === 'exit') promptKey = 'interactExit'
+      else if (nearest.kind === 'crate' || nearest.kind === 'core') {
+        promptKey = carried === nearest.kind ? 'interactDrop' : 'interactCarry'
+      } else if (nearest.kind === 'receiver') promptKey = 'interactSynchronize'
+      else if (nearest.kind === 'lever') promptKey = 'interactLever'
+      else promptKey = 'interactUse'
     }
+    if (!promptKey) this.hud.setInteractPrompt(null)
+    else if (promptKey) this.hud.setInteractPrompt(`E · ${translate(this.language, promptKey as Parameters<typeof translate>[1])}`)
+    // 모바일 interact 버튼 라벨 동적 변경 (짧은 라벨)
+    let mobileKey: 'use' | 'pickup' | 'drop'
+    if (carried) mobileKey = 'drop'
+    else if (nearest && (nearest.kind === 'crate' || nearest.kind === 'core')) mobileKey = 'pickup'
+    else mobileKey = 'use'
+    const mobileInteract = document.querySelector<HTMLButtonElement>('button[data-action="interact"]')
+    if (mobileInteract) mobileInteract.textContent = translate(this.language, mobileKey)
     this.updateTrajectory(throwPreviewVisible)
   }
 

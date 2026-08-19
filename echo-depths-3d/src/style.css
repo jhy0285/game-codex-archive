@@ -1154,142 +1154,64 @@ kbd {
 @media (max-width: 700px) {
   .tutorial-panel {
     left: var(--safe-left);
-    bottom: calc(var(--safe-bottom) + 0.55rem);
+    bottom: calc(var(--safe-bottom) + 0.5rem);
     width: auto;
-    max-width: calc(100vw - var(--safe-left) - var(--safe-right) - 0.8rem);
-    padding: 0.55rem 0.6rem;
+    max-width: calc(100vw - var(--safe-left) - var(--safe-right) - 0.6rem);
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 0.4rem 0.45rem;
   }
   .tutorial-panel h2 {
-    font-size: 0.9rem;
+    font-size: 0.82rem;
   }
   .tutorial-panel p:not(.eyebrow) {
-    font-size: 0.68rem;
-    line-height: 1.4;
+    font-size: 0.58rem;
+    line-height: 1.32;
   }
   .tutorial-panel .eyebrow {
-    margin-bottom: 0.2rem;
-    font-size: 0.6rem;
+    margin-bottom: 0.15rem;
+    font-size: 0.5rem;
   }
   .tutorial-steps {
-    margin: 0.45rem 0;
-    gap: 0.22rem;
+    margin: 0.32rem 0;
+    gap: 0.18rem;
   }
   .tutorial-steps li {
-    padding: 0.2rem 0.32rem;
-    font-size: 0.62rem;
+    padding: 0.16rem 0.26rem;
+    font-size: 0.55rem;
+    line-height: 1.3;
   }
   .tutorial-actions {
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 0.3rem;
   }
   .tutorial-actions button {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 0.72rem;
-    padding: 0.35rem 0.55rem;
+    font-size: 0.66rem;
+    padding: 0.3rem 0.45rem;
   }
+}
 
-  .screen {
-    padding: calc(var(--safe-top) + 1rem) calc(var(--safe-right) + 0.85rem) calc(var(--safe-bottom) + 1rem) calc(var(--safe-left) + 0.85rem);
+@media (max-width: 480px) {
+  .tutorial-panel {
+    padding: 0.32rem 0.36rem;
+    max-height: 46vh;
   }
-
-  .screen::before {
-    inset: 8px;
+  .tutorial-panel h2 {
+    font-size: 0.74rem;
   }
-
-  #title-screen {
-    align-items: center;
-    background: linear-gradient(180deg, rgba(2, 8, 12, 0.82), rgba(3, 12, 17, 0.96));
+  .tutorial-panel p:not(.eyebrow) {
+    font-size: 0.5rem;
+    line-height: 1.28;
   }
-
-  .title-copy {
-    width: 100%;
-    min-width: 0;
-    padding: 1rem 0.3rem;
-    text-align: center;
+  .tutorial-steps li {
+    font-size: 0.5rem;
+    padding: 0.14rem 0.22rem;
   }
-
-  #game-title {
-    font-size: clamp(3.8rem, 20vw, 6rem);
-  }
-
-  .title-hook,
-  .title-rule {
-    margin-right: auto;
-    margin-left: auto;
-  }
-
-  .title-actions {
-    justify-content: center;
-  }
-
-  .title-actions button {
-    flex-basis: calc(50% - 0.4rem);
-    min-width: 0;
-  }
-
-  .controls-card {
-    text-align: left;
-  }
-
-  .chapter-select {
-    inset: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
-    width: auto;
-    min-width: 0;
-  }
-
-  .chapter-select__heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .chapter-select__heading span {
-    text-align: left;
-  }
-
-  .chapter-card {
-    grid-template-columns: 2.6rem minmax(0, 1fr);
-  }
-
-  .chapter-card__status {
-    display: none;
-  }
-
-  .hud__top {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .hud__status {
-    position: absolute;
-    top: calc(var(--safe-top) + 58px);
-    right: var(--safe-right);
-    min-width: 0;
-    max-width: calc(100vw - var(--safe-left) - var(--safe-right));
-  }
-
-  #objective-panel {
-    top: calc(var(--safe-top) + 116px);
-  }
-
-  #ending-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .settings-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .control-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .ending-stat:nth-child(even) {
-    border-right: 0;
-  }
-
-  .ending-stat:last-child {
-    grid-column: 1 / -1;
-    border-top: 1px solid rgba(190, 226, 221, 0.11);
+  .tutorial-actions button {
+    font-size: 0.6rem;
+    padding: 0.25rem 0.38rem;
   }
 }
 
