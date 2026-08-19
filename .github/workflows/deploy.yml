@@ -39,4 +39,8 @@ jobs:
         # --archive points Vercel at the dist/ folder inside echo-depths-3d/.
         # --prod targets production. The CLI uploads the archive directly without
         # trying to re-detect the project from the working directory.
-        run: npx vercel@latest deploy --prod --yes --archive echo-depths-3d/dist
+        # No --archive: VERCEL_PROJECT_ID + repo root + Vercel-managed build.
+        # The CLI finds the project by VERCEL_PROJECT_ID, resolves the
+        # rootDirectory=echo-depths-3d from the project settings, runs
+        # `npm run build` (Vite) to populate echo-depths-3d/dist/, and deploys.
+        run: npx vercel@latest deploy --prod --yes
