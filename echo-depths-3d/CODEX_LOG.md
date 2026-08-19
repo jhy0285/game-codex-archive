@@ -220,3 +220,18 @@ The split-atrium (Chapter 3) descent ramp shipped as a thin tilted box whose upp
 - Moved memory-core from [-3.8, 3.75, 2.5] to [-3.0, 3.75, 1.6]. The new position sits closer to the upper shelf south edge, so the authored throw arc naturally aims over the descent stairs into the atrium-lower catch zone.
 - Local evidence: npm run build strict TS PASS (38 modules), Vitest 96/96, Playwright 15/15 in 3.6 minutes. The spatial sweep screenshot pass confirms the player reaches the lower level via the new stairs.
 - No KayKit assets, sibling projects, or puzzle logic changed. The authored solution sequence in GAME.md Chapter 3 still applies unchanged.
+
+
+## 2026-08-19 -- Pressure scanner: actor-agnostic fact gate + dramatic color shift
+
+Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLATE_OCCUPANT_KINDS already accepted player / echo / crate / core for physics intersection. The fact gate was inconsistent with the devices own broad occupancy detection, and the canExit condition was the even narrower deviceHeldBy(echo-plate, echo).
+
+  - Removed the actor?.kind === echo gate in updatePlates. The echo-plate fact is now added whenever the device is pressed by any of the four allowed kinds. A player walk-on or a dropped crate/core now also sets the fact.
+  - canExit for chapter 1 now uses facts.has(echo-plate) instead of deviceHeldBy(echo-plate, echo). The fact represents the device state, not the specific actor. Echo remains the canonical solution path (the replay lands it on the plate), but the design is more flexible.
+  - Added fact removal in the press/release path: when the plate becomes unpressed, the fact is removed and the gated door re-closes. Previously the fact was sticky; a separate Vitest test verifies the door now correctly emits a doorClose audio event on echo departure.
+  - updatePlatePresentation now changes both the panel AND beacons material colors (cloned per-plate) from a near-black dark navy (0x141820, inactive) to a bright white-cyan (0xeaffff, active), in addition to the existing scale dip and emissive boost. The active color is deliberately different from any chapter accent so the change is unmistakable.
+  - Local evidence: 96/96 Vitest pass, plus a Playwright regression test that snapshots the plate in both states and confirms both facts/door open and the visual color shift.
+  - Production redeploy via vercel redeploy of the existing Ready deployment. The new alias is echo-depths-3d-k07wf9fbd-ai-build3.vercel.app and the canonical URL is updated.
+
+
+

@@ -124,3 +124,17 @@ The unrelated intake modification at `echo-heist/package-lock.json` remains outs
 ## 2026-08-18 -- Chapter 3 descent fix
 
 The split-atrium descent was a thin tilted box hidden inside the upper floor box and floating above atrium-lower, so the player had no walkable path from the upper shelf to the lower catch zone. The fix in src/levels/layouts.ts adds three descent-step floor pieces south of the upper shelf (top surfaces y=2.0, y=1.0, y=0.2) and nudges memory-core east so its throw arc naturally lands in the catch zone. Local build PASS, Vitest 96/96, Playwright 15/15 in 3.6 minutes. No KayKit asset or sibling project changed.
+
+
+## 2026-08-19 -- Plate feedback overhaul (chapter 1 echo-plate)
+
+The user requested two things: (1) reframe the chapter 1 clear condition so that any physical body on the echo-plate (player, echo, crate, or core) is enough, rather than requiring echo specifically; (2) make the plate visual feedback unmistakable (full color change plus audio).
+
+  - Fact gate in updatePlates relaxed: any actor on the echo-plate adds the fact, mirroring PLATE_OCCUPANT_KINDS. The press/release path now adds and removes the fact so a departed actor closes the door again.
+  - canExit switched from deviceHeldBy(echo-plate, echo) to facts.has(echo-plate) so the design is consistent and the chapter is clearable by any actor.
+  - Visually: the SecurityScannerPanel and SecurityScannerBeacons materials are cloned per-plate and lerp between a near-black navy (0x141820) and a bright white-cyan (0xeaffff) based on the device state, alongside the existing scale dip and emissive boost. The active color is distinct from any chapter accent so the state change is obvious.
+  - Local evidence: 96/96 Vitest pass, including the door-close-on-echo-departure regression. A dedicated Playwright test (tests/player-walks-plate.spec.ts) confirms both the actor-agnostic fact addition and the visible color shift via the canvas.
+  - Production redeploy via vercel redeploy; the canonical URL https://echo-depths-3d.vercel.app is updated and the user can confirm the new behavior from any browser, including a phone on a remote session.
+
+
+
