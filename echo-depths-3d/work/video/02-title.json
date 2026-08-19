@@ -1,0 +1,73 @@
+{
+  "mode": "title",
+  "language": "en",
+  "chapter": 1,
+  "camera": {
+    "position": {
+      "x": 1.405,
+      "y": 10.57,
+      "z": 10.605
+    }
+  },
+  "player": {
+    "position": {
+      "x": -5.4,
+      "y": 1.08,
+      "z": 3.8
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "grounded": false,
+    "animation": "Idle"
+  },
+  "echo": {
+    "mode": "idle",
+    "tick": 0,
+    "durationTicks": 0
+  },
+  "timer": 0,
+  "pressurePlates": {
+    "echo-plate": {
+      "active": false
+    }
+  },
+  "levers": {
+    "tutorial-lever": {
+      "active": false
+    }
+  },
+  "doors": {
+    "first-door": {
+      "open": false
+    }
+  },
+  "elevators": {},
+  "cores": {},
+  "enemies": {},
+  "objectives": {
+    "required": [
+      "tutorial-lever",
+      "echo-plate"
+    ],
+    "facts": [],
+    "complete": false
+  },
+  "tutorial": null,
+  "score": 10000,
+  "resetCount": 0,
+  "failures": 0,
+  "echoesCreated": 0,
+  "mobileControlsVisible": false,
+  "fullscreen": false,
+  "assetStatus": "kaykit",
+  "fixedTick": 0,
+  "escapeSeconds": 0,
+  "render": {
+    "drawCalls": 106,
+    "triangles": 15956,
+    "pixelRatio": 1
+  }
+}

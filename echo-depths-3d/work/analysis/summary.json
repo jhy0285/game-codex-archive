@@ -1,0 +1,89 @@
+{
+  "runDate": "2026-08-19T00:55:20.602Z",
+  "chapters": [
+    {
+      "chapter": 1,
+      "required": [
+        "tutorial-lever",
+        "echo-plate"
+      ],
+      "steps": 2,
+      "facts": [
+        "echo-plate",
+        "tutorial-lever"
+      ],
+      "complete": false,
+      "screenshots": [
+        "c1-01-spawn",
+        "c1-02-after-steps",
+        "c1-03-complete"
+      ]
+    },
+    {
+      "chapter": 2,
+      "required": [
+        "lift-lever-echo",
+        "elevator-ridden",
+        "cargo-plate"
+      ],
+      "steps": 3,
+      "facts": [
+        "cargo-plate",
+        "elevator-ridden",
+        "lift-lever-echo"
+      ],
+      "complete": false,
+      "screenshots": [
+        "c2-01-spawn",
+        "c2-02-after-steps",
+        "c2-03-complete"
+      ]
+    },
+    {
+      "chapter": 4,
+      "required": [
+        "lured-by-echo",
+        "watcher-trapped"
+      ],
+      "steps": 2,
+      "facts": [
+        "lured-by-echo",
+        "watcher-trapped"
+      ],
+      "complete": true,
+      "screenshots": [
+        "c4-01-spawn",
+        "c4-02-after-steps",
+        "c4-03-complete"
+      ]
+    },
+    {
+      "chapter": 5,
+      "required": [
+        "core-thrown-down",
+        "core-receiver",
+        "guardian-target-echo",
+        "guardian-defeated",
+        "lower-seal-echo",
+        "upper-seal-player",
+        "dual-seal"
+      ],
+      "steps": 7,
+      "facts": [
+        "core-receiver",
+        "core-thrown-down",
+        "dual-seal",
+        "guardian-defeated",
+        "guardian-target-echo",
+        "upper-seal-player"
+      ],
+      "complete": false,
+      "screenshots": [
+        "c5-01-spawn",
+        "c5-02-after-steps",
+        "c5-03-complete"
+      ]
+    }
+  ],
+  "failures": []
+}

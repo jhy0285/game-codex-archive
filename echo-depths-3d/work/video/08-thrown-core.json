@@ -1,0 +1,81 @@
+{
+  "mode": "playing",
+  "language": "en",
+  "chapter": 3,
+  "camera": {
+    "position": {
+      "x": 1.615,
+      "y": 13.255,
+      "z": 7.184
+    }
+  },
+  "player": {
+    "position": {
+      "x": -5.189,
+      "y": 3.765,
+      "z": 0.38
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "grounded": true,
+    "animation": "Idle"
+  },
+  "echo": {
+    "mode": "idle",
+    "tick": 0,
+    "durationTicks": 0
+  },
+  "timer": 17483.333333333176,
+  "pressurePlates": {},
+  "levers": {
+    "bridge-lever": {
+      "active": false
+    }
+  },
+  "doors": {
+    "atrium-door": {
+      "open": false
+    }
+  },
+  "elevators": {},
+  "cores": {
+    "memory-core": {
+      "position": {
+        "x": -6.859322547912598,
+        "y": 3.4016501903533936,
+        "z": -0.9650191068649292
+      },
+      "receiver": false
+    }
+  },
+  "enemies": {},
+  "objectives": {
+    "required": [
+      "bridge-lever-echo",
+      "core-caught",
+      "core-redirected",
+      "receiver-filled",
+      "core-route-complete"
+    ],
+    "facts": [],
+    "complete": false
+  },
+  "tutorial": null,
+  "score": 9825,
+  "resetCount": 0,
+  "failures": 0,
+  "echoesCreated": 0,
+  "mobileControlsVisible": false,
+  "fullscreen": false,
+  "assetStatus": "kaykit",
+  "fixedTick": 1049,
+  "escapeSeconds": 0,
+  "render": {
+    "drawCalls": 111,
+    "triangles": 18284,
+    "pixelRatio": 1
+  }
+}

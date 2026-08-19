@@ -1,0 +1,80 @@
+{
+  "mode": "playing",
+  "language": "en",
+  "chapter": 4,
+  "camera": {
+    "position": {
+      "x": -0.302,
+      "y": 10.772,
+      "z": 10.578
+    }
+  },
+  "player": {
+    "position": {
+      "x": -7.2,
+      "y": 1.265,
+      "z": 3.8
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "grounded": true,
+    "animation": "Idle"
+  },
+  "echo": {
+    "mode": "idle",
+    "tick": 0,
+    "durationTicks": 0
+  },
+  "timer": 2116.6666666666697,
+  "pressurePlates": {},
+  "levers": {
+    "lure-bell": {
+      "active": false
+    }
+  },
+  "doors": {
+    "gallery-door": {
+      "open": false
+    }
+  },
+  "elevators": {},
+  "cores": {},
+  "enemies": {
+    "watcher": {
+      "position": {
+        "x": 2.4,
+        "y": 0.98,
+        "z": -0.4
+      },
+      "state": "patrol",
+      "defeated": false,
+      "detection": 0
+    }
+  },
+  "objectives": {
+    "required": [
+      "lured-by-echo",
+      "watcher-trapped"
+    ],
+    "facts": [],
+    "complete": false
+  },
+  "tutorial": null,
+  "score": 9979,
+  "resetCount": 0,
+  "failures": 0,
+  "echoesCreated": 0,
+  "mobileControlsVisible": false,
+  "fullscreen": false,
+  "assetStatus": "kaykit",
+  "fixedTick": 4,
+  "escapeSeconds": 0,
+  "render": {
+    "drawCalls": 105,
+    "triangles": 21920,
+    "pixelRatio": 1
+  }
+}

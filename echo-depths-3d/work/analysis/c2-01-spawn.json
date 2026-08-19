@@ -1,0 +1,79 @@
+{
+  "mode": "playing",
+  "language": "en",
+  "chapter": 2,
+  "camera": {
+    "position": {
+      "x": 0.468,
+      "y": 10.761,
+      "z": 10.882
+    }
+  },
+  "player": {
+    "position": {
+      "x": -6.4,
+      "y": 1.265,
+      "z": 4.1
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "grounded": true,
+    "animation": "Idle"
+  },
+  "echo": {
+    "mode": "idle",
+    "tick": 0,
+    "durationTicks": 0
+  },
+  "timer": 1149.9999999999995,
+  "pressurePlates": {
+    "weight-plate": {
+      "active": false
+    }
+  },
+  "levers": {
+    "lift-lever": {
+      "active": false
+    }
+  },
+  "doors": {
+    "counter-door": {
+      "open": false
+    }
+  },
+  "elevators": {
+    "counter-elevator": {
+      "y": 0.35,
+      "active": false
+    }
+  },
+  "cores": {},
+  "enemies": {},
+  "objectives": {
+    "required": [
+      "lift-lever-echo",
+      "elevator-ridden",
+      "cargo-plate"
+    ],
+    "facts": [],
+    "complete": false
+  },
+  "tutorial": null,
+  "score": 9989,
+  "resetCount": 0,
+  "failures": 0,
+  "echoesCreated": 0,
+  "mobileControlsVisible": false,
+  "fullscreen": false,
+  "assetStatus": "kaykit",
+  "fixedTick": 4,
+  "escapeSeconds": 0,
+  "render": {
+    "drawCalls": 107,
+    "triangles": 19045,
+    "pixelRatio": 1
+  }
+}

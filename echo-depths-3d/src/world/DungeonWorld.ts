@@ -705,7 +705,7 @@ export class DungeonWorld {
       const scannerFrame = this.boxMesh([scannerWidth * 0.42, 0.045, scannerDepth * 0.42], this.material(0x63747b, 0.56, 0.66))
       scannerFrame.name = 'SecurityScannerFrame'
       scannerFrame.position.y = 0.165
-      const panel = this.boxMesh([scannerWidth * 0.29, 0.032, scannerDepth * 0.28], glow)
+      const panel = this.boxMesh([scannerWidth * 0.29, 0.032, scannerDepth * 0.28], glow.clone())
       panel.name = 'SecurityScannerPanel'
       panel.position.y = 0.27
 
@@ -720,7 +720,7 @@ export class DungeonWorld {
       rails.instanceMatrix.needsUpdate = true
 
       const beaconGeometry = this.geometry(new THREE.BoxGeometry(0.14, 0.42, 0.14))
-      const beacons = new THREE.InstancedMesh(beaconGeometry, this.material(accent, 0.3, 0.7, accent), 4)
+      const beacons = new THREE.InstancedMesh(beaconGeometry, this.material(accent, 0.3, 0.7, accent).clone(), 4)
       beacons.name = 'SecurityScannerBeacons'
       const beaconMatrix = new THREE.Matrix4()
       let beaconIndex = 0
@@ -1202,7 +1202,12 @@ export class DungeonWorld {
       if (wasPressed !== device.active) this.emitAudio({ type: 'plate', id: device.definition.id, pressed: device.active })
       device.actor = actor?.kind
       this.updatePlatePresentation(device)
-      if (device.definition.id === 'echo-plate' && actor?.kind === 'echo') this.facts.add('echo-plate')
+      // echo-plate fact: tracks the device state (pressed/unpressed), not the specific actor.
+      // PLATE_OCCUPANT_KINDS already includes player/echo/crate/core so any of them can satisfy it.
+      if (device.definition.id === 'echo-plate') {
+        if (device.active) this.facts.add('echo-plate')
+        else this.facts.delete('echo-plate')
+      }
       if (device.definition.id === 'weight-plate' && cargo) this.facts.add('cargo-plate')
       if (device.definition.id === 'lower-seal' && actor?.kind === 'echo') this.facts.add('lower-seal-echo')
     }
@@ -1211,15 +1216,36 @@ export class DungeonWorld {
   private updatePlatePresentation(device: DeviceRecord): void {
     const panel = device.root.getObjectByName('SecurityScannerPanel')
     const beacons = device.root.getObjectByName('SecurityScannerBeacons')
-    const targetScale = device.active ? 0.62 : 1
+    // Two states: inactive (dim/dark) vs active (bright/illuminated chapter accent)
+    const targetScale = device.active ? 0.42 : 1
+    // Inactive: very dark navy (nearly black). Active: bright white-cyan (clearly different from any chapter accent).
+    const activeColor = 0xeaffff
+    const inactiveColor = 0x141820
+    const targetColor = device.active ? activeColor : inactiveColor
     if (panel instanceof THREE.Mesh) {
       panel.scale.y = THREE.MathUtils.lerp(panel.scale.y, targetScale, 0.24)
       if (panel.material instanceof THREE.MeshStandardMaterial) {
-        panel.material.emissiveIntensity = THREE.MathUtils.lerp(panel.material.emissiveIntensity, device.active ? 1.45 : 0.55, 0.24)
+        const currentColor = panel.material.color.getHex()
+        const nextColor = Math.round(currentColor + ((targetColor - currentColor) * 0.18))
+        panel.material.color.setHex(nextColor)
+        panel.material.emissive.setHex(device.active ? activeColor : 0x000000)
+        panel.material.emissiveIntensity = THREE.MathUtils.lerp(
+          panel.material.emissiveIntensity,
+          device.active ? 2.1 : 0.35,
+          0.24,
+        )
       }
     }
     if (beacons instanceof THREE.InstancedMesh && beacons.material instanceof THREE.MeshStandardMaterial) {
-      beacons.material.emissiveIntensity = THREE.MathUtils.lerp(beacons.material.emissiveIntensity, device.active ? 1.35 : 0.48, 0.24)
+      const currentColor = beacons.material.color.getHex()
+      const nextColor = Math.round(currentColor + ((targetColor - currentColor) * 0.18))
+      beacons.material.color.setHex(nextColor)
+      beacons.material.emissive.setHex(device.active ? activeColor : 0x000000)
+      beacons.material.emissiveIntensity = THREE.MathUtils.lerp(
+        beacons.material.emissiveIntensity,
+        device.active ? 1.85 : 0.3,
+        0.24,
+      )
     }
   }
 
@@ -1526,7 +1552,11 @@ export class DungeonWorld {
 
   private doorCondition(): boolean {
     if (this.chapter === 1) {
-      return this.facts.has('tutorial-lever') && this.deviceHeldBy('echo-plate', 'echo')
+      // The echo-plate is a pressure scanner that accepts any physical body (player, echo, crate, core).
+      // The chapter design uses echo as the canonical actor so the replay flow completes the fact,
+      // but a player or dropped object can also satisfy the plate sensor. The fact represents
+      // the device being pressed, not the specific actor.
+      return this.facts.has('tutorial-lever') && this.facts.has('echo-plate')
     }
     if (this.chapter === 2) {
       return this.deviceHeldBy('lift-lever', 'echo') && this.devices.get('weight-plate')?.active === true && this.facts.has('elevator-ridden')
@@ -1570,7 +1600,7 @@ export class DungeonWorld {
       device.actor = actor
       device.holdUntilTick = Number.MAX_SAFE_INTEGER
     }
-    if (fact === 'echo-plate') activate('echo-plate', 'echo')
+    if (fact === 'echo-plate') activate('echo-plate')
     if (fact === 'lift-lever-echo') activate('lift-lever', 'echo')
     if (fact === 'cargo-plate') activate('weight-plate')
     if (fact === 'bridge-lever-echo') activate('bridge-lever', 'echo')

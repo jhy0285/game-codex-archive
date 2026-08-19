@@ -1,0 +1,115 @@
+{
+  "mode": "playing",
+  "language": "en",
+  "chapter": 5,
+  "camera": {
+    "position": {
+      "x": 15.652,
+      "y": 15.854,
+      "z": 7.105
+    }
+  },
+  "player": {
+    "position": {
+      "x": 8.85,
+      "y": 6.365,
+      "z": 0.3
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "grounded": true,
+    "animation": "Idle"
+  },
+  "echo": {
+    "mode": "idle",
+    "tick": 0,
+    "durationTicks": 0
+  },
+  "timer": 3183.3333333333267,
+  "pressurePlates": {
+    "lower-seal": {
+      "active": false
+    }
+  },
+  "levers": {
+    "upper-seal": {
+      "active": true,
+      "actor": "player"
+    }
+  },
+  "doors": {
+    "final-door": {
+      "open": false
+    }
+  },
+  "elevators": {
+    "well-elevator": {
+      "y": 1.039,
+      "active": true
+    },
+    "well-platform": {
+      "y": 3.217,
+      "active": true
+    }
+  },
+  "cores": {
+    "paradox-core": {
+      "position": {
+        "x": -5.699999809265137,
+        "y": 0.8298737406730652,
+        "z": 2
+      },
+      "receiver": false
+    }
+  },
+  "enemies": {
+    "guardian": {
+      "position": {
+        "x": 1.7,
+        "y": 3.58,
+        "z": 2.5
+      },
+      "state": "patrol",
+      "defeated": false,
+      "detection": 0
+    }
+  },
+  "objectives": {
+    "required": [
+      "core-thrown-down",
+      "core-receiver",
+      "guardian-target-echo",
+      "guardian-defeated",
+      "lower-seal-echo",
+      "upper-seal-player",
+      "dual-seal"
+    ],
+    "facts": [
+      "core-receiver",
+      "core-thrown-down",
+      "dual-seal",
+      "guardian-defeated",
+      "guardian-target-echo",
+      "upper-seal-player"
+    ],
+    "complete": false
+  },
+  "tutorial": null,
+  "score": 9968,
+  "resetCount": 0,
+  "failures": 0,
+  "echoesCreated": 0,
+  "mobileControlsVisible": false,
+  "fullscreen": false,
+  "assetStatus": "kaykit",
+  "fixedTick": 52,
+  "escapeSeconds": 34.8,
+  "render": {
+    "drawCalls": 174,
+    "triangles": 24482,
+    "pixelRatio": 1
+  }
+}

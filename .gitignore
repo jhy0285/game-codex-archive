@@ -37,3 +37,5 @@ Desktop.ini
 game-migration-*.zip
 game-migration-*.7z
 *.sha256
+.vercel
+.env*

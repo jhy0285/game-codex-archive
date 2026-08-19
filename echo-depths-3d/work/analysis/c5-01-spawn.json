@@ -1,0 +1,107 @@
+{
+  "mode": "playing",
+  "language": "en",
+  "chapter": 5,
+  "camera": {
+    "position": {
+      "x": -0.675,
+      "y": 10.753,
+      "z": 10.598
+    }
+  },
+  "player": {
+    "position": {
+      "x": -7.5,
+      "y": 1.265,
+      "z": 3.8
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "grounded": true,
+    "animation": "Idle"
+  },
+  "echo": {
+    "mode": "idle",
+    "tick": 0,
+    "durationTicks": 0
+  },
+  "timer": 2383.333333333334,
+  "pressurePlates": {
+    "lower-seal": {
+      "active": false
+    }
+  },
+  "levers": {
+    "upper-seal": {
+      "active": false
+    }
+  },
+  "doors": {
+    "final-door": {
+      "open": false
+    }
+  },
+  "elevators": {
+    "well-elevator": {
+      "y": 0.35,
+      "active": false
+    },
+    "well-platform": {
+      "y": 2.8,
+      "active": false
+    }
+  },
+  "cores": {
+    "paradox-core": {
+      "position": {
+        "x": -5.699999809265137,
+        "y": 1.057599663734436,
+        "z": 2
+      },
+      "receiver": false
+    }
+  },
+  "enemies": {
+    "guardian": {
+      "position": {
+        "x": 1.7,
+        "y": 3.58,
+        "z": 2.5
+      },
+      "state": "patrol",
+      "defeated": false,
+      "detection": 0
+    }
+  },
+  "objectives": {
+    "required": [
+      "core-thrown-down",
+      "core-receiver",
+      "guardian-target-echo",
+      "guardian-defeated",
+      "lower-seal-echo",
+      "upper-seal-player",
+      "dual-seal"
+    ],
+    "facts": [],
+    "complete": false
+  },
+  "tutorial": null,
+  "score": 9976,
+  "resetCount": 0,
+  "failures": 0,
+  "echoesCreated": 0,
+  "mobileControlsVisible": false,
+  "fullscreen": false,
+  "assetStatus": "kaykit",
+  "fixedTick": 4,
+  "escapeSeconds": 0,
+  "render": {
+    "drawCalls": 131,
+    "triangles": 21712,
+    "pixelRatio": 1
+  }
+}
