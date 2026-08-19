@@ -1,0 +1,41 @@
+name: Deploy to Vercel (production)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install echo-depths-3d dependencies
+        working-directory: echo-depths-3d
+        run: npm ci
+
+      - name: Run Vitest (96 tests)
+        working-directory: echo-depths-3d
+        run: npm test -- --run
+
+      - name: Build echo-depths-3d
+        working-directory: echo-depths-3d
+        run: npm run build
+
+      - name: Create .vercel/project.json (avoid interactive link)
+        working-directory: echo-depths-3d
+        run: |
+          mkdir -p .vercel
+          printf '%s' '{"projectId":"prj_s42Kw6wf1BRmonXJKpoyE29m1G9Z","orgId":"team_3yhqT43fxZp9JrgzpcUZCmpb"}' > .vercel/project.json
+
+      - name: Deploy to Vercel (production)
+        working-directory: echo-depths-3d
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_3yhqT43fxZp9JrgzpcUZCmpb
+          VERCEL_PROJECT_ID: prj_s42Kw6wf1BRmonXJKpoyE29m1G9Z
+        run: npx vercel@latest deploy --prebuilt --prod --yes

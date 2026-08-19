@@ -1,0 +1,26 @@
+name: Test (echo-depths-3d)
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        working-directory: echo-depths-3d
+        run: npm ci
+      - name: Run Vitest (96 tests)
+        working-directory: echo-depths-3d
+        run: npm test -- --run
+      - name: TypeScript strict compile
+        working-directory: echo-depths-3d
+        run: npx tsc --noEmit
+      - name: Production build (validates Vite config + dependencies)
+        working-directory: echo-depths-3d
+        run: npm run build
