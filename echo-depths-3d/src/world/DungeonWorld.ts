@@ -1368,15 +1368,37 @@ export class DungeonWorld {
     const trap = this.devices.get('spike-trap')
     if (!trap?.body) return
     const intersections = this.physics.intersections(trap.body.collider, TRAP_OCCUPANT_KINDS)
-    if (intersections.some((record) => record.tag.kind === 'player')) {
+    const hasPlayer = intersections.some((record) => record.tag.kind === 'player')
+    const hasEnemy = intersections.some((record) => record.tag.kind === 'enemy')
+    if (hasPlayer) {
       this.failed = true
       this.failureReason = 'trap'
     }
-    if (!this.enemyDefeated && intersections.some((record) => record.tag.kind === 'enemy')) {
+    if (!this.enemyDefeated && hasEnemy) {
       this.enemyDefeated = true
       this.enemyState = 'trapped'
       this.facts.add('watcher-trapped')
       this.spawnWave(trap.root.position, 0xe95757)
+    }
+    // 시각: 트랩은 항상 위험 표시 (dim red), enemy가 위에 있으면 더 밝게 (빨간 위험 경고)
+    const redColor = 0xe95757
+    const targetHousing = hasEnemy ? 1.6 : 0.35
+    const targetRails = hasEnemy ? 2.4 : 0.7
+    const targetSpikes = hasEnemy ? 2.6 : 0.9
+    const housing = trap.root.getObjectByName('TrapHousing')
+    if (housing instanceof THREE.Mesh && housing.material instanceof THREE.MeshStandardMaterial) {
+      housing.material.emissive.setHex(redColor)
+      this.setEmissiveIntensity(housing, targetHousing)
+    }
+    const rails = trap.root.getObjectByName('TrapWarningRails')
+    if (rails instanceof THREE.InstancedMesh && rails.material instanceof THREE.MeshStandardMaterial) {
+      rails.material.emissive.setHex(redColor)
+      this.setEmissiveIntensity(rails, targetRails)
+    }
+    const spikes = trap.root.getObjectByName('TrapSpikes')
+    if (spikes instanceof THREE.Mesh && spikes.material instanceof THREE.MeshStandardMaterial) {
+      spikes.material.emissive.setHex(redColor)
+      this.setEmissiveIntensity(spikes, targetSpikes)
     }
   }
 
@@ -1506,10 +1528,11 @@ export class DungeonWorld {
   private updatePlatformPresentation(device: DeviceRecord): void {
     // 챕터 2 elevator는 챕터 1 echo-plate처럼 beacons 색이 dark navy → bright cyan으로 바뀜
     // 다른 챕터의 platform/bridge는 기존과 동일하게 intensity만 변화
-    const isChapter2Elevator = this.chapter === 2 && device.definition.kind === 'elevator'
-    const isChapter3Bridge = this.chapter === 3 && device.definition.kind === 'bridge'
-    const usePlateLikeGlow = isChapter2Elevator || isChapter3Bridge
-    if (usePlateLikeGlow) {
+    // 챕터 1/2 echo-plate·elevator 패턴: 모든 elevator/bridge/platform에 navy→bright cyan 발광
+    const isMovingPlatform = device.definition.kind === 'elevator'
+      || device.definition.kind === 'bridge'
+      || device.definition.kind === 'platform'
+    if (isMovingPlatform) {
       const activeColor = 0xeaffff
       const inactiveColor = 0x141820
       const beacons = device.root.getObjectByName('IndustrialPlatformBeacons')
