@@ -25,6 +25,20 @@ jobs:
       - name: Build echo-depths-3d
         working-directory: echo-depths-3d
         run: npm run build
+      - name: Verify commit author is the Vercel-allowlisted account
+        # Vercel rejects deployments whose commit author is not on its
+        # allowlist. The original blocker was a commit with author
+        # `agent@codex.local`, which has no GitHub account. This guard fails
+        # the workflow before the Vercel step runs, so a future accidental
+        # bad commit is caught here in seconds rather than as a 40-minute
+        # Vercel "deployment was blocked" timeout.
+        run: |
+          AUTHOR=$(git log -1 --pretty=format:%ae)
+          if [ "$AUTHOR" != "jhy0285@gmail.com" ]; then
+            echo "::error::Commit author $AUTHOR is not jhy0285@gmail.com. Vercel will block this deploy. Fix with: git commit --amend --author="YoungJin Cho <jhy0285@gmail.com>""
+            exit 1
+          fi
+          echo "Author OK: $AUTHOR"
 
       - name: Deploy to Vercel (production)
         # Run from REPO ROOT (not echo-depths-3d/) because the Vercel project
