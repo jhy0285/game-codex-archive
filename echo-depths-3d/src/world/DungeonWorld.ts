@@ -228,6 +228,12 @@ export class DungeonWorld {
   }
 
   interact(actor: ActorContext): string | undefined {
+    // Carry가 있으면 E는 항상 drop 우선 (가까운 디바이스와 무관)
+    const carried = [...this.dynamics.values()].find((entry) => entry.carriedBy === actor.kind)
+    if (carried) {
+      this.dropCarried(carried)
+      return carried.body.tag.kind
+    }
     const candidate = this.nearestDevice(actor.position, INTERACTION_RADIUS)
     if (!candidate) return undefined
     const { definition } = candidate
@@ -1416,11 +1422,7 @@ export class DungeonWorld {
     const already = [...this.dynamics.values()].find((entry) => entry.carriedBy === actor.kind)
     if (already && already !== dynamic) return
     if (dynamic.carriedBy === actor.kind) {
-      dynamic.carriedBy = undefined
-      dynamic.body.tag.carried = false
-      dynamic.body.collider.setSensor(false)
-      dynamic.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
-      dynamic.body.body.setLinvel({ x: 0, y: 0.3, z: 0 }, true)
+      this.dropCarried(dynamic)
       return
     }
     if (dynamic.carriedBy) return
@@ -1435,6 +1437,14 @@ export class DungeonWorld {
       this.facts.add('core-caught')
       dynamic.postCatchFlightArmed = true
     }
+  }
+
+  private dropCarried(dynamic: DynamicRecord): void {
+    dynamic.carriedBy = undefined
+    dynamic.body.tag.carried = false
+    dynamic.body.collider.setSensor(false)
+    dynamic.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
+    dynamic.body.body.setLinvel({ x: 0, y: 0.3, z: 0 }, true)
   }
 
   private placeCarriedObject(dynamic: DynamicRecord, actor: ActorContext, snap: boolean): void {
@@ -1497,7 +1507,9 @@ export class DungeonWorld {
     // 챕터 2 elevator는 챕터 1 echo-plate처럼 beacons 색이 dark navy → bright cyan으로 바뀜
     // 다른 챕터의 platform/bridge는 기존과 동일하게 intensity만 변화
     const isChapter2Elevator = this.chapter === 2 && device.definition.kind === 'elevator'
-    if (isChapter2Elevator) {
+    const isChapter3Bridge = this.chapter === 3 && device.definition.kind === 'bridge'
+    const usePlateLikeGlow = isChapter2Elevator || isChapter3Bridge
+    if (usePlateLikeGlow) {
       const activeColor = 0xeaffff
       const inactiveColor = 0x141820
       const beacons = device.root.getObjectByName('IndustrialPlatformBeacons')
