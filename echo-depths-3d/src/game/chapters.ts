@@ -175,7 +175,7 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     playerSpawn: v(-7, 0.9, 4),
     exitCenter: v(7, 4.1, -4),
     mechanics: ['echo', 'interact', 'carry', 'elevator', 'height'],
-    plates: [{ id: 'weight-plate', accepts: 'cargo', requiredMass: 2 }],
+    plates: [{ id: 'weight-plate', accepts: 'any', requiredMass: 1 }],
     levers: [{ id: 'lift-lever', mode: 'momentary' }],
     doorIds: ['counter-door'],
     elevatorIds: ['counter-elevator'],

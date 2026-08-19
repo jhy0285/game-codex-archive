@@ -1194,7 +1194,7 @@ export class DungeonWorld {
         occupants.push({ id: dynamic.id, kind: dynamic.body.tag.kind === 'crate' ? 'cargo' : 'core', mass: dynamic.body.tag.kind === 'crate' ? 1.5 : 0.8, active: true })
       }
       const cargoPlate = device.definition.id === 'weight-plate'
-      const evaluation = evaluatePressurePlate({ id: device.definition.id, accepts: cargoPlate ? 'cargo' : 'actor', requiredMass: cargoPlate ? 1.2 : 1 }, occupants)
+      const evaluation = evaluatePressurePlate({ id: device.definition.id, accepts: cargoPlate ? 'any' : 'actor', requiredMass: cargoPlate ? 0.6 : 1 }, occupants)
       const actor = nearbyActors.find((candidate) => candidate.kind === 'echo') ?? nearbyActors[0]
       const cargo = evaluation.occupantKinds.includes('cargo')
       const wasPressed = device.active
@@ -1494,7 +1494,37 @@ export class DungeonWorld {
   }
 
   private updatePlatformPresentation(device: DeviceRecord): void {
-    this.setEmissiveIntensity(device.root.getObjectByName('IndustrialPlatformBeacons'), device.active ? 1.45 : 0.4)
+    // 챕터 2 elevator는 챕터 1 echo-plate처럼 beacons 색이 dark navy → bright cyan으로 바뀜
+    // 다른 챕터의 platform/bridge는 기존과 동일하게 intensity만 변화
+    const isChapter2Elevator = this.chapter === 2 && device.definition.kind === 'elevator'
+    if (isChapter2Elevator) {
+      const activeColor = 0xeaffff
+      const inactiveColor = 0x141820
+      const beacons = device.root.getObjectByName('IndustrialPlatformBeacons')
+      const inset = device.root.getObjectByName('IndustrialPlatformInset')
+      if (beacons instanceof THREE.InstancedMesh && beacons.material instanceof THREE.MeshStandardMaterial) {
+        const targetColor = device.active ? activeColor : inactiveColor
+        const currentColor = beacons.material.color.getHex()
+        const nextColor = Math.round(currentColor + ((targetColor - currentColor) * 0.18))
+        beacons.material.color.setHex(nextColor)
+        beacons.material.emissive.setHex(device.active ? activeColor : 0x000000)
+        beacons.material.emissiveIntensity = THREE.MathUtils.lerp(
+          beacons.material.emissiveIntensity,
+          device.active ? 2.4 : 0.4,
+          0.24,
+        )
+      }
+      if (inset instanceof THREE.Mesh && inset.material instanceof THREE.MeshStandardMaterial) {
+        inset.material.emissive.setHex(device.active ? activeColor : 0x000000)
+        inset.material.emissiveIntensity = THREE.MathUtils.lerp(
+          inset.material.emissiveIntensity,
+          device.active ? 1.0 : 0.0,
+          0.24,
+        )
+      }
+    } else {
+      this.setEmissiveIntensity(device.root.getObjectByName('IndustrialPlatformBeacons'), device.active ? 1.45 : 0.4)
+    }
   }
 
   private updateMotionSound(device: DeviceRecord, mechanism: 'elevator' | 'platform' | 'bridge', moving: boolean): void {
