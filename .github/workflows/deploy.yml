@@ -26,16 +26,13 @@ jobs:
         working-directory: echo-depths-3d
         run: npm run build
 
-      - name: Create .vercel/project.json (avoid interactive link)
-        working-directory: echo-depths-3d
-        run: |
-          mkdir -p .vercel
-          printf '%s' '{"projectId":"prj_s42Kw6wf1BRmonXJKpoyE29m1G9Z","orgId":"team_3yhqT43fxZp9JrgzpcUZCmpb"}' > .vercel/project.json
-
       - name: Deploy to Vercel (production)
         working-directory: echo-depths-3d
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_3yhqT43fxZp9JrgzpcUZCmpb
           VERCEL_PROJECT_ID: prj_s42Kw6wf1BRmonXJKpoyE29m1G9Z
-        run: npx vercel@latest deploy --prebuilt --prod --yes
+        # Drop --prebuilt: Vercel CLI will auto-detect Vite, run `npm run build`,
+        # and deploy the resulting dist/. The CI env is Linux so the npm/cmd.exe
+        # Windows quirk that affected local `vercel build` does not apply here.
+        run: npx vercel@latest deploy --prod --yes
