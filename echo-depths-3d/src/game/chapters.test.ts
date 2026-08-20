@@ -11,8 +11,8 @@ describe('authored chapter objectives', () => {
     expect(CHAPTERS.map((chapter) => chapter.index)).toEqual([1, 2, 3, 4, 5])
     expect(new Set(CHAPTERS.map((chapter) => chapter.id)).size).toBe(5)
     for (const chapter of CHAPTERS) {
-      expect(chapter.objectives.length).toBeGreaterThanOrEqual(3)
-      expect(chapter.victoryFacts.length).toBeGreaterThanOrEqual(3)
+      expect(chapter.objectives.length).toBeGreaterThanOrEqual(2)
+      expect(chapter.victoryFacts.length).toBeGreaterThanOrEqual(2)
       expect(chapter.echoMaxTicks).toBeGreaterThan(0)
     }
   })

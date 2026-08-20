@@ -214,6 +214,7 @@ export class DungeonWorld {
     this.updateCoreReceiver(actors)
     this.updateEnemy(actors)
     this.updateTrapHazards()
+    this.updateTemporalGates(actors)
     this.evaluateDerivedFacts(actors)
     this.updateCoreLoss()
     if (this.exitRequestedBy === 'player' && this.canExit()) this.complete = true
@@ -270,31 +271,14 @@ export class DungeonWorld {
     return undefined
   }
 
-  private amplifiedThrowDirection(actor: ActorContext, direction: THREE.Vector3): THREE.Vector3 {
-    if (this.chapter === 3) {
-      const amplifier = this.devices.get('amplifier-lever')
-      if (amplifier?.active && amplifier.actor === 'echo') {
-        const receiver = this.devices.get('core-receiver')
-        if (receiver) {
-          const rPos = receiver.root.position
-          const dx = rPos.x - actor.position.x
-          const dz = rPos.z - actor.position.z
-          const len = Math.sqrt(dx * dx + dz * dz) || 1
-          return new THREE.Vector3(dx / len, 0, dz / len)
-        }
-      }
-    }
-    return direction.clone().normalize()
-  }
-
-  throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
+throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const carried = [...this.dynamics.values()].find((entry) => entry.carriedBy === actor.kind)
     if (!carried) return undefined
     carried.carriedBy = undefined
     carried.body.tag.carried = false
     carried.body.collider.setSensor(false)
     carried.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
-    const effectiveDir = this.amplifiedThrowDirection(actor, direction)
+    const effectiveDir = direction.clone().normalize()
     const origin = actor.position.clone().add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(effectiveDir, 0.72)
     carried.body.body.setTranslation(origin, true)
     const isCore = carried.body.tag.kind === 'core'
@@ -304,13 +288,6 @@ export class DungeonWorld {
       ? this.chapter === 3 ? ATRIUM_THROW_UPWARD_SPEED : this.chapter === 5 ? WELL_THROW_UPWARD_SPEED : 5.8
       : 2.4
     carried.body.body.setLinvel(impulse, true)
-    if (this.chapter === 3 && isCore) {
-      carried.redirectedCurrentFlight = false
-      if (actor.kind === 'echo') {
-        carried.postCatchFlightArmed = false
-        this.facts.add('core-thrown-by-echo')
-      }
-    }
     if (this.chapter === 5 && isCore) {
       const receiver = this.devices.get('power-receiver')
       carried.upperThrowArmed = Boolean(receiver && origin.y - receiver.root.position.y >= WELL_MIN_THROW_DROP)
@@ -324,7 +301,7 @@ export class DungeonWorld {
       entry.body.tag.kind === 'core'
       && !entry.carriedBy
       && !this.receiverFilled
-      && (this.chapter !== 3 || !entry.redirectedCurrentFlight)
+      && !entry.redirectedCurrentFlight
       && entry.body.body.bodyType() === RAPIER.RigidBodyType.Dynamic)
     if (core) {
       const p = core.body.body.translation()
@@ -405,7 +382,7 @@ export class DungeonWorld {
   ): number {
     const capacity = Math.min(TRAJECTORY_MAX_POINTS, Math.floor(positions.length / 3), distances.length)
     if (capacity <= 0) return 0
-    const effectiveDir = this.amplifiedThrowDirection(actor, direction)
+    const effectiveDir = direction.clone().normalize()
     const horizontalLength = Math.hypot(effectiveDir.x, effectiveDir.z)
     const directionX = horizontalLength > 0.000001 ? effectiveDir.x / horizontalLength : 0
     const directionZ = horizontalLength > 0.000001 ? effectiveDir.z / horizontalLength : 1
@@ -787,7 +764,28 @@ export class DungeonWorld {
       indicator.position.set(0, 0.9, 0.27)
       root.add(base, housing, screen, pivot, handle, indicator)
       body = this.physics.createSensor(definition.id, 'lever', this.vec(position), { x: 0.7, y: 0.8, z: 0.7 })
-    } else if (definition.kind === 'door') {
+    } else if (definition.kind === 'gate') {
+      root = new THREE.Group()
+      // Two glowing posts + scanner beam + base
+      const postGeo = this.geometry(new THREE.BoxGeometry(0.18, size[1] * 2, 0.18))
+      const postMat = this.material(0x5a3a78, 0.5, 0.7, 0x8d62ff)
+      const leftPost = new THREE.Mesh(postGeo, postMat); leftPost.name = 'TemporalGatePost'
+      leftPost.position.set(-size[0] / 2, 0, 0)
+      leftPost.castShadow = true
+      const rightPost = new THREE.Mesh(postGeo, postMat); rightPost.name = 'TemporalGatePost'
+      rightPost.position.set(size[0] / 2, 0, 0)
+      rightPost.castShadow = true
+      const beamGeo = this.geometry(new THREE.BoxGeometry(size[0] * 2, 0.06, 0.06))
+      const beamMat = this.material(0x8d62ff, 0.3, 0.4, 0xc15bf2)
+      const beam = new THREE.Mesh(beamGeo, beamMat); beam.name = 'TemporalGateBeam'
+      beam.position.set(0, size[1] * 0.7, 0)
+      beam.castShadow = true
+      const baseMat = this.material(0x2a1a3a, 0.6, 0.5, 0x4a2a5a)
+      const base = this.boxMesh([size[0], 0.06, size[2] * 0.5], baseMat); base.name = 'TemporalGateBase'
+      base.position.y = -size[1]
+      root.add(leftPost, rightPost, beam, base)
+      body = this.physics.createSensor(definition.id, 'gate', this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
+      } else if (definition.kind === 'door') {
       root = new THREE.Group()
       const doorCore = this.boxMesh(size, this.material(0x1d2c36, 0.52, 0.68))
       doorCore.name = 'VaultDoorCore'
@@ -1304,6 +1302,40 @@ export class DungeonWorld {
       this.failed = true
       this.failureReason = 'core-lost'
       return
+    }
+  }
+
+    private updateTemporalGates(actors: readonly ActorContext[]): void {
+    for (const [, device] of this.devices) {
+      if (device.definition.kind !== 'gate' || !device.body) continue
+      const size = device.definition.size ?? [0.6, 0.6, 0.6]
+      const gx = device.root.position.x
+      const gy = device.root.position.y
+      const gz = device.root.position.z
+      const halfX = size[0] / 2
+      const halfY = size[1] / 2
+      const halfZ = size[2] / 2
+      // Find actors in the gate volume
+      const actorsInGate: ActorContext[] = []
+      for (const actor of actors) {
+        const ax = actor.position.x
+        const ay = actor.position.y
+        const az = actor.position.z
+        if (Math.abs(ax - gx) <= halfX + 0.5 && Math.abs(ay - gy) <= halfY + 1 && Math.abs(az - gz) <= halfZ + 0.5) {
+          actorsInGate.push(actor)
+        }
+      }
+      // For each actor, check if they are carrying a dynamic core/crate
+      for (const actor of actorsInGate) {
+        const carried = [...this.dynamics.values()].find((entry) => entry.carriedBy === actor.kind)
+        if (carried && (carried.body.tag.kind === 'core' || carried.body.tag.kind === 'crate')) {
+          // Reject: drop the core/crate at the west edge of the gate
+          this.dropCarried(carried)
+          carried.body.body.setTranslation({ x: gx - halfX - 0.6, y: gy, z: gz }, true)
+          carried.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+          this.facts.add('temporal-gate-rejected')
+        }
+      }
     }
   }
 

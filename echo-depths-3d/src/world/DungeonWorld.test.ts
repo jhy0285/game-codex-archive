@@ -252,6 +252,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       exit: ['ExitPlinth', 'ExitTransitArch', 'ExitBeam', 'ExitBeacons'],
       receiver: ['ReceiverCradle', 'ReceiverRing', 'ReceiverProngs', 'ReceiverBeam'],
       enemy: ['SentryBase', 'SentryShell', 'SentryEye', 'SentryHalo', 'SentryFins', 'SightCone'],
+      gate: ['TemporalGatePost', 'TemporalGateBeam', 'TemporalGateBase'],
     } as const
 
     for (const chapter of [0, 1, 2, 3, 4, 5] as const) {

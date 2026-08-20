@@ -225,9 +225,10 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     escapeTimeTicks: null,
     playerSpawn: v(-6, 4.1, 5),
     exitCenter: v(7, 2.6, -5),
-    mechanics: ['move', 'carry', 'throw', 'redirect', 'height'],
+    // OBJECT TRANSFER: past self throws the SAME real Memory Core to present self
+    mechanics: ['move', 'carry', 'throw', 'height'],
     plates: [],
-    levers: [{ id: 'amplifier-lever', mode: 'momentary' }],
+    levers: [],
     doorIds: ['atrium-door'],
     elevatorIds: [],
     platformIds: [],
@@ -238,13 +239,13 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     enemies: [],
     objectives: [
       {
-        id: 'redirect-core',
-        labelKey: 'objective.atrium.redirect',
-        requiredFacts: [ObjectiveFacts.CoreRedirectedByAttack],
+        id: 'cross-gate',
+        labelKey: 'objective.atrium.crossGate',
+        requiredFacts: [ObjectiveFacts.PlayerAtExit],
       },
       {
-        id: 'place-core',
-        labelKey: 'objective.atrium.catch',
+        id: 'transfer-core',
+        labelKey: 'objective.atrium.transfer',
         requiredFacts: [ObjectiveFacts.CoreInAtriumReceiver],
       },
       {
@@ -254,7 +255,6 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
       },
     ],
     victoryFacts: [
-      ObjectiveFacts.CoreRedirectedByAttack,
       ObjectiveFacts.CoreInAtriumReceiver,
       ObjectiveFacts.PlayerAtExit,
     ],

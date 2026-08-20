@@ -18,6 +18,7 @@ export type PhysicsEntityKind =
   | 'trap'
   | 'enemy'
   | 'exit'
+  | 'gate'
 
 export type PhysicsTag = {
   id: string
@@ -114,7 +115,7 @@ export class RapierWorld {
     return this.register({ tag: { id, kind }, body, collider })
   }
 
-  createSensor(id: string, kind: 'plate' | 'lever' | 'trap' | 'exit', center: Vec3, half: Vec3): BodyRecord {
+  createSensor(id: string, kind: 'plate' | 'lever' | 'trap' | 'exit' | 'gate', center: Vec3, half: Vec3): BodyRecord {
     const record = this.createStaticBox(id, kind, center, half, true)
     record.collider.setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.ALL)
     return record
