@@ -227,7 +227,7 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     exitCenter: v(7, 2.6, -5),
     mechanics: ['move', 'carry', 'throw', 'redirect', 'height'],
     plates: [],
-    levers: [],
+    levers: [{ id: 'amplifier-lever', mode: 'momentary' }],
     doorIds: ['atrium-door'],
     elevatorIds: [],
     platformIds: [],

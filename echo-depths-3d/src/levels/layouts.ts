@@ -141,7 +141,7 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
   3: {
     chapter: 3,
     start: [-6.1, 3.58, 3.3],
-    echoAnchor: [-6.1, 3.58, 3.3],
+    echoAnchor: [1.5, 1.0, 1.6],
     accent: 0xc15bf2,
     fog: 0x100c1a,
     boxes: [
@@ -160,6 +160,7 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
     ],
     devices: [
       { id: 'memory-core', kind: 'core', position: [-3.0, 3.75, 1.6] },
+      { id: 'amplifier-lever', kind: 'lever', position: [1.5, 0.92, 1.6] },
       { id: 'core-receiver', kind: 'receiver', position: [6.6, 0.88, 1.6] },
       { id: 'atrium-door', kind: 'door', position: [9.45, 2.15, -0.4], size: [0.32, 2.1, 1.2] },
       { id: 'exit', kind: 'exit', position: [10.2, 1.08, -0.4] },

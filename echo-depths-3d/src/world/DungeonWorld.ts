@@ -270,6 +270,23 @@ export class DungeonWorld {
     return undefined
   }
 
+  private amplifiedThrowDirection(actor: ActorContext, direction: THREE.Vector3): THREE.Vector3 {
+    if (this.chapter === 3) {
+      const amplifier = this.devices.get('amplifier-lever')
+      if (amplifier?.active && amplifier.actor === 'echo') {
+        const receiver = this.devices.get('core-receiver')
+        if (receiver) {
+          const rPos = receiver.root.position
+          const dx = rPos.x - actor.position.x
+          const dz = rPos.z - actor.position.z
+          const len = Math.sqrt(dx * dx + dz * dz) || 1
+          return new THREE.Vector3(dx / len, 0, dz / len)
+        }
+      }
+    }
+    return direction.clone().normalize()
+  }
+
   throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const carried = [...this.dynamics.values()].find((entry) => entry.carriedBy === actor.kind)
     if (!carried) return undefined
@@ -277,11 +294,12 @@ export class DungeonWorld {
     carried.body.tag.carried = false
     carried.body.collider.setSensor(false)
     carried.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
-    const origin = actor.position.clone().add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(direction, 0.72)
+    const effectiveDir = this.amplifiedThrowDirection(actor, direction)
+    const origin = actor.position.clone().add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(effectiveDir, 0.72)
     carried.body.body.setTranslation(origin, true)
     const isCore = carried.body.tag.kind === 'core'
     const coreThrowSpeed = this.chapter === 3 ? ATRIUM_THROW_SPEED : 7.2
-    const impulse = direction.clone().normalize().multiplyScalar(isCore ? coreThrowSpeed : 3.8)
+    const impulse = effectiveDir.clone().multiplyScalar(isCore ? coreThrowSpeed : 3.8)
     impulse.y = isCore
       ? this.chapter === 3 ? ATRIUM_THROW_UPWARD_SPEED : this.chapter === 5 ? WELL_THROW_UPWARD_SPEED : 5.8
       : 2.4
@@ -387,9 +405,10 @@ export class DungeonWorld {
   ): number {
     const capacity = Math.min(TRAJECTORY_MAX_POINTS, Math.floor(positions.length / 3), distances.length)
     if (capacity <= 0) return 0
-    const horizontalLength = Math.hypot(direction.x, direction.z)
-    const directionX = horizontalLength > 0.000001 ? direction.x / horizontalLength : 0
-    const directionZ = horizontalLength > 0.000001 ? direction.z / horizontalLength : 1
+    const effectiveDir = this.amplifiedThrowDirection(actor, direction)
+    const horizontalLength = Math.hypot(effectiveDir.x, effectiveDir.z)
+    const directionX = horizontalLength > 0.000001 ? effectiveDir.x / horizontalLength : 0
+    const directionZ = horizontalLength > 0.000001 ? effectiveDir.z / horizontalLength : 1
     const originX = actor.position.x + directionX * 0.72
     const originY = actor.position.y + 1.2
     const originZ = actor.position.z + directionZ * 0.72
