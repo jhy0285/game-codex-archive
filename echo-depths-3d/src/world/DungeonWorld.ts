@@ -302,11 +302,7 @@ export class DungeonWorld {
       entry.body.tag.kind === 'core'
       && !entry.carriedBy
       && !this.receiverFilled
-      && (this.chapter !== 3 || (
-        this.facts.has('core-caught')
-        && entry.postCatchFlightArmed
-        && !entry.redirectedCurrentFlight
-      ))
+      && (this.chapter !== 3 || !entry.redirectedCurrentFlight)
       && entry.body.body.bodyType() === RAPIER.RigidBodyType.Dynamic)
     if (core) {
       const p = core.body.body.translation()
@@ -1408,7 +1404,6 @@ export class DungeonWorld {
       if (player && player.position.y > 3.2) this.facts.add('elevator-ridden')
       if (this.devices.get('lift-lever')?.actor === 'echo' && this.devices.get('lift-lever')?.active) this.facts.add('lift-lever-echo')
     }
-    if (this.chapter === 3 && this.devices.get('bridge-lever')?.actor === 'echo' && this.devices.get('bridge-lever')?.active) this.facts.add('bridge-lever-echo')
     if (this.chapter === 5) {
       const lowerHeldByEcho = this.deviceHeldBy('lower-seal', 'echo')
       const upperHeldByPlayer = this.deviceHeldBy('upper-seal', 'player')
@@ -1498,12 +1493,7 @@ export class DungeonWorld {
 
   private fillReceiver(core: DynamicRecord): boolean {
     if (core.carriedBy || this.receiverFilled || core.body.body.bodyType() !== RAPIER.RigidBodyType.Dynamic) return false
-    if (this.chapter === 3 && (
-      !this.facts.has('core-caught')
-      || !this.facts.has('core-redirected')
-      || !core.postCatchFlightArmed
-      || !core.redirectedCurrentFlight
-    )) return false
+
     if (this.chapter === 5 && (!core.upperThrowArmed || !this.facts.has('core-thrown-down') || core.body.body.linvel().y > 0.35)) return false
     this.receiverFilled = true
     core.carriedBy = undefined
@@ -1627,11 +1617,7 @@ export class DungeonWorld {
       return this.deviceHeldBy('lift-lever', 'echo') && this.devices.get('weight-plate')?.active === true && this.facts.has('elevator-ridden')
     }
     if (this.chapter === 3) {
-      return this.deviceHeldBy('bridge-lever', 'echo')
-        && this.facts.has('core-caught')
-        && this.facts.has('core-redirected')
-        && this.facts.has('receiver-filled')
-        && this.facts.has('core-route-complete')
+      return this.facts.has('receiver-filled')
     }
     if (this.chapter === 4) {
       return this.facts.has('lured-by-echo') && this.facts.has('watcher-trapped')
@@ -1677,7 +1663,7 @@ export class DungeonWorld {
     if (this.chapter === 0) return []
     if (this.chapter === 1) return ['tutorial-lever', 'echo-plate']
     if (this.chapter === 2) return ['lift-lever-echo', 'elevator-ridden', 'cargo-plate']
-    if (this.chapter === 3) return ['bridge-lever-echo', 'core-caught', 'core-redirected', 'receiver-filled', 'core-route-complete']
+    if (this.chapter === 3) return ['receiver-filled']
     if (this.chapter === 4) return ['lured-by-echo', 'watcher-trapped']
     return ['core-thrown-down', 'core-receiver', 'guardian-target-echo', 'guardian-defeated', 'lower-seal-echo', 'upper-seal-player', 'dual-seal']
   }

@@ -159,9 +159,7 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       wall('atrium-north', [0, 3.2, -4.5], [10.5, 3.2, 0.35]),
     ],
     devices: [
-      { id: 'bridge-lever', kind: 'lever', position: [-5.4, 3.2, -1.1] },
       { id: 'memory-core', kind: 'core', position: [-3.0, 3.75, 1.6] },
-      { id: 'rotating-bridge', kind: 'bridge', position: [3.35, 0, -0.9], size: [2.7, 0.18, 0.52], axis: 'z' },
       { id: 'core-receiver', kind: 'receiver', position: [6.6, 0.88, 1.6] },
       { id: 'atrium-door', kind: 'door', position: [9.45, 2.15, -0.4], size: [0.32, 2.1, 1.2] },
       { id: 'exit', kind: 'exit', position: [10.2, 1.08, -0.4] },
