@@ -46,6 +46,7 @@ type DynamicRecord = {
   redirectedCurrentFlight: boolean
   carryPosition: THREE.Vector3
   carryTarget: THREE.Vector3
+  recentlyDropped: number
 }
 
 type EffectRecord = {
@@ -205,6 +206,9 @@ export class DungeonWorld {
   }
 
   afterPhysics(actors: readonly ActorContext[]): void {
+    for (const dynamic of this.dynamics.values()) {
+      if (dynamic.recentlyDropped > 0) dynamic.recentlyDropped -= 1
+    }
     this.syncDynamics()
     this.updatePlates(actors)
     this.updateCoreReceiver(actors)
@@ -1010,6 +1014,7 @@ export class DungeonWorld {
       redirectedCurrentFlight: false,
       carryPosition: position.clone(),
       carryTarget: position.clone(),
+      recentlyDropped: 0,
       })
     }
   }
@@ -1264,7 +1269,7 @@ export class DungeonWorld {
     if (coreInsideReceiver && this.fillReceiver(core)) return
     if (!core.carriedBy) {
       const player = actors.find((actor) => actor.kind === 'player')
-      if (player && isWithinCatchVolume(this.vec(player.position), this.vec(corePosition)) && player.interactHeld) {
+      if (player && !core.recentlyDropped && isWithinCatchVolume(this.vec(player.position), this.vec(corePosition)) && player.interactHeld) {
         this.toggleCarry(player, core.id)
         this.facts.add('core-caught')
       }
@@ -1461,7 +1466,9 @@ export class DungeonWorld {
     dynamic.body.tag.carried = false
     dynamic.body.collider.setSensor(false)
     dynamic.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
-    dynamic.body.body.setLinvel({ x: 0, y: 0.3, z: 0 }, true)
+    dynamic.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+    // 직후 catch volume에 재 pickup 방지 (0.5초 cooldown)
+    dynamic.recentlyDropped = 30
   }
 
   private placeCarriedObject(dynamic: DynamicRecord, actor: ActorContext, snap: boolean): void {

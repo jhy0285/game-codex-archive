@@ -1154,64 +1154,67 @@ kbd {
 @media (max-width: 700px) {
   .tutorial-panel {
     left: var(--safe-left);
+    right: var(--safe-right);
     bottom: calc(var(--safe-bottom) + 0.5rem);
     width: auto;
     max-width: calc(100vw - var(--safe-left) - var(--safe-right) - 0.6rem);
-    max-height: 50vh;
+    max-height: 38vh;
     overflow-y: auto;
-    padding: 0.4rem 0.45rem;
-  }
-  .tutorial-panel h2 {
-    font-size: 0.82rem;
-  }
-  .tutorial-panel p:not(.eyebrow) {
-    font-size: 0.58rem;
-    line-height: 1.32;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.28rem 0.32rem;
   }
   .tutorial-panel .eyebrow {
-    margin-bottom: 0.15rem;
-    font-size: 0.5rem;
+    display: none;
+  }
+  .tutorial-panel h2 {
+    margin: 0 0 0.12rem;
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+  .tutorial-panel p:not(.eyebrow) {
+    display: none;
   }
   .tutorial-steps {
-    margin: 0.32rem 0;
-    gap: 0.18rem;
+    margin: 0.22rem 0;
+    gap: 0.14rem;
   }
   .tutorial-steps li {
-    padding: 0.16rem 0.26rem;
-    font-size: 0.55rem;
-    line-height: 1.3;
+    padding: 0.12rem 0.2rem;
+    font-size: 0.5rem;
+    line-height: 1.25;
   }
   .tutorial-actions {
     flex-wrap: wrap;
-    gap: 0.3rem;
+    gap: 0.25rem;
+    margin-top: 0.3rem;
   }
   .tutorial-actions button {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 0.66rem;
-    padding: 0.3rem 0.45rem;
+    font-size: 0.6rem;
+    padding: 0.22rem 0.35rem;
   }
 }
 
 @media (max-width: 480px) {
   .tutorial-panel {
-    padding: 0.32rem 0.36rem;
-    max-height: 46vh;
+    padding: 0.22rem 0.26rem;
+    max-height: 32vh;
   }
   .tutorial-panel h2 {
-    font-size: 0.74rem;
+    font-size: 0.62rem;
   }
-  .tutorial-panel p:not(.eyebrow) {
-    font-size: 0.5rem;
-    line-height: 1.28;
+  .tutorial-steps {
+    gap: 0.1rem;
   }
   .tutorial-steps li {
-    font-size: 0.5rem;
-    padding: 0.14rem 0.22rem;
+    font-size: 0.44rem;
+    padding: 0.1rem 0.16rem;
+    line-height: 1.2;
   }
   .tutorial-actions button {
-    font-size: 0.6rem;
-    padding: 0.25rem 0.38rem;
+    font-size: 0.52rem;
+    padding: 0.18rem 0.3rem;
   }
 }
 
