@@ -582,8 +582,12 @@ export class GameApp {
     const path = this.recordingPath.map((point) => point.clone())
     if (recording.snapshot.chapter !== 0) this.stats.echoes += 1
     this.audio.cue('echo')
+    this.audio.cue('echo')
+    // Echo 2.0: save current Player state BEFORE world rewind (Player must persist at recording-end)
+    const playerMotorSnap = this.player?.motor.snapshot()
     if (!await this.rebuildChapter(recording.snapshot.chapter, true, recording.snapshot)) return
     this.echoTape.replace(recording)
+    if (playerMotorSnap && this.player) this.player.motor.restore(playerMotorSnap)
     this.echoTape.beginReplay()
     this.createEchoPath(path)
     if (this.player) this.spawnTemporalPulse(this.player.motor.position, 0xc15bf2)
