@@ -110,6 +110,7 @@ export class GameApp {
   private player: ActorRuntime | undefined
   private echo: ActorRuntime | undefined
   private echoPathLine: THREE.Line | undefined
+  private recordingYaws: number[] = []
   private mode: GameMode = 'loading'
   private language: Language
   private readonly hasSavedLanguage: boolean
@@ -229,6 +230,8 @@ export class GameApp {
     this.debugInput = undefined
     this.throwWasHeld = false
     this.input.clear()
+    this.recordingYaws = []
+    this.recordingPath = []
   }
 
   private installScene(): void {
@@ -357,9 +360,11 @@ export class GameApp {
 
     const playerMovement = dequantizeMovement(playerFrame)
     let echoFrame: EchoInputFrame | undefined
-    if (this.echo) {
+        if (this.echo) {
       echoFrame = this.echoTape.nextReplayFrame()
       this.echo.motor.facingYaw = dequantizeYaw(echoFrame.aimYawQ)
+      // Echo 2.0: path-replay — echo follows recorded transform to prevent cumulative drift
+      this.applyEchoPathReplay(this.echo)
     }
 
     const contexts = this.actorContexts(playerFrame, echoFrame)
@@ -385,7 +390,10 @@ export class GameApp {
 
     if (this.echoTape.isRecording) {
       this.echoTape.record(playerFrame)
-      if (this.tick % 4 === 0) this.recordingPath.push(player.motor.position.clone())
+      if (this.tick % 4 === 0) {
+        this.recordingPath.push(player.motor.position.clone())
+        this.recordingYaws.push(player.motor.facingYaw)
+      }
       if (this.echoTape.mode === 'ready') {
         void this.activateFinishedEcho()
         return
@@ -566,6 +574,7 @@ export class GameApp {
       this.spawnTemporalPulse(player.motor.position, 0x28e6d6)
       this.recordingPath = [player.motor.position.clone()]
       this.removeEchoPath()
+      this.recordingYaws = []
       this.audio.cue('record')
       this.hud.showFeedbackKey('feedbackRecordStart', 'info')
       return false
@@ -910,6 +919,17 @@ export class GameApp {
     const current = actor.animator.root.rotation.y
     const difference = Math.atan2(Math.sin(actor.motor.facingYaw - current), Math.cos(actor.motor.facingYaw - current))
     actor.animator.root.rotation.y = current + difference * (1 - Math.exp(-18 * Math.max(0, deltaSeconds)))
+  }
+
+    private applyEchoPathReplay(echo: ActorRuntime): void {
+    if (this.echoTape.mode !== 'replaying' || this.recordingPath.length === 0) return
+    const idx = Math.min(this.echoTape.playbackTick, this.recordingPath.length - 1)
+    const point = this.recordingPath[idx]
+    if (!point) return
+    // Use kinematic body translation (the motor's controller uses setNextKinematicTranslation internally)
+    echo.motor.record.body.setNextKinematicTranslation({ x: point.x, y: point.y, z: point.z })
+    echo.motor.velocity.set(0, 0, 0)
+    if (idx < this.recordingYaws.length) echo.motor.facingYaw = this.recordingYaws[idx]!
   }
 
   private createEchoPath(points: THREE.Vector3[]): void {
