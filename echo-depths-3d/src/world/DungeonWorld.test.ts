@@ -835,5 +835,37 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(t.x).toBeLessThan(50)
     } finally { world.dispose(); physics.dispose() }
   })
-}
-)
+  it('Ch1 — facts do not leak through recording rewind', async () => {
+    const { physics, world } = await createWorld(1)
+    const snap = world.captureSnapshot()
+    const factsBefore = snap.facts.length
+    world.facts.add('echo-plate')
+    world.facts.add('tutorial-lever')
+    const factsAfterMutation = world.captureSnapshot().facts.length
+    expect(factsAfterMutation).toBeGreaterThan(factsBefore)
+    world.restoreSnapshot(snap, false)
+    const factsAfterRewind = world.captureSnapshot().facts.length
+    expect(factsAfterRewind).toBe(factsBefore)
+    world.dispose()
+    physics.dispose()
+  })
+
+  it('Ch2 — cargo position and lever state rewind correctly', async () => {
+    const { physics, world } = await createWorld(2)
+    const cargo = physics.record('cargo-crate')
+    if (!cargo) throw new Error('cargo missing')
+    const snap = world.captureSnapshot()
+    cargo.body.setTranslation({ x: 100, y: 100, z: 100 }, true)
+    cargo.body.setLinvel({ x: 50, y: 0, z: 0 }, true)
+    physics.step()
+    world.restoreSnapshot(snap, false)
+    physics.step()
+    const t = cargo.body.translation()
+    expect(t.x).toBeLessThan(20)
+    const afterRewind = world.captureSnapshot()
+    expect(afterRewind.facts).not.toContain('elevator-ridden')
+    world.dispose()
+    physics.dispose()
+  })
+
+})
