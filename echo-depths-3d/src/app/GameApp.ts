@@ -372,9 +372,11 @@ export class GameApp {
       this.echo.motor.setSupportDelta(echoSupport.delta, echoSupport.supported)
       // Echo 2.0: synthesize the desired motion from the recorded path delta so
       // the controller's collision correction applies to the replay (no teleport,
-      // no pathfinding, no target seeking). When the path sample is missing or
-      // the tape is past the end, fall back to zero desired motion so the motor
-      // holds the last grounded position via Rapier collision response.
+      // no pathfinding, no target seeking). The echo and Player share the same
+      // snapshot at spawn, so the initial delta is ~0; later deltas are bounded
+      // by walk-speed (4.25 m/s). When the path sample is missing or the tape is
+      // past the end, fall back to zero desired motion so the motor holds the
+      // last grounded position via Rapier collision response.
       const recordedPos = this.echoTape.pathAt(this.echoTape.playbackTick)
       const echoPos = this.echo.motor.position
       let dx = 0
@@ -382,12 +384,6 @@ export class GameApp {
       if (recordedPos) {
         dx = recordedPos.x - echoPos.x
         dz = recordedPos.z - echoPos.z
-        const dist = Math.sqrt(dx * dx + dz * dz)
-        const maxStep = 0.32 // ~2x walk speed per tick, generous bound
-        if (dist > maxStep) {
-          dx = (dx / dist) * maxStep
-          dz = (dz / dist) * maxStep
-        }
       }
       this.echo.motor.prepare(this.motorInput(echoFrame, dx, dz))
       // Echo 2.0 path-replay: apply recorded position AFTER motor.prepare() so the
