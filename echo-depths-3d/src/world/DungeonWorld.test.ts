@@ -951,4 +951,36 @@ describe('DungeonWorld authored runtime contracts', () => {
     expect(result.complete).toBe(true)
   })
 
+  it('Ch3 K — thrown (non-carried) Core cannot cross the temporal gate', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const core = physics.record('memory-core')
+      if (!core) throw new Error('memory-core missing')
+      // Drop the core at the gate centre (0, 0.9, -2.0) with a velocity that
+      // simulates being thrown east through the gate.
+      core.body.setTranslation({ x: 0, y: 0.9, z: -2.0 }, true)
+      core.body.setLinvel({ x: 4, y: 0, z: -3 }, true)
+      physics.step(); world.afterPhysics([])
+      const snap = world.captureSnapshot()
+      // Gate must have rejected the throw and bounced the core back to the west side.
+      expect(snap.facts).toContain('temporal-gate-rejected')
+      const after = snap.dynamics['memory-core']
+      if (!after) throw new Error('memory-core snapshot missing')
+      expect(after.position.x).toBeLessThan(0)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 L — gate rejection adds exactly one fact per crossing attempt', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const core = physics.record('memory-core')
+      if (!core) throw new Error('memory-core missing')
+      core.body.setTranslation({ x: 0, y: 0.9, z: -2.0 }, true)
+      core.body.setLinvel({ x: 4, y: 0, z: -3 }, true)
+      physics.step(); world.afterPhysics([])
+      const facts = world.captureSnapshot().facts.filter((fact) => fact === 'temporal-gate-rejected')
+      expect(facts).toHaveLength(1)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
 })

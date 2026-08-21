@@ -1305,7 +1305,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
   }
 
-    private updateTemporalGates(actors: readonly ActorContext[]): void {
+  private updateTemporalGates(actors: readonly ActorContext[]): void {
     for (const [, device] of this.devices) {
       if (device.definition.kind !== 'gate' || !device.body) continue
       const size = device.definition.size ?? [0.6, 0.6, 0.6]
@@ -1325,16 +1325,34 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
           actorsInGate.push(actor)
         }
       }
-      // For each actor, check if they are carrying a dynamic core/crate
+      // For each actor, check if they are carrying a dynamic core/crate.
+      // If so, drop it at the west edge of the gate.
       for (const actor of actorsInGate) {
         const carried = [...this.dynamics.values()].find((entry) => entry.carriedBy === actor.kind)
         if (carried && (carried.body.tag.kind === 'core' || carried.body.tag.kind === 'crate')) {
-          // Reject: drop the core/crate at the west edge of the gate
           this.dropCarried(carried)
           carried.body.body.setTranslation({ x: gx - halfX - 0.6, y: gy, z: gz }, true)
           carried.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
           this.facts.add('temporal-gate-rejected')
         }
+      }
+      // Block non-carried core/crate from crossing the gate. A thrown object
+      // that enters the gate volume is bounced back to the west side of the
+      // gate so a player cannot shortcut the chapter by throwing into the route.
+      for (const dynamic of this.dynamics.values()) {
+        if (dynamic.carriedBy) continue
+        if (dynamic.body.tag.kind !== 'core' && dynamic.body.tag.kind !== 'crate') continue
+        const t = dynamic.body.body.translation()
+        const dx = t.x - gx
+        const dy = t.y - gy
+        const dz = t.z - gz
+        if (Math.abs(dx) > halfX + 0.4) continue
+        if (Math.abs(dy) > halfY + 0.6) continue
+        if (Math.abs(dz) > halfZ + 0.4) continue
+        // Inside the gate volume — bounce back to west edge.
+        dynamic.body.body.setTranslation({ x: gx - halfX - 0.6, y: t.y, z: t.z }, true)
+        dynamic.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+        this.facts.add('temporal-gate-rejected')
       }
     }
   }

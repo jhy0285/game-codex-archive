@@ -1,11 +1,19 @@
 import { cloneInputFrame, createInputFrame } from './input'
-import { ActionBits, NEUTRAL_INPUT, type InputFrame } from './types'
+import { ActionBits, NEUTRAL_INPUT, type InputFrame, type Vector3 } from './types'
 
 export type EchoTapeMode = 'idle' | 'recording' | 'ready' | 'replaying' | 'holding'
 
 export type EchoRecording<TSnapshot> = Readonly<{
   snapshot: TSnapshot
   frames: readonly InputFrame[]
+  /**
+   * Tick-aligned echo replay samples (one entry per recorded frame). The echo
+   * follows these samples as the authoritative source of motion during replay,
+   * so it cannot drift even when raw input is replayed through physics.
+   */
+  path: readonly Vector3[]
+  /** Tick-aligned facing yaw samples (one entry per recorded frame). */
+  yaws: readonly number[]
   terminalHeldMask: number
 }>
 
@@ -16,6 +24,7 @@ export type EchoTapeOptions<TSnapshot> = Readonly<{
 }>
 
 const defaultClone = <T>(value: T): T => structuredClone(value)
+const clonePathPoint = (p: Vector3): Vector3 => ({ x: p.x, y: p.y, z: p.z })
 
 export class EchoTape<TSnapshot> {
   readonly maxFrames: number
@@ -25,6 +34,8 @@ export class EchoTape<TSnapshot> {
   private currentMode: EchoTapeMode = 'idle'
   private startSnapshot: TSnapshot | null = null
   private frames: InputFrame[] = []
+  private path: Vector3[] = []
+  private yaws: number[] = []
   private replayTick = 0
 
   constructor(options: EchoTapeOptions<TSnapshot> = {}) {
@@ -61,19 +72,33 @@ export class EchoTape<TSnapshot> {
     return this.startSnapshot === null ? null : this.cloneSnapshot(this.startSnapshot)
   }
 
+  /** Tick-aligned path samples captured during recording (read-only). */
+  get recordedPath(): readonly Vector3[] {
+    return this.path
+  }
+
+  /** Tick-aligned yaw samples captured during recording (read-only). */
+  get recordedYaws(): readonly number[] {
+    return this.yaws
+  }
+
   start(snapshot: TSnapshot) {
     this.startSnapshot = this.cloneSnapshot(snapshot)
     this.frames = []
+    this.path = []
+    this.yaws = []
     this.replayTick = 0
     this.currentMode = 'recording'
   }
 
-  record(frame: InputFrame) {
+  record(frame: InputFrame, position?: Vector3, facingYaw?: number): boolean {
     if (this.currentMode !== 'recording') {
       throw new Error('EchoTape.record requires recording mode')
     }
     if (this.frames.length >= this.maxFrames) return false
     this.frames.push(cloneInputFrame(frame))
+    if (position) this.path.push(clonePathPoint(position))
+    if (typeof facingYaw === 'number') this.yaws.push(facingYaw)
     if (this.frames.length === this.maxFrames) this.finish()
     return true
   }
@@ -101,6 +126,20 @@ export class EchoTape<TSnapshot> {
     return this.terminalFrame()
   }
 
+  /** Recorded position sample at the given tick, clamped to the recorded range. */
+  pathAt(tick: number): Vector3 | null {
+    if (this.path.length === 0) return null
+    const safeTick = Math.max(0, Math.min(Math.trunc(tick), this.path.length - 1))
+    return this.path[safeTick] ?? null
+  }
+
+  /** Recorded facing yaw sample at the given tick, clamped to the recorded range. */
+  yawAt(tick: number): number | null {
+    if (this.yaws.length === 0) return null
+    const safeTick = Math.max(0, Math.min(Math.trunc(tick), this.yaws.length - 1))
+    return this.yaws[safeTick] ?? null
+  }
+
   nextReplayFrame(): InputFrame {
     if (this.currentMode === 'ready') this.beginReplay()
     if (this.currentMode !== 'replaying' && this.currentMode !== 'holding') {
@@ -123,6 +162,8 @@ export class EchoTape<TSnapshot> {
     }
     this.startSnapshot = this.cloneSnapshot(recording.snapshot)
     this.frames = recording.frames.slice(0, this.maxFrames).map(cloneInputFrame)
+    this.path = recording.path.slice(0, this.maxFrames).map(clonePathPoint)
+    this.yaws = recording.yaws.slice(0, this.maxFrames)
     this.replayTick = 0
     this.currentMode = 'ready'
   }
@@ -134,6 +175,8 @@ export class EchoTape<TSnapshot> {
     return {
       snapshot: this.cloneSnapshot(this.startSnapshot),
       frames: this.frames.map(cloneInputFrame),
+      path: this.path.map(clonePathPoint),
+      yaws: this.yaws.slice(),
       terminalHeldMask,
     }
   }
@@ -141,6 +184,8 @@ export class EchoTape<TSnapshot> {
   reset() {
     this.startSnapshot = null
     this.frames = []
+    this.path = []
+    this.yaws = []
     this.replayTick = 0
     this.currentMode = 'idle'
   }
@@ -154,3 +199,4 @@ export class EchoTape<TSnapshot> {
     })
   }
 }
+

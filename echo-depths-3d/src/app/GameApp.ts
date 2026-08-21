@@ -110,7 +110,6 @@ export class GameApp {
   private player: ActorRuntime | undefined
   private echo: ActorRuntime | undefined
   private echoPathLine: THREE.Line | undefined
-  private recordingYaws: number[] = []
   private mode: GameMode = 'loading'
   private language: Language
   private readonly hasSavedLanguage: boolean
@@ -122,7 +121,6 @@ export class GameApp {
   private transitionPending = false
   private rotationPaused = false
   private lastTime = performance.now()
-  private recordingPath: THREE.Vector3[] = []
   private debugInput: DebugInput | undefined
   private manualStepping = false
   private failRestartTicks = 0
@@ -230,8 +228,6 @@ export class GameApp {
     this.debugInput = undefined
     this.throwWasHeld = false
     this.input.clear()
-    this.recordingYaws = []
-    this.recordingPath = []
   }
 
   private installScene(): void {
@@ -363,8 +359,6 @@ export class GameApp {
         if (this.echo) {
       echoFrame = this.echoTape.nextReplayFrame()
       this.echo.motor.facingYaw = dequantizeYaw(echoFrame.aimYawQ)
-      // Echo 2.0: path-replay — echo follows recorded transform to prevent cumulative drift
-      this.applyEchoPathReplay(this.echo)
     }
 
     const contexts = this.actorContexts(playerFrame, echoFrame)
@@ -378,6 +372,9 @@ export class GameApp {
       const echoSupport = world.supportMotion(this.echo.motor.position)
       this.echo.motor.setSupportDelta(echoSupport.delta, echoSupport.supported)
       this.echo.motor.prepare(this.motorInput(echoFrame, movement.x, movement.z))
+      // Echo 2.0 path-replay: apply recorded position AFTER motor.prepare() so the
+      // recorded sample's setNextKinematicTranslation is the last one before physics.step.
+      this.applyEchoPathReplay(this.echo)
     }
     this.resolveActions(player, playerFrame, contexts[0] as ActorContext)
     if (this.echo && echoFrame && contexts[1]) this.resolveActions(this.echo, echoFrame, contexts[1])
@@ -389,11 +386,10 @@ export class GameApp {
     this.updateTutorialProgress(player, uiFrame)
 
     if (this.echoTape.isRecording) {
-      this.echoTape.record(playerFrame)
-      if (this.tick % 4 === 0) {
-        this.recordingPath.push(player.motor.position.clone())
-        this.recordingYaws.push(player.motor.facingYaw)
-      }
+      // Tick-aligned echo replay samples. The tape stores one path/yaw per
+      // recorded frame so playback index and sample index stay in lockstep.
+      const motorPos = player.motor.position
+      this.echoTape.record(playerFrame, { x: motorPos.x, y: motorPos.y, z: motorPos.z }, player.motor.facingYaw)
       if (this.echoTape.mode === 'ready') {
         void this.activateFinishedEcho()
         return
@@ -572,9 +568,7 @@ export class GameApp {
         world: world.captureSnapshot(),
       })
       this.spawnTemporalPulse(player.motor.position, 0x28e6d6)
-      this.recordingPath = [player.motor.position.clone()]
       this.removeEchoPath()
-      this.recordingYaws = []
       this.audio.cue('record')
       this.hud.showFeedbackKey('feedbackRecordStart', 'info')
       return false
@@ -588,7 +582,6 @@ export class GameApp {
     if (this.transitionPending || this.echoTape.mode !== 'ready') return
     const recording = this.echoTape.exportRecording()
     if (!recording) return
-    const path = this.recordingPath.map((point) => point.clone())
     if (recording.snapshot.chapter !== 0) this.stats.echoes += 1
     this.audio.cue('echo')
     this.audio.cue('echo')
@@ -598,7 +591,9 @@ export class GameApp {
     this.echoTape.replace(recording)
     if (playerMotorSnap && this.player) this.player.motor.restore(playerMotorSnap)
     this.echoTape.beginReplay()
-    this.createEchoPath(path)
+    this.createEchoPath(
+      this.echoTape.recordedPath.map((p) => new THREE.Vector3(p.x, p.y, p.z)),
+    )
     if (this.player) this.spawnTemporalPulse(this.player.motor.position, 0xc15bf2)
     this.hud.showFeedbackKey('feedbackRecordEnd', 'success')
     if (recording.snapshot.chapter === 0) {
@@ -921,15 +916,18 @@ export class GameApp {
     actor.animator.root.rotation.y = current + difference * (1 - Math.exp(-18 * Math.max(0, deltaSeconds)))
   }
 
-    private applyEchoPathReplay(echo: ActorRuntime): void {
-    if (this.echoTape.mode !== 'replaying' || this.recordingPath.length === 0) return
-    const idx = Math.min(this.echoTape.playbackTick, this.recordingPath.length - 1)
-    const point = this.recordingPath[idx]
+  private applyEchoPathReplay(echo: ActorRuntime): void {
+    // Echo 2.0 path-replay: the EchoTape owns the tick-aligned recording, so the
+    // authoritative motion sample is reachable even after rebuildChapter() clears
+    // the runtime input buffer. This call must happen AFTER motor.prepare() so the
+    // recorded setNextKinematicTranslation is the last one before physics.step.
+    if (this.echoTape.mode !== 'replaying') return
+    const point = this.echoTape.pathAt(this.echoTape.playbackTick)
     if (!point) return
-    // Use kinematic body translation (the motor's controller uses setNextKinematicTranslation internally)
     echo.motor.record.body.setNextKinematicTranslation({ x: point.x, y: point.y, z: point.z })
     echo.motor.velocity.set(0, 0, 0)
-    if (idx < this.recordingYaws.length) echo.motor.facingYaw = this.recordingYaws[idx]!
+    const yaw = this.echoTape.yawAt(this.echoTape.playbackTick)
+    if (yaw !== null) echo.motor.facingYaw = yaw
   }
 
   private createEchoPath(points: THREE.Vector3[]): void {
