@@ -15,11 +15,13 @@ export type BoxDefinition = {
 
 export type DeviceDefinition = {
   id: string
-  kind: 'plate' | 'lever' | 'door' | 'elevator' | 'platform' | 'bridge' | 'crate' | 'core' | 'trap' | 'exit' | 'enemy' | 'receiver' | 'gate'
+  kind: 'plate' | 'lever' | 'door' | 'elevator' | 'platform' | 'bridge' | 'crate' | 'core' | 'trap' | 'exit' | 'enemy' | 'receiver' | 'gate' | 'shutter'
   position: Point3
   size?: Size3
   to?: Point3
   axis?: 'x' | 'z'
+  /** Optional trigger threshold for shutters: shutter opens when live Player.x >= this value. */
+  openAtX?: number
 }
 
 export type DecorDefinition = {
@@ -161,6 +163,11 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
     devices: [
       { id: 'memory-core', kind: 'core', position: [-3.0, 3.75, 1.6] },
       { id: 'temporal-gate', kind: 'gate', position: [0.0, 0.9, -2.0], size: [3.0, 2.2, 0.6] },
+      // Ch3 core transfer lane shutter. Closed by default; opens only when the live
+      // Player is currently east of x=4 (i.e. already past the route). The shutter
+      // body is a physical collider that blocks dynamic cores/crates, so the Echo
+      // throw cannot reach the receiver until the Player has actually crossed.
+      { id: 'transfer-shutter', kind: 'shutter', position: [3.5, 1.4, 1.6], size: [0.4, 0.6, 1.0], openAtX: 4.0 },
       { id: 'core-receiver', kind: 'receiver', position: [6.6, 0.88, 1.6] },
       { id: 'atrium-door', kind: 'door', position: [9.45, 2.15, -0.4], size: [0.32, 2.1, 1.2] },
       { id: 'exit', kind: 'exit', position: [10.2, 1.08, -0.4] },

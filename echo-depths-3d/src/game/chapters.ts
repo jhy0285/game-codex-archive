@@ -14,8 +14,6 @@ export const ObjectiveFacts = {
   EchoHoldingCounterweightLever: 'echo-holding-counterweight-lever',
   ElevatorReachedUpper: 'elevator-reached-upper',
   CargoOnWeightPlate: 'cargo-on-weight-plate',
-  CoreCaughtByPlayer: 'core-caught-by-player',
-  CoreRedirectedByAttack: 'core-redirected-by-attack',
   CoreInAtriumReceiver: 'core-in-atrium-receiver',
   EchoHoldingBridgeLever: 'echo-holding-bridge-lever',
   BridgeLocked: 'bridge-locked',

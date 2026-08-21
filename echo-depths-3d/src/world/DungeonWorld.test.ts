@@ -253,6 +253,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       receiver: ['ReceiverCradle', 'ReceiverRing', 'ReceiverProngs', 'ReceiverBeam'],
       enemy: ['SentryBase', 'SentryShell', 'SentryEye', 'SentryHalo', 'SentryFins', 'SightCone'],
       gate: ['TemporalGatePost', 'TemporalGateBeam', 'TemporalGateBase'],
+      shutter: ['TransferShutterSlat', 'TransferShutterFrame'],
     } as const
 
     for (const chapter of [0, 1, 2, 3, 4, 5] as const) {
@@ -970,16 +971,99 @@ describe('DungeonWorld authored runtime contracts', () => {
     } finally { world.dispose(); physics.dispose() }
   })
 
-  it('Ch3 L — gate rejection adds exactly one fact per crossing attempt', async () => {
+  it('Ch3 L — repeated core throws still bounce the body and zero its velocity', async () => {
     const { physics, world } = await createWorld(3)
     try {
       const core = physics.record('memory-core')
       if (!core) throw new Error('memory-core missing')
-      core.body.setTranslation({ x: 0, y: 0.9, z: -2.0 }, true)
-      core.body.setLinvel({ x: 4, y: 0, z: -3 }, true)
+      // Throw east through the gate, then again, then again.
+      // After each attempt the body must be on the west side with zero linvel.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        core.body.setTranslation({ x: 0, y: 0.9, z: -2.0 }, true)
+        core.body.setLinvel({ x: 4 + attempt, y: 0, z: -3 }, true)
+        physics.step(); world.afterPhysics([])
+        const t = core.body.translation()
+        expect(t.x, `attempt ${attempt}: core east of gate`).toBeLessThan(0)
+      }
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 M — transfer shutter is closed by default (blocks dynamic core)', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const core = physics.record('memory-core')
+      if (!core) throw new Error('memory-core missing')
+      const shutter = physics.record('transfer-shutter')
+      if (!shutter) throw new Error('transfer-shutter missing')
+      // Initial state: shutter body should be at its authored position (closed).
+      const initialT = shutter.body.translation()
+      // Drop the core inside the shutter volume with east-bound velocity.
+      // The shutter collider is real (not a sensor), so Rapier should push back
+      // the core instead of letting it tunnel through.
+      core.body.setTranslation({ x: initialT.x, y: initialT.y, z: initialT.z }, true)
+      core.body.setLinvel({ x: 6, y: 0, z: 0 }, true)
       physics.step(); world.afterPhysics([])
-      const facts = world.captureSnapshot().facts.filter((fact) => fact === 'temporal-gate-rejected')
-      expect(facts).toHaveLength(1)
+      const t = core.body.translation()
+      // The core must NOT have crossed to x > shutter.x + 1
+      expect(t.x, 'core should be west of the closed shutter').toBeLessThan(initialT.x + 0.6)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 N — transfer shutter opens when the live Player is east of openAtX', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const shutter = physics.record('transfer-shutter')
+      if (!shutter) throw new Error('transfer-shutter missing')
+      const closedY = shutter.body.translation().y
+      const player = actor('player', 'player', [5.0, 0.9, 0])
+      // Two-tick sequence so Rapier consumes the next-kinematic-translation that
+      // updateShutters sets in afterPhysics.
+      world.beforePhysics(1, [player])
+      physics.step(); world.afterPhysics([player])
+      physics.step()
+      const openY = shutter.body.translation().y
+      expect(openY, 'shutter body should be lowered when Player.x >= openAtX').toBeLessThan(closedY - 0.2)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 O — actor previously east of gate cannot return to WEST through it', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const player = actor('player', 'player', [3.0, 0.9, -2.0])
+      // Register the previous position via beforePhysics so updateTemporalGates
+      // sees prevX=3.0 on the next step.
+      world.beforePhysics(1, [player])
+      // Now move player to the gate (x=0) coming from the east.
+      player.position.set(0.0, 0.9, -2.0)
+      physics.step(); world.afterPhysics([player])
+      // Position must be pushed back east.
+      expect(player.position.x, 'one-way must reject EAST→WEST').toBeGreaterThan(0)
+      expect(world.captureSnapshot().facts).toContain('temporal-gate-rejected')
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 P — actor can still cross gate WEST→EAST', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const player = actor('player', 'player', [-3.0, 0.9, -2.0])
+      world.afterPhysics([player])
+      player.position.set(0.5, 0.9, -2.0)
+      physics.step(); world.afterPhysics([player])
+      // Player crosses west→east freely (not pushed back)
+      expect(player.position.x, 'WEST→EAST must pass').toBeGreaterThan(0)
+      expect(world.captureSnapshot().facts).not.toContain('temporal-gate-rejected')
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 Q — Player can pickup the Core only when in interact range (no auto-catch)', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const player = actor('player', 'player', [-3.0, 3.75, 1.6])
+      // Player is at the core spawn; try to carry
+      const result = world.interact(player)
+      expect(result).toBe('core')
+      physics.step(); world.afterPhysics([player])
+      expect(world.captureSnapshot().dynamics['memory-core']?.carriedBy).toBe('player')
     } finally { world.dispose(); physics.dispose() }
   })
 

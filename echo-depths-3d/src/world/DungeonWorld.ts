@@ -154,6 +154,10 @@ export class DungeonWorld {
   private readonly root = new THREE.Group()
   private readonly devices = new Map<string, DeviceRecord>()
   private readonly dynamics = new Map<string, DynamicRecord>()
+  /** Live open/closed state per shutter device id (chapter 3 transfer lane). */
+  private readonly shutters = new Map<string, boolean>()
+  /** Last known actor position per actor id, used to enforce one-way gate traversal. */
+  private readonly actorPreviousX = new Map<string, number>()
   private readonly materials: THREE.Material[] = []
   private readonly geometries: THREE.BufferGeometry[] = []
   private readonly effects: EffectRecord[] = []
@@ -191,6 +195,8 @@ export class DungeonWorld {
   }
 
   beforePhysics(tick: number, actors: readonly ActorContext[]): void {
+    // Snapshot actor x-positions so updateTemporalGates can detect the direction of crossing.
+    for (const actor of actors) this.actorPreviousX.set(actor.id, actor.position.x)
     this.currentTick = tick
     this.updateHeldLevers(actors)
     this.updatePlatforms(tick, actors)
@@ -215,6 +221,7 @@ export class DungeonWorld {
     this.updateEnemy(actors)
     this.updateTrapHazards()
     this.updateTemporalGates(actors)
+    this.updateShutters(actors)
     this.evaluateDerivedFacts(actors)
     this.updateCoreLoss()
     if (this.exitRequestedBy === 'player' && this.canExit()) this.complete = true
@@ -297,12 +304,18 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   }
 
   attack(actor: ActorContext, direction: THREE.Vector3): string | undefined {
-    const core = [...this.dynamics.values()].find((entry) =>
-      entry.body.tag.kind === 'core'
-      && !entry.carriedBy
-      && !this.receiverFilled
-      && !entry.redirectedCurrentFlight
-      && entry.body.body.bodyType() === RAPIER.RigidBodyType.Dynamic)
+    // Ch3 removed: no air-redirect / catch-time mechanic. The core reaches the receiver
+    // exclusively via the echo's recorded throw. Ch5 may still use the core field for its
+    // own logic, so we keep `redirectedCurrentFlight` but only set it in non-Ch3 chapters.
+    const allowRedirect = this.chapter !== 3 && this.chapter !== 0
+    const core = allowRedirect
+      ? [...this.dynamics.values()].find((entry) =>
+          entry.body.tag.kind === 'core'
+          && !entry.carriedBy
+          && !this.receiverFilled
+          && !entry.redirectedCurrentFlight
+          && entry.body.body.bodyType() === RAPIER.RigidBodyType.Dynamic)
+      : undefined
     if (core) {
       const p = core.body.body.translation()
       const corePosition = new THREE.Vector3(p.x, p.y, p.z)
@@ -311,7 +324,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         const redirected = new THREE.Vector3(redirectedState.x, Math.max(2.8, redirectedState.y * 0.45 + 2.6), redirectedState.z)
         core.body.body.setLinvel(redirected, true)
         core.redirectedCurrentFlight = true
-        this.facts.add('core-redirected')
         this.spawnWave(corePosition, 0xc15bf2)
         return 'core'
       }
@@ -785,7 +797,24 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       base.position.y = -size[1]
       root.add(leftPost, rightPost, beam, base)
       body = this.physics.createSensor(definition.id, 'gate', this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
-      } else if (definition.kind === 'door') {
+    } else if (definition.kind === 'shutter') {
+      // Physical shutter for Ch3 core transfer lane. Closed by default (blocks
+      // dynamic cores/crates). Opens when the live Player is in EAST (so the
+      // recorded-timeline shutter state never leaks across rebuilds).
+      root = new THREE.Group()
+      const slatMat = this.material(0xc15bf2, 0.34, 0.6, 0x6b3a92)
+      for (let i = 0; i < 4; i += 1) {
+        const slat = this.boxMesh([size[0] * 0.42, size[1] * 0.18, 0.05], slatMat.clone())
+        slat.name = 'TransferShutterSlat'
+        slat.position.set(0, -size[1] * 0.5 + (i + 0.5) * (size[1] * 0.25), 0)
+        root.add(slat)
+      }
+      const frameMat = this.material(0x2a1a3a, 0.5, 0.5, 0x4a2a5a)
+      const top = this.boxMesh([size[0] * 0.46, 0.04, 0.04], frameMat); top.name = 'TransferShutterFrame'
+      top.position.y = size[1] * 0.5 + 0.02
+      root.add(top)
+      body = this.physics.createShutter(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
+    } else if (definition.kind === 'door') {
       root = new THREE.Group()
       const doorCore = this.boxMesh(size, this.material(0x1d2c36, 0.52, 0.68))
       doorCore.name = 'VaultDoorCore'
@@ -1284,11 +1313,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       .intersections(receiver.body.collider, CORE_KIND)
       .some((record) => record.tag.id === core.id)
     if (coreInsideReceiver && this.fillReceiver(core)) return
-    if (!core.carriedBy) {
+    if (!core.carriedBy && this.chapter !== 3) {
+      // Ch3 removed: frame-precision catch mechanic. The echo records its own pickup,
+      // the player records their own pickup after recording — no auto-catch on interactHeld.
       const player = actors.find((actor) => actor.kind === 'player')
       if (player && !core.recentlyDropped && isWithinCatchVolume(this.vec(player.position), this.vec(corePosition)) && player.interactHeld) {
         this.toggleCarry(player, core.id)
-        this.facts.add('core-caught')
       }
     }
   }
@@ -1315,8 +1345,11 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const halfX = size[0] / 2
       const halfY = size[1] / 2
       const halfZ = size[2] / 2
-      // Find actors in the gate volume
+      // Find actors in the gate volume.
+      // Ch3: enforce one-way WEST→EAST. An actor that was east of the gate last tick
+      // and is now at or west of the gate is rejected and pushed back to the east edge.
       const actorsInGate: ActorContext[] = []
+      const oneWayReject: ActorContext[] = []
       for (const actor of actors) {
         const ax = actor.position.x
         const ay = actor.position.y
@@ -1324,6 +1357,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         if (Math.abs(ax - gx) <= halfX + 0.5 && Math.abs(ay - gy) <= halfY + 1 && Math.abs(az - gz) <= halfZ + 0.5) {
           actorsInGate.push(actor)
         }
+        const prevX = this.actorPreviousX.get(actor.id)
+        if (prevX !== undefined && prevX > gx + 0.1 && ax <= gx + 0.1) {
+          oneWayReject.push(actor)
+        }
+      }
+      for (const actor of oneWayReject) {
+        actor.position.x = gx + halfX + 0.6
+        this.facts.add('temporal-gate-rejected')
       }
       // For each actor, check if they are carrying a dynamic core/crate.
       // If so, drop it at the west edge of the gate.
@@ -1354,6 +1395,41 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         dynamic.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
         this.facts.add('temporal-gate-rejected')
       }
+    }
+  }
+
+  /**
+   * Ch3 transfer-lane shutter. The shutter is closed by default and physically
+   * blocks dynamic cores/crates (it has a real collider, not a sensor). It opens
+   * only when the live Player is currently located on the EAST side of the
+   * shutter (the `openZone` field of the device definition, or any position east
+   * of the shutter's center x by default). When opened, the body is translated
+   * downward so the lane is clear; when closed, the body sits in the lane.
+   *
+   * This deliberately ignores provenance facts (`EchoUsed`, `CoreThrownByEcho`,
+   * etc.) so the shutter state never leaks from a previous recording timeline.
+   */
+  private updateShutters(actors: readonly ActorContext[]): void {
+    if (this.chapter !== 3) return
+    for (const [, device] of this.devices) {
+      if (device.definition.kind !== 'shutter') continue
+      const position = device.definition.position
+      const size = device.definition.size ?? [0.6, 0.6, 0.6]
+      const openThresholdX = device.definition.openAtX ?? position[0] + 2.0
+      const closedCenter: Vec3 = { x: position[0], y: position[1], z: position[2] }
+      const openOffsetY = size[1] * 1.6 + 0.1
+      const openCenter: Vec3 = { x: position[0], y: position[1] - openOffsetY, z: position[2] }
+      const player = actors.find((a) => a.kind === 'player')
+      const shouldOpen = !!player && player.position.x >= openThresholdX
+      const target = shouldOpen ? openCenter : closedCenter
+      if (!device.body) continue
+      const t = device.body.body.translation()
+      // Only move when the body is meaningfully off target — avoids jitter.
+      if (Math.abs(t.x - target.x) > 0.01 || Math.abs(t.y - target.y) > 0.01 || Math.abs(t.z - target.z) > 0.01) {
+        device.body.body.setNextKinematicTranslation(target)
+        if (device.root) device.root.position.set(target.x, target.y, target.z)
+      }
+      this.shutters.set(device.definition.id, shouldOpen)
     }
   }
 
@@ -1524,10 +1600,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     dynamic.redirectedCurrentFlight = false
     dynamic.body.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, true)
     this.placeCarriedObject(dynamic, actor, true)
-    if (id.includes('core') && actor.kind === 'player' && this.facts.has('core-thrown-by-echo')) {
-      this.facts.add('core-caught')
-      dynamic.postCatchFlightArmed = true
-    }
+    // Ch3 removed: 'core-caught' / 'postCatchFlightArmed' pickup-time effects.
   }
 
   private dropCarried(dynamic: DynamicRecord): void {
@@ -1587,7 +1660,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.emitAudio({ type: 'receiver', id: receiver.definition.id })
     }
     this.facts.add(this.chapter === 5 ? 'core-receiver' : 'receiver-filled')
-    if (this.chapter === 3 && this.facts.has('core-redirected')) this.facts.add('core-route-complete')
+    // Ch3 removed: 'core-route-complete' (only ever added if 'core-redirected' was present).
     return true
   }
 

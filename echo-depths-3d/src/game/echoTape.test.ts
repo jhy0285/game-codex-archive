@@ -57,7 +57,11 @@ describe('EchoTape', () => {
     for (const frame of frames) tape.record(frame)
     tape.finish()
     tape.beginReplay()
-    const replay = frames.map(() => tape.nextReplayFrame())
+    const replay = frames.map(() => {
+      const f = tape.nextReplayFrame()
+      tape.consumeReplayFrame()
+      return f
+    })
     expect(replay.every((frame, index) => inputFramesEqual(frame, frames[index]!))).toBe(true)
     expect(simulate(replay)).toEqual(simulate(frames))
   })
@@ -74,6 +78,7 @@ describe('EchoTape', () => {
     tape.finish()
     tape.beginReplay()
     tape.nextReplayFrame()
+    tape.consumeReplayFrame()
     const terminal = tape.nextReplayFrame()
     expect(terminal.moveX).toBe(0)
     expect(terminal.moveZ).toBe(0)

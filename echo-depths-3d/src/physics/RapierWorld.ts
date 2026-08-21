@@ -19,6 +19,7 @@ export type PhysicsEntityKind =
   | 'enemy'
   | 'exit'
   | 'gate'
+  | 'shutter'
 
 export type PhysicsTag = {
   id: string
@@ -127,6 +128,22 @@ export class RapierWorld {
 
   all(): readonly BodyRecord[] {
     return [...this.records.values()]
+  }
+
+  /**
+   * Kinematic position-based shutter. The shutter is a physical body that
+   * blocks dynamic cores/crates when closed. Callers drive open/close by calling
+   * `setNextKinematicTranslation` on the returned body.
+   */
+  createShutter(id: string, center: Vec3, half: Vec3): BodyRecord {
+    const body = this.world.createRigidBody(
+      RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(center.x, center.y, center.z),
+    )
+    const collider = this.world.createCollider(
+      RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setFriction(0.92).setRestitution(0.18),
+      body,
+    )
+    return this.register({ tag: { id, kind: 'shutter' }, body, collider })
   }
 
   remove(id: string): void {

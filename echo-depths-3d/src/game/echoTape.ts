@@ -140,6 +140,15 @@ export class EchoTape<TSnapshot> {
     return this.yaws[safeTick] ?? null
   }
 
+  /**
+   * Read the input frame at the current playback index without advancing it.
+   *
+   * Tick-aligned callers MUST call `consumeReplayFrame()` exactly once per
+   * replay tick, AFTER both this frame and its matching transform sample
+   * (via `pathAt(replayTick)` / `yawAt(replayTick)`) have been consumed.
+   * This decouples the frame read from the index advance so the first
+   * replay frame pairs with `path[0]`, not `path[1]`.
+   */
   nextReplayFrame(): InputFrame {
     if (this.currentMode === 'ready') this.beginReplay()
     if (this.currentMode !== 'replaying' && this.currentMode !== 'holding') {
@@ -147,13 +156,24 @@ export class EchoTape<TSnapshot> {
     }
 
     const frame = this.frames[this.replayTick]
-    if (frame) {
-      this.replayTick += 1
-      if (this.replayTick >= this.frames.length) this.currentMode = 'holding'
-      return cloneInputFrame(frame)
-    }
+    if (frame) return cloneInputFrame(frame)
+    // Past the last recorded frame — stay in holding; the terminal frame
+    // preserves only the allowed held-interaction bit (e.g. E).
     this.currentMode = 'holding'
     return this.terminalFrame()
+  }
+
+  /**
+   * Advance `playbackTick` by one tick. Call this AFTER both the input frame
+   * (`nextReplayFrame`) and the transform sample (`pathAt` / `yawAt`) for
+   * the current tick have been consumed. No-op once `mode === 'holding'`.
+   */
+  consumeReplayFrame(): void {
+    if (this.currentMode !== 'replaying') return
+    this.replayTick += 1
+    if (this.replayTick >= this.frames.length) {
+      this.currentMode = 'holding'
+    }
   }
 
   replace(recording: EchoRecording<TSnapshot>) {

@@ -67,18 +67,13 @@ describe('authored chapter objectives', () => {
   })
 
   it('maps renderer/world facts into typed objective facts', () => {
+    // Ch3 removed: core-caught, core-redirected, core-route-complete facts are no longer produced.
     expect(objectiveFactsFromWorld([
       'bridge-lever-echo',
-      'core-caught',
-      'core-redirected',
       'receiver-filled',
-      'core-route-complete',
     ], true)).toEqual([
       ObjectiveFacts.EchoHoldingBridgeLever,
-      ObjectiveFacts.CoreCaughtByPlayer,
-      ObjectiveFacts.CoreRedirectedByAttack,
       ObjectiveFacts.CoreInAtriumReceiver,
-      ObjectiveFacts.BridgeLocked,
       ObjectiveFacts.PlayerAtExit,
     ])
   })

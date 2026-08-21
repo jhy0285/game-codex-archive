@@ -368,10 +368,28 @@ export class GameApp {
     player.motor.setSupportDelta(playerSupport.delta, playerSupport.supported)
     player.motor.prepare(this.motorInput(playerFrame, playerMovement.x, playerMovement.z))
     if (this.echo && echoFrame) {
-      const movement = dequantizeMovement(echoFrame)
       const echoSupport = world.supportMotion(this.echo.motor.position)
       this.echo.motor.setSupportDelta(echoSupport.delta, echoSupport.supported)
-      this.echo.motor.prepare(this.motorInput(echoFrame, movement.x, movement.z))
+      // Echo 2.0: synthesize the desired motion from the recorded path delta so
+      // the controller's collision correction applies to the replay (no teleport,
+      // no pathfinding, no target seeking). When the path sample is missing or
+      // the tape is past the end, fall back to zero desired motion so the motor
+      // holds the last grounded position via Rapier collision response.
+      const recordedPos = this.echoTape.pathAt(this.echoTape.playbackTick)
+      const echoPos = this.echo.motor.position
+      let dx = 0
+      let dz = 0
+      if (recordedPos) {
+        dx = recordedPos.x - echoPos.x
+        dz = recordedPos.z - echoPos.z
+        const dist = Math.sqrt(dx * dx + dz * dz)
+        const maxStep = 0.32 // ~2x walk speed per tick, generous bound
+        if (dist > maxStep) {
+          dx = (dx / dist) * maxStep
+          dz = (dz / dist) * maxStep
+        }
+      }
+      this.echo.motor.prepare(this.motorInput(echoFrame, dx, dz))
       // Echo 2.0 path-replay: apply recorded position AFTER motor.prepare() so the
       // recorded sample's setNextKinematicTranslation is the last one before physics.step.
       this.applyEchoPathReplay(this.echo)
@@ -383,6 +401,8 @@ export class GameApp {
     this.echo?.motor.syncAfterStep()
     world.afterPhysics(this.actorContexts(playerFrame, echoFrame))
     this.playWorldAudioEvents(world.takeAudioEvents())
+    // Echo 2.0: advance the replay index once per tick, after frame + path are consumed.
+    if (this.echo) this.echoTape.consumeReplayFrame()
     this.updateTutorialProgress(player, uiFrame)
 
     if (this.echoTape.isRecording) {
@@ -917,15 +937,12 @@ export class GameApp {
   }
 
   private applyEchoPathReplay(echo: ActorRuntime): void {
-    // Echo 2.0 path-replay: the EchoTape owns the tick-aligned recording, so the
-    // authoritative motion sample is reachable even after rebuildChapter() clears
-    // the runtime input buffer. This call must happen AFTER motor.prepare() so the
-    // recorded setNextKinematicTranslation is the last one before physics.step.
-    if (this.echoTape.mode !== 'replaying') return
-    const point = this.echoTape.pathAt(this.echoTape.playbackTick)
-    if (!point) return
-    echo.motor.record.body.setNextKinematicTranslation({ x: point.x, y: point.y, z: point.z })
-    echo.motor.velocity.set(0, 0, 0)
+    // Echo 2.0 path-replay: the EchoTape owns the tick-aligned recording.
+    // Motion is collision-aware — the synthesized motor input above lets the
+    // KinematicCharacterController push the echo back when an obstacle blocks
+    // the recorded path. This function only mirrors the recorded facing yaw;
+    // it MUST NOT teleport the body (no setNextKinematicTranslation override).
+    if (this.echoTape.mode !== 'replaying' && this.echoTape.mode !== 'holding') return
     const yaw = this.echoTape.yawAt(this.echoTape.playbackTick)
     if (yaw !== null) echo.motor.facingYaw = yaw
   }
