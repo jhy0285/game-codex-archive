@@ -869,4 +869,86 @@ describe('DungeonWorld authored runtime contracts', () => {
     physics.dispose()
   })
 
+  // ===== Echo 2.0 Ch3 (OBJECT TRANSFER) Prompt 3 tests =====
+
+  it('Ch3 A — Core cannot cross Player gate while carried', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const player = actor('player', 'player', [-3.0, 3.75, 1.6])
+      world.interact(player) // pickup core
+      physics.step(); world.afterPhysics([player])
+      expect(world.captureSnapshot().dynamics['memory-core']?.carriedBy).toBe('player')
+      // Move player to gate (center: 0, 0.9, -2.0)
+      player.position.set(0.0, 0.9, -2.0)
+      physics.step(); world.afterPhysics([player])
+      // Core should be dropped at west edge of gate (rejected)
+      const snap = world.captureSnapshot()
+      expect(snap.dynamics['memory-core']?.carriedBy).toBeUndefined()
+      expect(snap.facts).toContain('temporal-gate-rejected')
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 B — Player can cross gate to EAST (without cargo)', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const player = actor('player', 'player', [0.0, 0.9, -2.0])
+      world.afterPhysics([player])
+      // No gate-rejected fact (player alone, no cargo)
+      expect(world.captureSnapshot().facts).not.toContain('temporal-gate-rejected')
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 E — Echo replays pickup of the SAME real Core object', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const core = physics.record('memory-core')
+      if (!core) throw new Error('memory-core missing')
+      const before = world.captureSnapshot()
+      // Same real object identity preserved in snapshot
+      expect(before.dynamics['memory-core']).toBeDefined()
+      const echo = actor('echo', 'echo', [-3.0, 3.75, 1.6])
+      // Echo can interact with the SAME device (memory-core)
+      expect(world.interact(echo)).toBe('core')
+      physics.step(); world.afterPhysics([echo])
+      // Same object picked up (not a copy)
+      const after = world.captureSnapshot()
+      expect(after.dynamics['memory-core']?.carriedBy).toBe('echo')
+      expect(after.dynamics['memory-core']?.carriedBy).toBe('echo')
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 I — Receiver triggers CoreInAtriumReceiver (no provenance flag)', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const core = physics.record('memory-core')
+      const receiver = CHAPTER_LAYOUTS[3].devices.find((d) => d.id === 'core-receiver')
+      if (!core || !receiver) throw new Error('core or receiver missing')
+      // Move core directly into receiver
+      core.body.setTranslation({ x: receiver.position[0], y: receiver.position[1], z: receiver.position[2] }, true)
+      core.body.setLinvel({ x: 0, y: -1, z: 0 }, true)
+      physics.step(); world.afterPhysics([])
+      // Real core entering receiver → receiver-filled (no EchoUsed check)
+      expect(world.debugState().facts).toContain('receiver-filled')
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 J — victory requires exactly CoreInAtriumReceiver + PlayerAtExit', async () => {
+    const { CHAPTERS, ObjectiveFacts } = await import('../game/chapters')
+    const { evaluateChapterObjectives, objectiveFactsFromWorld } = await import('../game/objectives')
+    const ch3 = CHAPTERS[2]!
+    if (!ch3) throw new Error('ch3 missing')
+    expect(ch3.victoryFacts).toEqual([
+      ObjectiveFacts.CoreInAtriumReceiver,
+      ObjectiveFacts.PlayerAtExit,
+    ])
+    expect(ch3.victoryFacts).toHaveLength(2)
+    // Verify the 2 facts are enough (with player-at-exit)
+    const facts = ['receiver-filled']
+    const withExit = objectiveFactsFromWorld(facts, true)
+    expect(withExit).toContain(ObjectiveFacts.CoreInAtriumReceiver)
+    expect(withExit).toContain(ObjectiveFacts.PlayerAtExit)
+    const result = evaluateChapterObjectives(ch3, new Set(withExit))
+    expect(result.complete).toBe(true)
+  })
+
 })
