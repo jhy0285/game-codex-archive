@@ -15,7 +15,7 @@ export type BoxDefinition = {
 
 export type DeviceDefinition = {
   id: string
-  kind: 'plate' | 'lever' | 'door' | 'elevator' | 'platform' | 'bridge' | 'crate' | 'core' | 'trap' | 'exit' | 'enemy' | 'receiver' | 'gate' | 'shutter'
+  kind: 'plate' | 'lever' | 'door' | 'elevator' | 'platform' | 'bridge' | 'crate' | 'core' | 'trap' | 'exit' | 'enemy' | 'receiver' | 'gate' | 'shutter' | 'one-way-wall'
   position: Point3
   size?: Size3
   to?: Point3
@@ -167,7 +167,10 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       // Player is currently east of x=4 (i.e. already past the route). The shutter
       // body is a physical collider that blocks dynamic cores/crates, so the Echo
       // throw cannot reach the receiver until the Player has actually crossed.
-      { id: 'transfer-shutter', kind: 'shutter', position: [3.5, 1.4, 1.6], size: [0.4, 0.6, 1.0], openAtX: 4.0 },
+      { id: 'transfer-shutter', kind: 'shutter', position: [3.5, 1.4, 1.6], size: [1.4, 1.4, 1.6], openAtX: 4.0 },
+      // Ch3 one-way physical wall. Always solid; lowers itself below the floor only
+      // when an actor is on its WEST side. No ActorContext position mutation.
+      { id: 'atrium-one-way', kind: 'one-way-wall', position: [3.0, 1.6, 1.6], size: [0.4, 1.6, 1.6] },
       { id: 'core-receiver', kind: 'receiver', position: [6.6, 0.88, 1.6] },
       { id: 'atrium-door', kind: 'door', position: [9.45, 2.15, -0.4], size: [0.32, 2.1, 1.2] },
       { id: 'exit', kind: 'exit', position: [10.2, 1.08, -0.4] },

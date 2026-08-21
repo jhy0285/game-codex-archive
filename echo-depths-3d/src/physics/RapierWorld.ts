@@ -20,6 +20,7 @@ export type PhysicsEntityKind =
   | 'exit'
   | 'gate'
   | 'shutter'
+  | 'one-way-wall'
 
 export type PhysicsTag = {
   id: string
@@ -144,6 +145,22 @@ export class RapierWorld {
       body,
     )
     return this.register({ tag: { id, kind: 'shutter' }, body, collider })
+  }
+
+  /**
+   * Kinematic position-based one-way wall. The wall is a real collider that
+   * blocks dynamic actors; callers drive open/close (lower/raise) by calling
+   * `setNextKinematicTranslation` on the returned body.
+   */
+  createOneWayWall(id: string, center: Vec3, half: Vec3): BodyRecord {
+    const body = this.world.createRigidBody(
+      RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(center.x, center.y, center.z),
+    )
+    const collider = this.world.createCollider(
+      RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setFriction(0.92),
+      body,
+    )
+    return this.register({ tag: { id, kind: 'one-way-wall' }, body, collider })
   }
 
   remove(id: string): void {

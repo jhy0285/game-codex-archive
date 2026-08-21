@@ -370,22 +370,18 @@ export class GameApp {
     if (this.echo && echoFrame) {
       const echoSupport = world.supportMotion(this.echo.motor.position)
       this.echo.motor.setSupportDelta(echoSupport.delta, echoSupport.supported)
-      // Echo 2.0: synthesize the desired motion from the recorded path delta so
-      // the controller's collision correction applies to the replay (no teleport,
-      // no pathfinding, no target seeking). The echo and Player share the same
-      // snapshot at spawn, so the initial delta is ~0; later deltas are bounded
-      // by walk-speed (4.25 m/s). When the path sample is missing or the tape is
-      // past the end, fall back to zero desired motion so the motor holds the
-      // last grounded position via Rapier collision response.
+      // Echo 2.0: drive the echo directly to the recorded sample via the motor's
+      // collision-aware replay method. We DO NOT pass the delta as a joystick input
+      // because prepare() normalizes it and caps velocity to walk-speed (4.25 m/s),
+      // which makes the echo lag behind the recorded timeline when the recording
+      // involves teleport-style events (chapter select, snap-to-ground) or large
+      // per-tick movements. setRecordedTranslation() still applies the controller's
+      // collision correction, so the echo cannot tunnel through walls.
       const recordedPos = this.echoTape.pathAt(this.echoTape.playbackTick)
-      const echoPos = this.echo.motor.position
-      let dx = 0
-      let dz = 0
-      if (recordedPos) {
-        dx = recordedPos.x - echoPos.x
-        dz = recordedPos.z - echoPos.z
-      }
-      this.echo.motor.prepare(this.motorInput(echoFrame, dx, dz))
+      let target = recordedPos
+      if (!target) target = { x: this.echo.motor.position.x, y: this.echo.motor.position.y, z: this.echo.motor.position.z }
+      const frameInput = this.motorInput(echoFrame, 0, 0)
+      this.echo.motor.setRecordedTranslation(target, frameInput)
       // Echo 2.0 path-replay: apply recorded position AFTER motor.prepare() so the
       // recorded sample's setNextKinematicTranslation is the last one before physics.step.
       this.applyEchoPathReplay(this.echo)

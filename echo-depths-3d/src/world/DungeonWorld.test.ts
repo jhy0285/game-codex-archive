@@ -254,6 +254,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       enemy: ['SentryBase', 'SentryShell', 'SentryEye', 'SentryHalo', 'SentryFins', 'SightCone'],
       gate: ['TemporalGatePost', 'TemporalGateBeam', 'TemporalGateBase'],
       shutter: ['TransferShutterSlat', 'TransferShutterFrame'],
+      'one-way-wall': ['OneWayWall', 'OneWayWallStripe'],
     } as const
 
     for (const chapter of [0, 1, 2, 3, 4, 5] as const) {
@@ -1026,19 +1027,40 @@ describe('DungeonWorld authored runtime contracts', () => {
     } finally { world.dispose(); physics.dispose() }
   })
 
-  it('Ch3 O — actor previously east of gate cannot return to WEST through it', async () => {
+  it('Ch3 O — one-way physical wall blocks EAST→WEST (no ActorContext mutation)', async () => {
     const { physics, world } = await createWorld(3)
     try {
-      const player = actor('player', 'player', [3.0, 0.9, -2.0])
-      // Register the previous position via beforePhysics so updateTemporalGates
-      // sees prevX=3.0 on the next step.
+      const wall = physics.record('atrium-one-way')
+      if (!wall) throw new Error('atrium-one-way wall missing')
+      // Player starts east of the wall and moves west. The wall should stay up
+      // (no actor on west side to trigger open), so the motor collides with it.
+      const player = actor('player', 'player', [4.0, 1.6, 1.6])
       world.beforePhysics(1, [player])
-      // Now move player to the gate (x=0) coming from the east.
-      player.position.set(0.0, 0.9, -2.0)
+      physics.step()
+      world.afterPhysics([player])
+      const closedY = wall.body.translation().y
+      // Move player further west — the wall should still be closed (player is east)
+      player.position.set(3.0, 1.6, 1.6)
+      world.beforePhysics(2, [player])
+      physics.step()
+      world.afterPhysics([player])
+      const afterY = wall.body.translation().y
+      expect(afterY, 'wall stays raised when only east-side actors are present').toBe(closedY)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 O2 — one-way physical wall lowers for west-side actors', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const wall = physics.record('atrium-one-way')
+      if (!wall) throw new Error('atrium-one-way wall missing')
+      const closedY = wall.body.translation().y
+      const player = actor('player', 'player', [2.0, 1.6, 1.6])
+      world.beforePhysics(1, [player])
       physics.step(); world.afterPhysics([player])
-      // Position must be pushed back east.
-      expect(player.position.x, 'one-way must reject EAST→WEST').toBeGreaterThan(0)
-      expect(world.captureSnapshot().facts).toContain('temporal-gate-rejected')
+      physics.step()
+      const openY = wall.body.translation().y
+      expect(openY, 'wall lowers when actor is on west side').toBeLessThan(closedY - 0.5)
     } finally { world.dispose(); physics.dispose() }
   })
 

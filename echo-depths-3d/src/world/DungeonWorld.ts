@@ -222,6 +222,7 @@ export class DungeonWorld {
     this.updateTrapHazards()
     this.updateTemporalGates(actors)
     this.updateShutters(actors)
+    this.updateOneWayWalls(actors)
     this.evaluateDerivedFacts(actors)
     this.updateCoreLoss()
     if (this.exitRequestedBy === 'player' && this.canExit()) this.complete = true
@@ -814,6 +815,22 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       top.position.y = size[1] * 0.5 + 0.02
       root.add(top)
       body = this.physics.createShutter(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
+    } else if (definition.kind === 'one-way-wall') {
+      // Ch3 one-way physical wall. Collider is always present (real collision);
+      // the body translates DOWN by `openOffsetY` when an actor approaches from
+      // the WEST side, and UP back to closed position otherwise. No actor
+      // position mutation — the motor collides naturally with the body.
+      root = new THREE.Group()
+      const wallMat = this.material(0x4a3a78, 0.5, 0.7, 0x8d62ff)
+      const wall = this.boxMesh(size, wallMat)
+      wall.name = 'OneWayWall'
+      wall.castShadow = true
+      const stripeMat = this.material(accent, 0.3, 0.55, accent)
+      const stripe = this.boxMesh([size[0] * 0.6, 0.08, size[2] * 0.05], stripeMat)
+      stripe.name = 'OneWayWallStripe'
+      stripe.position.y = size[1] * 0.6
+      root.add(wall, stripe)
+      body = this.physics.createOneWayWall(definition.id, this.vec(position), { x: size[0], y: size[1], z: size[2] })
     } else if (definition.kind === 'door') {
       root = new THREE.Group()
       const doorCore = this.boxMesh(size, this.material(0x1d2c36, 0.52, 0.68))
@@ -1346,10 +1363,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const halfY = size[1] / 2
       const halfZ = size[2] / 2
       // Find actors in the gate volume.
-      // Ch3: enforce one-way WEST→EAST. An actor that was east of the gate last tick
-      // and is now at or west of the gate is rejected and pushed back to the east edge.
+      // One-way EAST→WEST is enforced by physical one-way-wall geometry, not by
+      // mutating ActorContext positions here.
       const actorsInGate: ActorContext[] = []
-      const oneWayReject: ActorContext[] = []
       for (const actor of actors) {
         const ax = actor.position.x
         const ay = actor.position.y
@@ -1357,14 +1373,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         if (Math.abs(ax - gx) <= halfX + 0.5 && Math.abs(ay - gy) <= halfY + 1 && Math.abs(az - gz) <= halfZ + 0.5) {
           actorsInGate.push(actor)
         }
-        const prevX = this.actorPreviousX.get(actor.id)
-        if (prevX !== undefined && prevX > gx + 0.1 && ax <= gx + 0.1) {
-          oneWayReject.push(actor)
-        }
-      }
-      for (const actor of oneWayReject) {
-        actor.position.x = gx + halfX + 0.6
-        this.facts.add('temporal-gate-rejected')
       }
       // For each actor, check if they are carrying a dynamic core/crate.
       // If so, drop it at the west edge of the gate.
@@ -1430,6 +1438,42 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         if (device.root) device.root.position.set(target.x, target.y, target.z)
       }
       this.shutters.set(device.definition.id, shouldOpen)
+    }
+  }
+
+  /**
+   * One-way physical wall enforcement. Each `one-way-wall` device is a real
+   * kinematic collider. The wall is RAISED by default and blocks any actor
+   * (or dynamic core/crate). The wall is LOWERED — translated downward by its
+   * full half-height so it sits below the floor — only when a live actor is on
+   * the WEST side of the wall (within `triggerRangeX`) AND is moving east (or
+   * stationary east of the wall, on the west side of a different gate). When the
+   * wall is open, actors and dynamic cores can pass. The wall never mutates
+   * ActorContext positions; it relies entirely on Rapier collision.
+   */
+  private updateOneWayWalls(actors: readonly ActorContext[]): void {
+    for (const [, device] of this.devices) {
+      if (device.definition.kind !== 'one-way-wall') continue
+      if (!device.body) continue
+      const position = device.definition.position
+      const size = device.definition.size ?? [0.6, 1.8, 4.0]
+      const openOffsetY = size[1] + 0.05 // fully below floor so anything passes
+      const closedY = position[1]
+      const openY = position[1] - openOffsetY
+      const triggerRangeX = (device.definition.openAtX !== undefined ? 1.5 : 2.5)
+      // Direction: 'west-to-east' means actor must be west of wall to trigger.
+      const open = actors.some((a) =>
+        a.position.x < position[0] - 0.2 &&
+        Math.abs(a.position.x - position[0]) <= triggerRangeX &&
+        Math.abs(a.position.y - position[1]) <= size[1] + 0.4 &&
+        Math.abs(a.position.z - position[2]) <= size[2] + 0.4
+      )
+      const target = open ? { x: position[0], y: openY, z: position[2] } : { x: position[0], y: closedY, z: position[2] }
+      const t = device.body.body.translation()
+      if (Math.abs(t.x - target.x) > 0.01 || Math.abs(t.y - target.y) > 0.01 || Math.abs(t.z - target.z) > 0.01) {
+        device.body.body.setNextKinematicTranslation(target)
+        if (device.root) device.root.position.set(target.x, target.y, target.z)
+      }
     }
   }
 
