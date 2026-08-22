@@ -1010,7 +1010,7 @@ describe('DungeonWorld authored runtime contracts', () => {
     } finally { world.dispose(); physics.dispose() }
   })
 
-  it('Ch3 N — transfer shutter opens when the live Player is east of openAtX', async () => {
+  it('Ch3 N — transfer shutter raises UP when the live Player is east of openAtX', async () => {
     const { physics, world } = await createWorld(3)
     try {
       const shutter = physics.record('transfer-shutter')
@@ -1023,7 +1023,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       physics.step(); world.afterPhysics([player])
       physics.step()
       const openY = shutter.body.translation().y
-      expect(openY, 'shutter body should be lowered when Player.x >= openAtX').toBeLessThan(closedY - 0.2)
+      expect(openY, 'shutter body should be raised UP when Player.x >= openAtX').toBeGreaterThan(closedY + 0.5)
     } finally { world.dispose(); physics.dispose() }
   })
 

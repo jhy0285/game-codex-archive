@@ -1420,55 +1420,38 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   private updateShutters(actors: readonly ActorContext[]): void {
     if (this.chapter !== 3) return
     for (const [, device] of this.devices) {
-      if (device.definition.kind !== 'shutter') continue
+      if (device.definition.kind !== 'shutter' || !device.body) continue
       const position = device.definition.position
-      const size = device.definition.size ?? [0.6, 0.6, 0.6]
-      const openThresholdX = device.definition.openAtX ?? position[0] + 2.0
-      const closedCenter: Vec3 = { x: position[0], y: position[1], z: position[2] }
-      const openOffsetY = size[1] * 1.6 + 0.1
-      const openCenter: Vec3 = { x: position[0], y: position[1] - openOffsetY, z: position[2] }
+      const size = device.definition.size ?? [1.4, 1.4, 1.6]
+      const openAtX = device.definition.openAtX ?? 0
+      const baseY = device.root.position.y
       const player = actors.find((a) => a.kind === 'player')
-      const shouldOpen = !!player && player.position.x >= openThresholdX
-      const target = shouldOpen ? openCenter : closedCenter
-      if (!device.body) continue
+      const isOpen = !!player && player.position.x >= openAtX
+      // Open: raise body UP by full height so the lane is clear (shutters go UP).
+      // Closed: keep body at baseY so the lane is blocked.
+      const targetY = isOpen ? baseY + size[1] : baseY
+      const target = { x: position[0], y: targetY, z: position[2] }
       const t = device.body.body.translation()
       // Only move when the body is meaningfully off target — avoids jitter.
       if (Math.abs(t.x - target.x) > 0.01 || Math.abs(t.y - target.y) > 0.01 || Math.abs(t.z - target.z) > 0.01) {
         device.body.body.setNextKinematicTranslation(target)
         if (device.root) device.root.position.set(target.x, target.y, target.z)
       }
-      this.shutters.set(device.definition.id, shouldOpen)
+      this.shutters.set(device.definition.id, isOpen)
     }
   }
 
-  /**
-   * One-way physical wall enforcement. Each `one-way-wall` device is a real
-   * kinematic collider. The wall is RAISED by default and blocks any actor
-   * (or dynamic core/crate). The wall is LOWERED — translated downward by its
-   * full half-height so it sits below the floor — only when a live actor is on
-   * the WEST side of the wall (within `triggerRangeX`) AND is moving east (or
-   * stationary east of the wall, on the west side of a different gate). When the
-   * wall is open, actors and dynamic cores can pass. The wall never mutates
-   * ActorContext positions; it relies entirely on Rapier collision.
-   */
   private updateOneWayWalls(actors: readonly ActorContext[]): void {
     for (const [, device] of this.devices) {
-      if (device.definition.kind !== 'one-way-wall') continue
-      if (!device.body) continue
+      if (device.definition.kind !== 'one-way-wall' || !device.body) continue
       const position = device.definition.position
-      const size = device.definition.size ?? [0.6, 1.8, 4.0]
-      const openOffsetY = size[1] + 0.05 // fully below floor so anything passes
-      const closedY = position[1]
-      const openY = position[1] - openOffsetY
-      const triggerRangeX = (device.definition.openAtX !== undefined ? 1.5 : 2.5)
-      // Direction: 'west-to-east' means actor must be west of wall to trigger.
-      const open = actors.some((a) =>
-        a.position.x < position[0] - 0.2 &&
-        Math.abs(a.position.x - position[0]) <= triggerRangeX &&
-        Math.abs(a.position.y - position[1]) <= size[1] + 0.4 &&
-        Math.abs(a.position.z - position[2]) <= size[2] + 0.4
-      )
-      const target = open ? { x: position[0], y: openY, z: position[2] } : { x: position[0], y: closedY, z: position[2] }
+      const size = device.definition.size ?? [1.0, 1.6, 1.6]
+      const baseY = device.root.position.y
+      // Player-only trigger: echo and carried dynamic cores/crates must NOT
+      // open the wall. Only a live player on the WEST side lowers it.
+      const playerOnWest = actors.some((a) => a.kind === 'player' && a.position.x < position[0])
+      const targetY = playerOnWest ? baseY - size[1] : baseY
+      const target = { x: position[0], y: targetY, z: position[2] }
       const t = device.body.body.translation()
       if (Math.abs(t.x - target.x) > 0.01 || Math.abs(t.y - target.y) > 0.01 || Math.abs(t.z - target.z) > 0.01) {
         device.body.body.setNextKinematicTranslation(target)
@@ -1476,7 +1459,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
     }
   }
-
   private updateEnemy(actors: readonly ActorContext[]): void {
     const id = this.chapter === 5 ? 'guardian' : 'watcher'
     const enemy = this.devices.get(id)

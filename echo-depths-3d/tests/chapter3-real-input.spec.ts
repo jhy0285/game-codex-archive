@@ -6,11 +6,11 @@ type GameState = {
   mode: string
   chapter: Stage
   player: { position: Vector3; velocity: Vector3 } | null
-  echo: { mode: string; tick: number; durationTicks: number }
+  echo: { mode: string; tick: number; durationTicks: number; replay?: { complete?: boolean } }
   pressurePlates: Record<string, { active: boolean }>
   levers: Record<string, { active: boolean }>
   doors: Record<string, { open: boolean }>
-  dynamics: Record<string, { position: Vector3; carriedBy?: string }>
+  cores: Record<string, { position: Vector3; carriedBy?: string; receiver?: boolean }>
   objectives: { required: string[]; facts: string[]; complete: boolean }
   facts: string[]
 }
@@ -127,7 +127,7 @@ base('Chapter 3 — real-input OBJECT TRANSFER walkthrough', async ({ page }) =>
   await page.keyboard.down('e')
   await advanceTicks(page, 2)
   await page.keyboard.up('e')
-  await expect.poll(async () => (await state(page)).dynamics['memory-core']?.carriedBy).toBe('player')
+  await expect.poll(async () => (await state(page)).cores['memory-core']?.carriedBy).toBe('player')
 
   // --- 4) Walk to the throw ledge (-2, 1.4, 1.6) — toward the transfer lane.
   await approachUntil(
@@ -137,12 +137,13 @@ base('Chapter 3 — real-input OBJECT TRANSFER walkthrough', async ({ page }) =>
     () => false,
   )
 
-  // --- 5) K throw (preview then release).
   await page.keyboard.down('k')
   await advanceTicks(page, 8)
   await page.keyboard.up('k')
+  // Tick once more so the throw-release flag fires on the next fixed frame.
+  await advanceTicks(page, 2)
   // Core should no longer be carried.
-  await expect.poll(async () => (await state(page)).dynamics['memory-core']?.carriedBy).toBeUndefined()
+  await expect.poll(async () => (await state(page)).cores['memory-core']?.carriedBy).toBeUndefined()
 
   // --- 6) Walk down stairs, through the gate, into atrium-east.
   await hold(page, 's', 60) // walk south to stairs
@@ -153,12 +154,16 @@ base('Chapter 3 — real-input OBJECT TRANSFER walkthrough', async ({ page }) =>
   // Player should still be on the east side of the gate.
   await expect.poll(async () => (await state(page)).player?.position.x ?? 0).toBeGreaterThan(2)
 
-  // --- 8) Wait for Echo replay to finish.
-  await expect.poll(async () => (await state(page)).echo?.replay?.complete ?? false).toBe(true, { timeout: 30_000 })
+  // --- 8) Wait for Echo replay to finish. Echo mode transitions
+  // from 'recording' to 'ready' to 'replaying' to 'holding'.
+  await expect.poll(async () => {
+    const e = (await state(page)).echo
+    return !!(e && e.mode === 'holding')
+  }, { timeout: 30_000 }).toBe(true)
 
   // Core should have landed somewhere in the transfer lane / east area (carried by echo? or landed?).
   const stateAfterReplay = await state(page)
-  const coreAfterReplay = stateAfterReplay.dynamics['memory-core']
+  const coreAfterReplay = stateAfterReplay.cores['memory-core']
   expect(coreAfterReplay).toBeDefined()
   // Player should be on east side of openAtX so the shutter is open for next throw.
   expect(stateAfterReplay.player?.position.x ?? 0).toBeGreaterThan(4)
@@ -168,7 +173,7 @@ base('Chapter 3 — real-input OBJECT TRANSFER walkthrough', async ({ page }) =>
     page,
     'a',
     { x: coreAfterReplay!.position.x, y: coreAfterReplay!.position.y, z: coreAfterReplay!.position.z },
-    (s) => s.dynamics['memory-core']?.carriedBy === 'player',
+    (s) => s.cores['memory-core']?.carriedBy === 'player',
     300,
   )
   await page.keyboard.down('e')
@@ -185,6 +190,8 @@ base('Chapter 3 — real-input OBJECT TRANSFER walkthrough', async ({ page }) =>
   await page.keyboard.down('k')
   await advanceTicks(page, 10)
   await page.keyboard.up('k')
+  // Tick once more so the throw-release flag fires on the next fixed frame.
+  await advanceTicks(page, 2)
   await expect.poll(async () => (await state(page)).facts.includes('receiver-filled')).toBe(true, { timeout: 15_000 })
 
   // --- 11) Walk to exit and E to enter.

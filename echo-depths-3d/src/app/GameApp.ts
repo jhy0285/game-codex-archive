@@ -207,7 +207,8 @@ export class GameApp {
       this.hud.showLanguage()
     }
     this.startRuntimeLoop()
-  }
+      this.exposeDebugApi()
+}
 
   private showInitializationError(key: TranslationKey): void {
     this.mode = 'error'
@@ -1184,5 +1185,64 @@ export class GameApp {
     delete window.render_game_to_text
     delete window.advanceTime
     delete window.echoDepthsDebug
+  }
+
+  private exposeDebugApi(): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (import.meta.env.PROD && import.meta.env.VITE_VERCEL_ENV !== 'preview') return
+    if (typeof window === 'undefined') return
+    const params = window.location.search
+    const debug = params.indexOf('debug=1') >= 0 || import.meta.env.VITE_VERCEL_ENV === 'preview'
+    if (!debug) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w: any = window
+    w.echoDepthsDebug = {
+      finishTutorial: () => { this.hud.clearTutorial() },
+      setManualStepping: (_v: boolean) => { /* no-op: real time only */ },
+      selectChapter: async (n: number) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const map: any = { 1: 'first-descent', 2: 'counterweight-hall', 3: 'split-atrium', 4: 'watchers-gallery', 5: 'paradox-well' }
+        const id = map[n] as ChapterId | undefined
+        if (id) {
+          this.audio.reset()
+          this.echoTape.reset()
+          this.removeEchoPath()
+          if (await this.rebuildChapter(id as ChapterId, false)) {
+            this.mode = 'playing'
+            this.input.setEnabled(true)
+            this.hud.showPlaying()
+          }
+        }
+      },
+      advanceTicks: (_n: number) => { /* no-op: real time only */ },
+    }
+    w.render_game_to_text = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const snap = (this.world as any)?.captureSnapshot() as any
+      if (!snap) return JSON.stringify({ mode: 'unknown' })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const echoInfo = (this as any).echoTape
+        ? { mode: (this as any).echoTape.mode, tick: (this as any).echoTape.playbackTick, durationTicks: (this as any).echoTape.durationTicks }
+        : null
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const devicesOut: any = {}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const [k, v] of Object.entries(snap.devices || {})) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const dev = (this as any).devices?.get(k)
+        if (dev) devicesOut[k] = { position: { x: dev.root.position.x, y: dev.root.position.y, z: dev.root.position.z }, active: (v as { active: boolean }).active }
+      }
+      return JSON.stringify({
+        mode: this.mode,
+        chapter: this.chapter,
+        player: this.player ? { position: this.player.motor.position, velocity: this.player.motor.velocity } : null,
+        echo: echoInfo,
+        pressurePlates: snap.pressurePlates,
+        levers: snap.levers,
+        doors: snap.doors,
+        devices: devicesOut,
+        facts: Array.from(snap.facts || []),
+      })
+    }
   }
 }

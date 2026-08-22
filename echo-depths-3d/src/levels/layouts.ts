@@ -170,7 +170,7 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       { id: 'transfer-shutter', kind: 'shutter', position: [3.5, 1.4, 1.6], size: [1.4, 1.4, 1.6], openAtX: 4.0 },
       // Ch3 one-way physical wall. Always solid; lowers itself below the floor only
       // when an actor is on its WEST side. No ActorContext position mutation.
-      { id: 'atrium-one-way', kind: 'one-way-wall', position: [3.0, 1.6, 1.6], size: [0.4, 1.6, 1.6] },
+      { id: 'atrium-one-way', kind: 'one-way-wall', position: [3.0, 1.6, 1.6], size: [1.0, 1.6, 1.6] },
       { id: 'core-receiver', kind: 'receiver', position: [6.6, 0.88, 1.6] },
       { id: 'atrium-door', kind: 'door', position: [9.45, 2.15, -0.4], size: [0.32, 2.1, 1.2] },
       { id: 'exit', kind: 'exit', position: [10.2, 1.08, -0.4] },
