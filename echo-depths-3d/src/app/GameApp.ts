@@ -26,20 +26,6 @@ type ActorRuntime = {
   actionTicks: number
 }
 
-type DebugInput = {
-  moveX?: number
-  moveZ?: number
-  jump?: boolean
-  interact?: boolean
-  attack?: boolean
-  throw?: boolean
-  dash?: boolean
-  echo?: boolean
-  pause?: boolean
-  fullscreen?: boolean
-  cameraTurn?: number
-}
-
 type CampaignStats = {
   elapsedMs: number
   echoes: number
@@ -121,7 +107,6 @@ export class GameApp {
   private transitionPending = false
   private rotationPaused = false
   private lastTime = performance.now()
-  private debugInput: DebugInput | undefined
   private manualStepping = false
   private failRestartTicks = 0
   private destroyed = false
@@ -207,8 +192,7 @@ export class GameApp {
       this.hud.showLanguage()
     }
     this.startRuntimeLoop()
-      this.exposeDebugApi()
-}
+  }
 
   private showInitializationError(key: TranslationKey): void {
     this.mode = 'error'
@@ -226,7 +210,6 @@ export class GameApp {
   }
 
   private clearRuntimeInput(): void {
-    this.debugInput = undefined
     this.throwWasHeld = false
     this.input.clear()
   }
@@ -428,28 +411,7 @@ export class GameApp {
   }
 
   private consumeInput(): UiInputFrame {
-    const frame = this.input.consumeFrame()
-    if (!this.debugInput) return frame
-    const debug = this.debugInput
-    this.debugInput = undefined
-    const actions = ['jump', 'interact', 'attack', 'throw', 'dash', 'echo', 'pause', 'fullscreen'] as const
-    const held = { ...frame.held }
-    const pressed = { ...frame.pressed }
-    for (const action of actions) {
-      const value = debug[action]
-      if (value !== undefined) {
-        held[action] = value
-        pressed[action] = value
-      }
-    }
-    return {
-      ...frame,
-      moveX: debug.moveX ?? frame.moveX,
-      moveZ: debug.moveZ ?? frame.moveZ,
-      cameraTurn: debug.cameraTurn ?? frame.cameraTurn,
-      held,
-      pressed,
-    }
+    return this.input.consumeFrame()
   }
 
   private toEchoFrame(input: UiInputFrame, facingYaw: number): EchoInputFrame {
@@ -516,6 +478,8 @@ export class GameApp {
         if (result === 'lever') {
           const firstChapterLever = this.chapter === 1 && context.kind === 'player'
           this.hud.showFeedbackKey(firstChapterLever ? 'feedbackFirstLeverActive' : 'feedbackLeverActive', 'success', firstChapterLever ? 5_600 : 2_600)
+        } else if (result === 'core' && this.chapter === 3 && context.kind === 'player' && carryingBeforeInteract !== 'core') {
+          this.hud.showFeedbackKey('feedbackCoreCaught', 'success', 2_600)
         }
       }
     }
@@ -609,6 +573,9 @@ export class GameApp {
     )
     if (this.player) this.spawnTemporalPulse(this.player.motor.position, 0xc15bf2)
     this.hud.showFeedbackKey('feedbackRecordEnd', 'success')
+    if (recording.snapshot.chapter === 3 && this.player && this.player.motor.position.x >= 4) {
+      this.hud.showFeedbackKey('feedbackTransferLaneOpen', 'success', 2_600)
+    }
     if (recording.snapshot.chapter === 0) {
       this.tutorialSteps.add('echo')
       this.tutorialComplete = TUTORIAL_STEPS.every((step) => this.tutorialSteps.has(step))
@@ -827,7 +794,13 @@ export class GameApp {
     for (const event of events) {
       if (event.type === 'door') this.audio.cue(event.open ? 'doorOpen' : 'doorClose')
       else if (event.type === 'plate') this.audio.cue(event.pressed ? 'platePress' : 'plateRelease')
-      else if (event.type === 'receiver') this.audio.cue('receiver')
+      else if (event.type === 'shutter') {
+        this.audio.cue('doorOpen')
+        this.hud.showFeedbackKey('feedbackTransferLaneOpen', 'success', 2_600)
+      } else if (event.type === 'receiver') {
+        this.audio.cue('receiver')
+        this.hud.showFeedbackKey('feedbackCoreRedirected', 'success', 3_200)
+      }
       else {
         this.audio.cue(event.moving ? 'mechanismStart' : 'mechanismStop')
         this.audio.setMechanicalLoop(event.id, event.mechanism, event.moving)
@@ -1090,7 +1063,12 @@ export class GameApp {
       })
       this.render(0)
     }
-    if (import.meta.env.DEV) {
+    // The debug surface is either explicitly enabled for a preview/local E2E
+    // build, or available from the loopback-only Vite development server. It is
+    // never exposed by a production deployment merely through a query string.
+    const debugApiEnabled = import.meta.env.VITE_E2E_DEBUG_API === '1'
+      || (!import.meta.env.PROD && window.location.hostname === '127.0.0.1')
+    if (debugApiEnabled) {
       window.echoDepthsDebug = {
         selectChapter: async (chapter: ChapterNumber) => this.selectChapter(chapter),
         finishTutorial: async () => this.finishTutorial(),
@@ -1100,26 +1078,8 @@ export class GameApp {
           this.lastTime = performance.now()
           this.render(0)
         },
-        setInput: (input: DebugInput) => { this.debugInput = { ...input } },
-        advanceInput: (input: DebugInput, ticks: number) => {
-          const count = Math.max(0, Math.trunc(ticks))
-          for (let index = 0; index < count; index += 1) {
-            if (this.mode !== 'playing' || this.transitionPending) break
-            this.debugInput = { ...input }
-            this.fixedTick()
-          }
-          this.render(0)
-        },
-        releaseAllInputs: () => { this.debugInput = undefined; this.input.clear() },
         advanceTicks: (ticks: number) => window.advanceTime?.(Math.max(0, Math.trunc(ticks)) * FIXED_STEP_MS),
         restartChapter: async () => this.restartChapter(false),
-        solutionStep: (step: number) => {
-          if (!this.world || !this.player) return
-          const player: ActorContext = { id: 'player', kind: 'player', position: this.player.motor.position, facingYaw: this.player.motor.facingYaw, carryYaw: this.player.motor.facingYaw, interactHeld: false }
-          const echo = this.echo ? { id: 'echo', kind: 'echo' as const, position: this.echo.motor.position, facingYaw: this.echo.motor.facingYaw, carryYaw: this.echo.motor.facingYaw, interactHeld: false } : undefined
-          this.world.performDebugSolutionStep(step, player, echo)
-          if (this.world.complete && this.mode === 'playing') this.completeChapter()
-        },
         assetStatus: () => this.assets.status,
       }
     }
@@ -1134,14 +1094,28 @@ export class GameApp {
       language: this.language,
       chapter: this.chapter,
       camera: { position: this.vec(this.camera.camera.position) },
-      player: player ? { position: this.vec(player.motor.position), velocity: this.vec(player.motor.velocity), grounded: player.motor.grounded, animation: player.animator.state() } : null,
-      echo: this.echo ? { mode: this.echoTape.mode, tick: this.echoTape.playbackTick, durationTicks: this.echoTape.durationTicks, position: this.vec(this.echo.motor.position), animation: this.echo.animator.state() } : { mode: this.echoTape.mode, tick: 0, durationTicks: this.echoTape.durationTicks },
+      player: player ? {
+        position: this.vec(player.motor.position),
+        velocity: this.vec(player.motor.velocity),
+        grounded: player.motor.grounded,
+        yaw: Number(player.motor.facingYaw.toFixed(4)),
+        animation: player.animator.state(),
+      } : null,
+      echo: this.echo ? {
+        mode: this.echoTape.mode,
+        tick: this.echoTape.playbackTick,
+        durationTicks: this.echoTape.durationTicks,
+        position: this.vec(this.echo.motor.position),
+        yaw: Number(this.echo.motor.facingYaw.toFixed(4)),
+        animation: this.echo.animator.state(),
+      } : { mode: this.echoTape.mode, tick: 0, durationTicks: this.echoTape.durationTicks },
       timer: this.stats.elapsedMs,
       pressurePlates: world?.pressurePlates ?? {},
       levers: world?.levers ?? {},
       doors: world?.doors ?? {},
       elevators: world?.elevators ?? {},
       cores: world?.cores ?? {},
+      barriers: world?.barriers ?? {},
       enemies: world?.enemies ?? {},
       objectives: { required: world?.objectiveFacts ?? [], facts: world?.facts ?? [], complete: world?.complete ?? false },
       tutorial: this.chapter === 0 ? { completed: [...this.tutorialSteps], ready: this.tutorialComplete } : null,
@@ -1187,62 +1161,4 @@ export class GameApp {
     delete window.echoDepthsDebug
   }
 
-  private exposeDebugApi(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (import.meta.env.PROD && import.meta.env.VITE_VERCEL_ENV !== 'preview') return
-    if (typeof window === 'undefined') return
-    const params = window.location.search
-    const debug = params.indexOf('debug=1') >= 0 || import.meta.env.VITE_VERCEL_ENV === 'preview'
-    if (!debug) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w: any = window
-    w.echoDepthsDebug = {
-      finishTutorial: () => { this.hud.clearTutorial() },
-      setManualStepping: (_v: boolean) => { /* no-op: real time only */ },
-      selectChapter: async (n: number) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const map: any = { 1: 'first-descent', 2: 'counterweight-hall', 3: 'split-atrium', 4: 'watchers-gallery', 5: 'paradox-well' }
-        const id = map[n] as ChapterId | undefined
-        if (id) {
-          this.audio.reset()
-          this.echoTape.reset()
-          this.removeEchoPath()
-          if (await this.rebuildChapter(id as ChapterId, false)) {
-            this.mode = 'playing'
-            this.input.setEnabled(true)
-            this.hud.showPlaying()
-          }
-        }
-      },
-      advanceTicks: (_n: number) => { /* no-op: real time only */ },
-    }
-    w.render_game_to_text = () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const snap = (this.world as any)?.captureSnapshot() as any
-      if (!snap) return JSON.stringify({ mode: 'unknown' })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const echoInfo = (this as any).echoTape
-        ? { mode: (this as any).echoTape.mode, tick: (this as any).echoTape.playbackTick, durationTicks: (this as any).echoTape.durationTicks }
-        : null
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const devicesOut: any = {}
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const [k, v] of Object.entries(snap.devices || {})) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const dev = (this as any).devices?.get(k)
-        if (dev) devicesOut[k] = { position: { x: dev.root.position.x, y: dev.root.position.y, z: dev.root.position.z }, active: (v as { active: boolean }).active }
-      }
-      return JSON.stringify({
-        mode: this.mode,
-        chapter: this.chapter,
-        player: this.player ? { position: this.player.motor.position, velocity: this.player.motor.velocity } : null,
-        echo: echoInfo,
-        pressurePlates: snap.pressurePlates,
-        levers: snap.levers,
-        doors: snap.doors,
-        devices: devicesOut,
-        facts: Array.from(snap.facts || []),
-      })
-    }
-  }
 }

@@ -21,6 +21,7 @@ export type WorldAudioEvent =
   | { type: 'door'; id: string; open: boolean }
   | { type: 'plate'; id: string; pressed: boolean }
   | { type: 'mechanism'; id: string; mechanism: 'elevator' | 'platform' | 'bridge'; moving: boolean }
+  | { type: 'shutter'; id: string; open: boolean }
   | { type: 'receiver'; id: string }
 
 type DeviceRecord = {
@@ -69,6 +70,7 @@ export type WorldDebugState = {
   elevators: Record<string, { y: number; active: boolean }>
   cores: Record<string, { position: Vec3; carriedBy?: ActorKind; receiver: boolean }>
   enemies: Record<string, { position: Vec3; state: string; target?: ActorKind; defeated: boolean; detection: number }>
+  barriers: Record<string, { position: Vec3; open?: boolean }>
   objectiveFacts: string[]
   complete: boolean
   escapeSeconds: number
@@ -121,8 +123,11 @@ const ENEMY_RAY_EXCLUSIONS: ReadonlySet<string> = new Set(['watcher', 'guardian'
 const SOLID_SIGHT_KINDS: ReadonlySet<PhysicsEntityKind> = new Set(['wall', 'door'])
 const WELL_MIN_THROW_DROP = 2.2
 const WELL_THROW_UPWARD_SPEED = 3.4
-const ATRIUM_THROW_SPEED = 5.05
-const ATRIUM_THROW_UPWARD_SPEED = 0.7
+// Ch3's recorded throw clears the shuttered lane, then lands in the east-side
+// catch basin. It deliberately stops short of the receiver so the live Player
+// must pick up this same physical Core and make the final delivery.
+const ATRIUM_THROW_SPEED = 5.2
+const ATRIUM_THROW_UPWARD_SPEED = 1.4
 const CORE_LOST_Y = -4
 const TRAJECTORY_STEP_SECONDS = 0.075
 const TRAJECTORY_MAX_POINTS = 22
@@ -156,6 +161,8 @@ export class DungeonWorld {
   private readonly dynamics = new Map<string, DynamicRecord>()
   /** Live open/closed state per shutter device id (chapter 3 transfer lane). */
   private readonly shutters = new Map<string, boolean>()
+  /** A player can open a one-way crossing only from its west approach. */
+  private readonly oneWayOpening = new Map<string, boolean>()
   /** Last known actor position per actor id, used to enforce one-way gate traversal. */
   private readonly actorPreviousX = new Map<string, number>()
   private readonly materials: THREE.Material[] = []
@@ -435,6 +442,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const elevators: WorldDebugState['elevators'] = {}
     const cores: WorldDebugState['cores'] = {}
     const enemies: WorldDebugState['enemies'] = {}
+    const barriers: WorldDebugState['barriers'] = {}
     for (const [id, device] of this.devices) {
       if (device.definition.kind === 'plate') pressurePlates[id] = withOptionalActor(device.active, device.actor)
       if (device.definition.kind === 'lever') levers[id] = withOptionalActor(device.active, device.actor)
@@ -448,6 +456,13 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
           ? { position: this.vec(device.root.position), state: this.enemyState, target, defeated: this.enemyDefeated, detection: Number(this.enemyDetection.toFixed(3)) }
           : { position: this.vec(device.root.position), state: this.enemyState, defeated: this.enemyDefeated, detection: Number(this.enemyDetection.toFixed(3)) }
       }
+      if (device.definition.kind === 'gate' || device.definition.kind === 'shutter' || device.definition.kind === 'one-way-wall') {
+        const position = device.body?.body.translation() ?? device.root.position
+        const open = device.definition.kind === 'shutter' ? this.shutters.get(device.definition.id) : undefined
+        barriers[device.definition.id] = open === undefined
+          ? { position: { x: position.x, y: position.y, z: position.z } }
+          : { position: { x: position.x, y: position.y, z: position.z }, open }
+      }
     }
     for (const [id, dynamic] of this.dynamics) {
       if (dynamic.body.tag.kind !== 'core') continue
@@ -457,29 +472,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         : { position: { x: p.x, y: p.y, z: p.z }, receiver: this.receiverFilled }
     }
     return {
-      facts: [...this.facts].sort(), pressurePlates, levers, doors, elevators, cores, enemies,
+      facts: [...this.facts].sort(), pressurePlates, levers, doors, elevators, cores, enemies, barriers,
       objectiveFacts: this.requiredFacts(), complete: this.complete, escapeSeconds: Number((this.escapeTicks / 60).toFixed(1)),
     }
-  }
-
-  performDebugSolutionStep(step: number, player: ActorContext, echo: ActorContext | undefined): void {
-    const required = this.requiredFacts()
-    if (step < required.length) {
-      const fact = required[step]
-      if (fact) {
-        this.facts.add(fact)
-        this.applyDebugDeviceFact(fact)
-      }
-    }
-    if (this.chapter === 1 && step === 0) this.facts.add('tutorial-lever')
-    if (this.chapter === 5 && this.facts.has('dual-seal') && this.escapeTicks === 0) this.escapeTicks = 35 * 60
-    if (step >= required.length) {
-      const exit = this.devices.get('exit')
-      if (exit) player.position.copy(exit.root.position)
-      this.exitRequestedBy = 'player'
-      this.complete = this.canExit()
-    }
-    if (echo && this.chapter > 0) void echo
   }
 
   resetFailure(): void {
@@ -830,7 +825,11 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       stripe.name = 'OneWayWallStripe'
       stripe.position.y = size[1] * 0.6
       root.add(wall, stripe)
-      body = this.physics.createOneWayWall(definition.id, this.vec(position), { x: size[0], y: size[1], z: size[2] })
+      body = this.physics.createOneWayWall(definition.id, this.vec(position), {
+        x: size[0] / 2,
+        y: size[1] / 2,
+        z: size[2] / 2,
+      })
     } else if (definition.kind === 'door') {
       root = new THREE.Group()
       const doorCore = this.boxMesh(size, this.material(0x1d2c36, 0.52, 0.68))
@@ -1421,37 +1420,55 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (this.chapter !== 3) return
     for (const [, device] of this.devices) {
       if (device.definition.kind !== 'shutter' || !device.body) continue
-      const position = device.definition.position
       const size = device.definition.size ?? [1.4, 1.4, 1.6]
       const openAtX = device.definition.openAtX ?? 0
-      const baseY = device.root.position.y
       const player = actors.find((a) => a.kind === 'player')
       const isOpen = !!player && player.position.x >= openAtX
-      // Open: raise body UP by full height so the lane is clear (shutters go UP).
-      // Closed: keep body at baseY so the lane is blocked.
-      const targetY = isOpen ? baseY + size[1] : baseY
-      const target = { x: position[0], y: targetY, z: position[2] }
+      // The authored transform is immutable. Opening lowers the full collider
+      // beneath the lower floor instead of stacking offsets every tick or
+      // raising it into the Core's flight path.
+      const closedY = device.basePosition.y
+      const openY = closedY - (size[1] + size[1] / 2 + 0.1)
+      const target = {
+        x: device.basePosition.x,
+        y: isOpen ? openY : closedY,
+        z: device.basePosition.z,
+      }
       const t = device.body.body.translation()
       // Only move when the body is meaningfully off target — avoids jitter.
       if (Math.abs(t.x - target.x) > 0.01 || Math.abs(t.y - target.y) > 0.01 || Math.abs(t.z - target.z) > 0.01) {
         device.body.body.setNextKinematicTranslation(target)
         if (device.root) device.root.position.set(target.x, target.y, target.z)
       }
+      const wasOpen = this.shutters.get(device.definition.id)
       this.shutters.set(device.definition.id, isOpen)
+      if (wasOpen === false && isOpen) this.emitAudio({ type: 'shutter', id: device.definition.id, open: true })
     }
   }
 
   private updateOneWayWalls(actors: readonly ActorContext[]): void {
     for (const [, device] of this.devices) {
       if (device.definition.kind !== 'one-way-wall' || !device.body) continue
-      const position = device.definition.position
       const size = device.definition.size ?? [1.0, 1.6, 1.6]
-      const baseY = device.root.position.y
       // Player-only trigger: echo and carried dynamic cores/crates must NOT
-      // open the wall. Only a live player on the WEST side lowers it.
-      const playerOnWest = actors.some((a) => a.kind === 'player' && a.position.x < position[0])
-      const targetY = playerOnWest ? baseY - size[1] : baseY
-      const target = { x: position[0], y: targetY, z: position[2] }
+      // open the wall. Opening latches only long enough for the current player
+      // to clear the passage, then cannot be reopened from the east side.
+      const player = actors.find((actor) => actor.kind === 'player')
+      const wasOpening = this.oneWayOpening.get(device.definition.id) === true
+      const clearedEastEdge = player !== undefined
+        && player.position.x > device.basePosition.x + size[0] / 2 + 0.45
+      const playerCanOpenFromWest = player !== undefined && player.position.x < device.basePosition.x
+      const isOpen = wasOpening ? !clearedEastEdge : playerCanOpenFromWest
+      this.oneWayOpening.set(device.definition.id, isOpen)
+      const closedY = device.basePosition.y
+      // Lower the collider until even its top is below the walkable lower-floor
+      // surface. A player cannot jump over a partially lowered wall.
+      const openY = closedY - (size[1] + size[1] / 2 + 0.12)
+      const target = {
+        x: device.basePosition.x,
+        y: isOpen ? openY : closedY,
+        z: device.basePosition.z,
+      }
       const t = device.body.body.translation()
       if (Math.abs(t.x - target.x) > 0.01 || Math.abs(t.y - target.y) > 0.01 || Math.abs(t.z - target.z) > 0.01) {
         device.body.body.setNextKinematicTranslation(target)
@@ -1816,22 +1833,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   private deviceHeldBy(id: string, actor: ActorKind): boolean {
     const device = this.devices.get(id)
     return device?.active === true && device.actor === actor
-  }
-
-  private applyDebugDeviceFact(fact: string): void {
-    const activate = (id: string, actor?: ActorKind) => {
-      const device = this.devices.get(id)
-      if (!device) return
-      device.active = true
-      device.actor = actor
-      device.holdUntilTick = Number.MAX_SAFE_INTEGER
-    }
-    if (fact === 'echo-plate') activate('echo-plate')
-    if (fact === 'lift-lever-echo') activate('lift-lever', 'echo')
-    if (fact === 'cargo-plate') activate('weight-plate')
-    if (fact === 'bridge-lever-echo') activate('bridge-lever', 'echo')
-    if (fact === 'lower-seal-echo') activate('lower-seal', 'echo')
-    if (fact === 'upper-seal-player') activate('upper-seal', 'player')
   }
 
   private requiredFacts(): string[] {

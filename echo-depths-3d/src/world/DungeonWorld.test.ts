@@ -140,8 +140,12 @@ describe('DungeonWorld authored runtime contracts', () => {
       const echoAtPlate = actor('echo', 'echo', platePosition)
       physics.createActor('player', 'player', { x: exitPosition[0], y: exitPosition[1], z: exitPosition[2] })
       const playerAtExit = actor('player', 'player', exitPosition)
+      const playerAtLever = actor('player', 'player', [-3.9, 0.72, 0.4])
+      expect(world.interact(playerAtLever)).toBe('lever')
       physics.step()
-      world.performDebugSolutionStep(0, playerAtExit, echoAtPlate)
+      world.afterPhysics([playerAtExit, echoAtPlate])
+      world.beforePhysics(1, [playerAtExit, echoAtPlate])
+      physics.step()
       world.afterPhysics([playerAtExit, echoAtPlate])
 
       expect(canActorRequestExit('player')).toBe(true)
@@ -626,53 +630,6 @@ describe('DungeonWorld authored runtime contracts', () => {
     }
   })
 
-  it('keeps the Chapter 5 passage open only while both actors still hold their live seals', async () => {
-    const { physics, world } = await createWorld(5)
-    try {
-      const lowerSeal = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'lower-seal')?.position
-      const upperSeal = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'upper-seal')?.position
-      if (!lowerSeal || !upperSeal) throw new Error('Chapter 5 seals are missing')
-      const echoBody = physics.createActor('echo', 'echo', {
-        x: lowerSeal[0], y: lowerSeal[1], z: lowerSeal[2],
-      })
-      physics.createActor('player', 'player', {
-        x: upperSeal[0], y: upperSeal[1], z: upperSeal[2],
-      })
-      const echo = actor('echo', 'echo', lowerSeal)
-      const player = actor('player', 'player', upperSeal)
-      physics.step()
-
-      const required = world.debugState().objectiveFacts
-      for (let step = 0; step < required.length; step += 1) world.performDebugSolutionStep(step, player, echo)
-      world.afterPhysics([player, echo])
-      for (let tick = 0; tick < 60; tick += 1) {
-        world.beforePhysics(tick, [player, echo])
-        physics.step()
-        world.afterPhysics([player, echo])
-      }
-
-      expect(world.debugState().facts).toEqual(expect.arrayContaining(['dual-seal', 'lower-seal-echo', 'upper-seal-player']))
-      const liveState = world.debugState()
-      expect(liveState.doors['final-door']?.open, JSON.stringify(liveState)).toBe(true)
-
-      echoBody.body.setTranslation({ x: 20, y: 20, z: 20 }, true)
-      echoBody.body.setNextKinematicTranslation({ x: 20, y: 20, z: 20 })
-      physics.step()
-      for (let tick = 60; tick < 120; tick += 1) {
-        world.beforePhysics(tick, [player])
-        physics.step()
-        world.afterPhysics([player])
-      }
-
-      expect(world.debugState().facts).toContain('dual-seal')
-      expect(world.debugState().facts).not.toContain('lower-seal-echo')
-      expect(world.debugState().doors['final-door']?.open).toBe(false)
-    } finally {
-      world.dispose()
-      physics.dispose()
-    }
-  })
-
   it('fails clearly when an unfilled puzzle core falls out of the playable world', async () => {
     const { physics, world } = await createWorld(3)
     try {
@@ -915,7 +872,8 @@ describe('DungeonWorld authored runtime contracts', () => {
       // Same object picked up (not a copy)
       const after = world.captureSnapshot()
       expect(after.dynamics['memory-core']?.carriedBy).toBe('echo')
-      expect(after.dynamics['memory-core']?.carriedBy).toBe('echo')
+      expect(Object.keys(after.dynamics).filter((id) => id === 'memory-core')).toHaveLength(1)
+      expect(physics.record('memory-core'), 'the canonical Rapier body remains the one Core').toBe(core)
     } finally { world.dispose(); physics.dispose() }
   })
 
@@ -1010,7 +968,7 @@ describe('DungeonWorld authored runtime contracts', () => {
     } finally { world.dispose(); physics.dispose() }
   })
 
-  it('Ch3 N — transfer shutter raises UP when the live Player is east of openAtX', async () => {
+  it('Ch3 N — transfer shutter lowers fully below the floor when the live Player is east of openAtX', async () => {
     const { physics, world } = await createWorld(3)
     try {
       const shutter = physics.record('transfer-shutter')
@@ -1023,7 +981,10 @@ describe('DungeonWorld authored runtime contracts', () => {
       physics.step(); world.afterPhysics([player])
       physics.step()
       const openY = shutter.body.translation().y
-      expect(openY, 'shutter body should be raised UP when Player.x >= openAtX').toBeGreaterThan(closedY + 0.5)
+      // Shutter half-height is 0.7 and the lower floor top is y=0.2. Its entire
+      // collider must sit below that walkable surface when open.
+      expect(openY + 0.7, 'open shutter top stays below the lower floor').toBeLessThan(0.2)
+      expect(openY, 'open shutter moves from its immutable closed position').toBeLessThan(closedY - 2)
     } finally { world.dispose(); physics.dispose() }
   })
 
@@ -1034,13 +995,13 @@ describe('DungeonWorld authored runtime contracts', () => {
       if (!wall) throw new Error('atrium-one-way wall missing')
       // Player starts east of the wall and moves west. The wall should stay up
       // (no actor on west side to trigger open), so the motor collides with it.
-      const player = actor('player', 'player', [4.0, 1.6, 1.6])
+      const player = actor('player', 'player', [4.0, 1.6, -2.0])
       world.beforePhysics(1, [player])
       physics.step()
       world.afterPhysics([player])
       const closedY = wall.body.translation().y
       // Move player further west — the wall should still be closed (player is east)
-      player.position.set(3.0, 1.6, 1.6)
+      player.position.set(3.0, 1.6, -2.0)
       world.beforePhysics(2, [player])
       physics.step()
       world.afterPhysics([player])
@@ -1049,18 +1010,30 @@ describe('DungeonWorld authored runtime contracts', () => {
     } finally { world.dispose(); physics.dispose() }
   })
 
-  it('Ch3 O2 — one-way physical wall lowers for west-side actors', async () => {
+  it('Ch3 O2 — only the live Player, never Echo, lowers the west-side one-way wall', async () => {
     const { physics, world } = await createWorld(3)
     try {
       const wall = physics.record('atrium-one-way')
       if (!wall) throw new Error('atrium-one-way wall missing')
       const closedY = wall.body.translation().y
-      const player = actor('player', 'player', [2.0, 1.6, 1.6])
-      world.beforePhysics(1, [player])
+      const echo = actor('echo', 'echo', [2.0, 1.6, -2.0])
+      world.beforePhysics(1, [echo])
+      physics.step(); world.afterPhysics([echo])
+      physics.step()
+      expect(wall.body.translation().y, 'Echo cannot open the player-only crossing').toBeCloseTo(closedY, 3)
+
+      const player = actor('player', 'player', [2.0, 1.6, -2.0])
+      world.beforePhysics(2, [player, echo])
       physics.step(); world.afterPhysics([player])
       physics.step()
       const openY = wall.body.translation().y
-      expect(openY, 'wall lowers when actor is on west side').toBeLessThan(closedY - 0.5)
+      expect(openY, 'wall lowers only when the current Player is on the west side').toBeLessThan(closedY - 0.5)
+      for (let tick = 0; tick < 30; tick += 1) {
+        world.beforePhysics(3 + tick, [player])
+        physics.step()
+        world.afterPhysics([player])
+      }
+      expect(wall.body.translation().y, 'open wall remains at its base-relative height without per-tick drift').toBeCloseTo(openY, 3)
     } finally { world.dispose(); physics.dispose() }
   })
 

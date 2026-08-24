@@ -159,6 +159,15 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       floor('atrium-lower', [-0.6, -0.25, 0], [4.9, 0.45, 4.3]),
       floor('atrium-east', [7.0, 0, -0.5], [2.8, 0.45, 3.7]),
       wall('atrium-north', [0, 3.2, -4.5], [10.5, 3.2, 0.35]),
+      // The divider has exactly two authored crossings: the player-only one-way
+      // route at z=-2 and the shuttered core-transfer lane around z=1.6. The
+      // solid middle section keeps the two routes physically distinct.
+      wall('atrium-divider-south', [3.75, 2.2, -3.65], [0.25, 2.2, 0.8]),
+      wall('atrium-divider-middle', [3.75, 2.2, -0.2], [0.25, 2.2, 0.85]),
+      wall('atrium-divider-north', [3.75, 2.2, 2.95], [0.25, 2.2, 0.45]),
+      // Low physical rail that catches the Echo's Core before the receiver.
+      // The Player can walk around its south end to make the final throw.
+      wall('atrium-catch-rail', [5.3, 0.45, 1.6], [0.18, 0.45, 0.95]),
     ],
     devices: [
       { id: 'memory-core', kind: 'core', position: [-3.0, 3.75, 1.6] },
@@ -170,7 +179,7 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       { id: 'transfer-shutter', kind: 'shutter', position: [3.5, 1.4, 1.6], size: [1.4, 1.4, 1.6], openAtX: 4.0 },
       // Ch3 one-way physical wall. Always solid; lowers itself below the floor only
       // when an actor is on its WEST side. No ActorContext position mutation.
-      { id: 'atrium-one-way', kind: 'one-way-wall', position: [3.0, 1.6, 1.6], size: [1.0, 1.6, 1.6] },
+      { id: 'atrium-one-way', kind: 'one-way-wall', position: [3.0, 1.6, -2.0], size: [1.0, 1.6, 1.6] },
       { id: 'core-receiver', kind: 'receiver', position: [6.6, 0.88, 1.6] },
       { id: 'atrium-door', kind: 'door', position: [9.45, 2.15, -0.4], size: [0.32, 2.1, 1.2] },
       { id: 'exit', kind: 'exit', position: [10.2, 1.08, -0.4] },
