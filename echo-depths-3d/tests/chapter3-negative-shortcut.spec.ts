@@ -85,6 +85,7 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     await advanceTicks(page, 2)
     const repicked = await readState(page)
     expect(repicked.cores['memory-core']?.carriedBy).toBe('player')
+    await moveAxis(page, 'x', -0.8, 'carry the Core back to the west throw point')
     await holdKey(page, 'd', 1)
     await pressKey(page, 'k')
     await advanceTicks(page, 20)
