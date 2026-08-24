@@ -119,9 +119,9 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
     fog: 0x10131a,
     boxes: [
       floor('hall-lower', [-3, 0, 1.6], [6, 0.45, 4.5]),
-      // Physical lower landing from the elevator to the weight plate. The
-      // authored plate sits just east of the original hall edge, so this
-      // bridge keeps the cargo route traversable with ordinary keyboard motion.
+      // The authored lower plate is east of the original hall edge. This is a
+      // physical floor section for the cargo route; it does not bypass the
+      // elevator, weight plate, door, or upper exit rules.
       floor('counterweight-plate-bridge', [1.2, 0, 1.65], [1.8, 0.45, 3.8]),
       floor('counterweight-dock', [5.6, 3.85, -0.5], [4.05, 0.25, 4]),
       wall('counter-north', [0, 3, -4.1], [10.5, 3, 0.35]),
@@ -135,7 +135,6 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       { id: 'weight-plate', kind: 'plate', position: [0.9, 0.52, 3.7], size: [1.15, 0.12, 1.15] },
       { id: 'counter-door', kind: 'door', position: [7.2, 6.1, -0.5], size: [0.32, 2.15, 1.25] },
       { id: 'exit', kind: 'exit', position: [8.15, 4.68, -0.5] },
-      { id: 'lower-exit', kind: 'exit', position: [2.7, 1.08, 3.7] },
     ],
     pillars: [[-7.2, 0.5, -2.4], [-7.2, 0.5, 3.1], [4.3, 4.5, -2.8], [4.3, 4.5, 2.4]],
     decor: [

@@ -1798,10 +1798,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       return this.facts.has('tutorial-lever') && this.facts.has('echo-plate')
     }
     if (this.chapter === 2) {
-      // The Echo lever is a recorded objective fact; requiring the transient
-      // momentary hold here made a valid cargo-plate route fail if the Player
-      // needed extra time to reach the exit.
-      return this.facts.has('lift-lever-echo') && this.devices.get('weight-plate')?.active === true && this.facts.has('elevator-ridden')
+      return this.deviceHeldBy('lift-lever', 'echo') && this.devices.get('weight-plate')?.active === true && this.facts.has('elevator-ridden')
     }
     if (this.chapter === 3) {
       return this.facts.has('receiver-filled')

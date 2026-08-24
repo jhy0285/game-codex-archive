@@ -15,9 +15,11 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     await startChapter(page, 3)
     await rotateCameraCardinal(page)
     await moveAxis(page, 'z', 1.6, 'reach receiver lane')
-    try { await moveAxis(page, 'x', 6.6, 'walk toward receiver without Echo', 1_200) } catch { /* divider is the negative result */ }
+    await holdKey(page, 'd', 90)
     await pressKey(page, 'e')
-    expect((await readState(page)).objectives.facts).not.toContain('receiver-filled')
+    const current = await readState(page)
+    expect(current.player?.position.x ?? 99, 'the closed divider still blocks the receiver lane').toBeLessThan(3.6)
+    expect(current.objectives.facts).not.toContain('receiver-filled')
   })
 
   test('B — carried Core cannot use the Player one-way route', async ({ page }) => {
@@ -42,6 +44,7 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     await pressKey(page, 'k')
     await advanceTicks(page, 30)
     const core = (await readState(page)).cores['memory-core']
+    expect(core?.carriedBy).toBeUndefined()
     expect(core?.position.x ?? 99).toBeLessThan(3.6)
   })
 
@@ -51,12 +54,16 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     await recordPlayerCore(page)
     await moveAxis(page, 'z', -2.3, 'enter the Player route')
     await moveAxis(page, 'x', -0.8, 'reach west throw point')
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      await holdKey(page, 'd', 1)
-      await pressKey(page, 'k')
-      await advanceTicks(page, 20)
-    }
-    expect((await readState(page)).cores['memory-core']?.position.x ?? 99).toBeLessThan(4)
+    await holdKey(page, 'd', 1)
+    await pressKey(page, 'k')
+    await advanceTicks(page, 20)
+    const firstThrow = await readState(page)
+    expect(firstThrow.cores['memory-core']?.carriedBy).toBeUndefined()
+    expect(firstThrow.cores['memory-core']?.position.x ?? 99).toBeLessThan(4)
+    await pressKey(page, 'e')
+    const secondAttempt = await readState(page)
+    expect(secondAttempt.cores['memory-core']?.carriedBy).toBeUndefined()
+    expect(secondAttempt.cores['memory-core']?.position.x ?? 99).toBeLessThan(4)
   })
 
   test('E — divider edge movement does not bypass the authored crossings', async ({ page }) => {
@@ -64,9 +71,10 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     await startChapter(page, 3)
     await rotateCameraCardinal(page)
     await moveAxis(page, 'z', -0.2, 'line up divider edge')
-    try { await moveAxis(page, 'x', 5.0, 'attempt edge bypass', 900) } catch { /* the wall stopped the attempt */ }
+    await holdKey(page, 'd', 120)
     const current = await readState(page)
-    expect(current.player?.position.x ?? 99).toBeLessThan(6)
+    expect(current.player?.position.x ?? 99).toBeLessThan(3.6)
+    expect(current.objectives.facts).not.toContain('receiver-filled')
   })
 
   test('F — jump and dash inputs do not cross the closed Player wall', async ({ page }) => {
@@ -101,16 +109,28 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
   test('H — open shutter allows the Echo throw to use the same Core', async ({ page }) => {
     test.setTimeout(180_000)
     await startChapter(page, 3)
-    await recordPlayerCore(page)
+    await pressKey(page, 'r')
+    await holdKey(page, 'd', 54)
+    await pressKey(page, 'e')
+    await expect.poll(async () => (await readState(page)).cores['memory-core']?.carriedBy).toBe('player')
+    await rotateCameraCardinal(page)
     await moveAxis(page, 'z', 1.6, 'enter transfer lane')
     await moveAxis(page, 'x', -0.8, 'reach west throw point')
     await holdKey(page, 'd', 1)
     await pressKey(page, 'k')
+    await moveAxis(page, 'x', -1.5, 'line up the Ch3 descent stairs')
     await moveAxis(page, 'z', -2.3, 'line up the Player route')
-    try { await moveAxis(page, 'x', 4.4, 'cross Player route') } catch { /* divider remains physical */ }
+    await moveAxis(page, 'x', 4.4, 'cross Player route')
     await pressKey(page, 'r')
     await waitForState(page, (current) => current.barriers?.['transfer-shutter']?.open === true, 240, 'shutter did not open for the live Player')
-    expect((await readState(page)).cores['memory-core']).toBeDefined()
+    const replaying = await waitForState(page, (current) => current.echo.tick >= 62, 120, 'Echo did not reach the recorded pickup')
+    expect(replaying.cores['memory-core']?.carriedBy).toBe('echo')
+    await waitForState(page, (current) => current.echo.mode === 'holding', 420, 'Echo did not complete the physical throw')
+    const landed = await readState(page)
+    expect(Object.keys(landed.cores)).toEqual(['memory-core'])
+    expect(landed.cores['memory-core']?.carriedBy).toBeUndefined()
+    expect(landed.cores['memory-core']?.position.x ?? 0).toBeGreaterThan(4)
+    expect(landed.objectives.facts).not.toContain('receiver-filled')
   })
 
   test('I — Player interference leaves Echo unable to duplicate the Core', async ({ page }) => {
@@ -125,6 +145,7 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     await advanceTicks(page, 120)
     const current = await readState(page)
     expect(Object.keys(current.cores)).toEqual(['memory-core'])
+    expect(current.cores['memory-core']?.receiver).toBe(false)
   })
 
   test('J — Echo pickup keeps one canonical Core record', async ({ page }) => {
@@ -133,7 +154,9 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     await recordPlayerCore(page)
     await pressKey(page, 'r')
     await waitForState(page, (current) => current.echo.tick >= 59, 180, 'Echo did not reach recorded pickup')
-    expect(Object.keys((await readState(page)).cores)).toEqual(['memory-core'])
+    const current = await readState(page)
+    expect(Object.keys(current.cores)).toEqual(['memory-core'])
+    expect(current.cores['memory-core']?.receiver).toBe(false)
   })
 
   test('K — a new real recording replaces the previous Echo tape', async ({ page }) => {
@@ -148,5 +171,18 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     await holdKey(page, 'a', 18)
     await pressKey(page, 'r')
     await expect.poll(async () => (await readState(page)).echoesCreated).toBe(2)
+  })
+
+  test('L — EAST to WEST remains blocked by the one-way crossing', async ({ page }) => {
+    test.setTimeout(180_000)
+    await startChapter(page, 3)
+    await rotateCameraCardinal(page)
+    await moveAxis(page, 'z', -2.3, 'line up the authored crossing')
+    await moveAxis(page, 'x', 4.4, 'cross WEST to EAST')
+    const east = await readState(page)
+    expect(east.player?.position.x ?? 0).toBeGreaterThan(4)
+    await holdKey(page, 'a', 120)
+    const blocked = await readState(page)
+    expect(blocked.player?.position.x ?? 0, 'the live Player cannot cross EAST to WEST').toBeGreaterThan(3.5)
   })
 })

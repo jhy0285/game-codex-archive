@@ -1,0 +1,46 @@
+name: Echo Depths 3D CI
+
+on:
+  push:
+    branches:
+      - main
+      - fix/echo2-ch3-structural
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: echo-depths-3d
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: echo-depths-3d/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Production build
+        run: npm run build
+      - name: Vitest
+        run: npx vitest run
+      - name: Playwright runtime suite
+        run: npx playwright test --reporter=line
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: echo-depths-3d-playwright-artifacts
+          if-no-files-found: ignore
+          path: |
+            echo-depths-3d/test-results/
+            echo-depths-3d/playwright-report/
