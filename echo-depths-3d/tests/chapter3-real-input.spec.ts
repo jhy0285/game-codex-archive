@@ -98,7 +98,7 @@ const startChapter3 = async (page: Page): Promise<void> => {
 }
 
 test('Chapter 3 completes through real keyboard OBJECT TRANSFER', async ({ page }) => {
-  test.setTimeout(120_000)
+  test.setTimeout(240_000)
   await startChapter3(page)
 
   // The default quarter-view makes D travel south-east. It reaches the Core

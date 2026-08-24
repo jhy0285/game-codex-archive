@@ -146,7 +146,10 @@ test.describe('Chapter 3 mobile OBJECT TRANSFER', () => {
   test.use({ hasTouch: true, viewport: { width: 932, height: 430 } })
 
   test('completes with touch joystick, touch camera, and touch action controls', async ({ page }) => {
-    test.setTimeout(150_000)
+    // Ubuntu-hosted Actions runners are materially slower than the local
+    // deterministic browser harness; keep the same real touch path intact
+    // while allowing the manual physics ticks to finish under CI load.
+    test.setTimeout(300_000)
     await startChapter3(page)
 
     await tapAction(page, 'echo')

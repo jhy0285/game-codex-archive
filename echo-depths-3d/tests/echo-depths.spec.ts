@@ -29,7 +29,7 @@ test.describe('Echo Depths keyboard runtime', () => {
   })
 
   test('Chapter 2 completes with keyboard Echo lever, elevator ride, and cargo plate', async ({ page }) => {
-    test.setTimeout(240_000)
+    test.setTimeout(360_000)
     await startChapter(page, 2)
     await rotateCameraCardinal(page)
 
