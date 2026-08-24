@@ -70,7 +70,8 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     await recordPlayerCore(page)
     await moveAxis(page, 'z', -2.3, 'enter the Player route')
     await moveAxis(page, 'x', -0.8, 'reach west throw point')
-    await holdKey(page, 'a', 1)
+    // Throw EAST toward the authored one-way gate; the first attempt must stop WEST.
+    await holdKey(page, 'd', 1)
     await pressKey(page, 'k')
     await advanceTicks(page, 12)
     const firstThrow = await readState(page)
