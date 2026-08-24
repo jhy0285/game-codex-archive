@@ -6,7 +6,10 @@ The game is a Vite static application written in strict TypeScript. Three.js ren
 
 ## Current release evidence
 
-Snapshot: 2026-08-18, Asia/Seoul.
+Snapshot: 2026-08-25, Asia/Seoul.
+
+- The Chapter 4–5 temporal-mastery work is isolated on `feat/ch4-ch5-temporal-mastery`, based on the still-open Chapter 3 repair branch `fix/echo2-ch3-structural`. It replaces scripted enemy outcomes with live field-of-view, Rapier line-of-sight, cover, target selection, patrol/alert/investigate/chase/recovery, positional strikes, physical knockback/traps, one physical Core, powered traversal, and live two-actor seals. `main`, the Chapter 3 repair branch, the public deployment, sibling projects, and assets remain unchanged by this work.
+- Local final gates pass on the feature tree: `npm ci` reports 0 vulnerabilities, the strict production build transforms 38 modules, Vitest passes 126/126 across 17 files, and Playwright passes 25/25 in 24.6 minutes. The four new Chapter 4–5 desktop/mobile full-solution captures were regenerated in a focused 4/4 run in 6.9 minutes.
 
 - `npm ci`, strict TypeScript, and the final Vite production build pass on the recovered tree.
 - Vitest passes all 96 tests across 16 test files, including device-audio transition/loop regression, camera-obstruction continuity, vertical orbit, responsive reversal, compact-scanner construction/active-feedback, industrial device assembly, and Chapters 3–5 completion regressions.
@@ -26,7 +29,7 @@ Snapshot: 2026-08-18, Asia/Seoul.
 - Source `a7e88b1` refines the PC control path without changing echo frames or authored puzzle speeds: movement eases to a stop, reverses decisively, mouse drag supports a bounded vertical orbit, and camera collision shortening remains continuous between 30 Hz ray probes. Candidate `dpl_2mR1KvPWjb2tFffvbtsmyyvxEDEA` passed 6/6 in 1.1 minutes; promoted production `dpl_6xtAgui3NMukXpfwJzCe3B3Rz4bV` is Ready, and the public [production URL](https://echo-depths-3d.vercel.app) returned HTTP 200 and passed 6/6 in 54.5 seconds.
 - Source `6555825` adds distinct synthesized device audio: lever/carry actions, pressure scanner press/release, vault-door open/close, receiver charge, and moving elevator/platform/bridge start, loop, and stop. Candidate `dpl_4woHwEHVLuGd8kXj8LAVGJg5Ypaz` passed production smoke 6/6 in 1.1 minutes, then promoted production `dpl_48KTUWgRHef83bXB9u7Xd9koT3CC` returned HTTP 200 and passed public smoke 6/6 in 1.2 minutes.
 - Source `b2e687a` opens every Chapter Select card from Chapters 1–5 before any clear on the public production URL. `STARTING_UNLOCKED_THROUGH` is the single restore point: set it back to `1` when sequential campaign unlocking should return. Stage 00 remains the separate Start-flow tutorial. Build, 96 unit tests, a targeted Chapter Select browser assertion, the full 15/15 Playwright suite, candidate smoke 6/6, and public smoke 6/6 pass.
-- Physical-keyboard feel, subjective puzzle readability, and overall play feel remain human-review work. Mobile is outside this repair's validation scope.
+- Physical-keyboard and real-device touch feel, subjective puzzle readability, fairness, difficulty, and overall fun remain human-review work. Automated desktop-keyboard and mobile-touch Chapter 4–5 walkthroughs cover the complete physical solutions without test-only state mutation.
 
 Exact GitHub, candidate, production, build-log, and public verification evidence is recorded in `DEPLOYMENT.md` and `TEST.md`.
 
@@ -77,9 +80,9 @@ The left zone is a virtual movement stick, the right zone rotates the camera, an
 
 ## Echo rule
 
-The runtime advances gameplay at 60 fixed ticks per second. A recording stores quantized world-space movement axes, quantized facing, held interaction, and discrete jump, interaction, attack, throw, and dash presses. It stores no per-frame actor coordinates.
+The runtime advances gameplay at 60 fixed ticks per second. A recording stores quantized world-space movement axes, discrete jump, interaction, attack, throw, and dash presses, plus tick-aligned position and facing samples. The transform samples make Echo 2.0 replay drift-free; they are consumed in lockstep with the ordinary recorded actions.
 
-Starting a recording captures a motor snapshot plus the mutable dungeon snapshot. The motor record includes position, velocity, grounded state, facing, dash phase/cooldown, coyote time, and jump buffer. The dungeon record includes facts; device transforms, active actor, hold time, and motion progress; crate/core transforms, velocities, body type, and carry ownership; receiver state; enemy state, facing, target, knockback, detection, and defeat; platform timeline phase; and escape time. Fixed gameplay plates, levers, and exits retain their Rapier sensor configuration when that snapshot is restored. Finishing the tape rebuilds the chapter, restores that record-start state, remaps past player ownership to the echo, and replays the frames through the same motor and action resolver used by the present player. When the tape ends, the echo stops moving, suppresses one-shot actions, and may continue holding interaction. Starting another recording dissolves and replaces the previous echo. Player and echo character controllers ignore one another.
+Starting a recording captures a motor snapshot plus the mutable dungeon snapshot. The motor record includes position, velocity, grounded state, facing, dash phase/cooldown, coyote time, and jump buffer. The dungeon record includes facts; device transforms, active actor, hold time, and motion progress; crate/core transforms, velocities, body type, and carry ownership; receiver state; enemy state, facing, target visibility, last-known/stimulus positions, alert/search/recovery timers, knockback, detection, and defeat; platform timeline phase; and escape time. Fixed gameplay plates, levers, and exits retain their Rapier sensor configuration when that snapshot is restored. Finishing the tape rebuilds the chapter, restores that record-start state, remaps past player ownership to the echo, applies each recorded transform through the Echo's real kinematic body, and routes recorded actions through the same world resolver used by the present player. When the tape ends, the echo stops moving, suppresses one-shot actions, and may continue holding interaction. Starting another recording dissolves and replaces the previous echo. Player and echo character controllers ignore one another.
 
 The current runtime tape limit is 15 seconds. A cyan/magenta route line, timeline, translucent actor, record-start/end temporal pulses, recording feedback, and replay state communicate the loop.
 
@@ -90,8 +93,8 @@ The current runtime tape limit is 15 seconds. A cyan/magenta route line, timelin
 1. **THE FIRST DESCENT** — record the tutorial lever and a final plate hold, then climb the stair and jump route through the gate.
 2. **COUNTERWEIGHT HALL** — let the echo hold the lower lift lever, ride upward, and drop the upper crate onto the lower weight plate.
 3. **THE SPLIT ATRIUM** — have the echo throw the core and hold the bridge lever; catch, redirect, and socket the core from the present route.
-4. **THE WATCHER'S GALLERY** — lure the fixed watcher with the echo, use cover and the upper flank, and knock it into the spike trap.
-5. **THE PARADOX WELL** — carry the core up the physical well ramp, throw it down into the exposed lower receiver, split the guardian's attention, break its seal from height, synchronize the lower plate and upper lever, and escape within 35 seconds.
+4. **THE WATCHER'S GALLERY** — record the Echo ringing the physical bell and remaining visible, stay behind cover, climb the real upper flank, strike from the rear and above, and let the resulting physical knockback carry the Watcher into the spike trap before using the released exit.
+5. **THE PARADOX WELL** — use the first Echo recording to carry and throw the one physical Core into the receiver, replace it with a second recording that ends on the lower seal, ride the powered platform, make the Guardian truly see the Echo, break the rear seal from above, hold the upper seal at the same time, and escape through the released final door within 35 seconds.
 
 `GAME.md` records the actual device conditions and full solution sequence for every chapter.
 
@@ -121,7 +124,7 @@ The browser exposes:
 
 - `window.render_game_to_text()` — JSON containing mode, language, chapter, camera and player state, echo state, timer, plates, levers, doors, elevators, cores, enemies, objective facts, score, reset/failure counts, touch-control visibility, fullscreen state, asset status, fixed tick, and escape time.
 - `window.advanceTime(milliseconds)` — deterministic fixed-step advancement.
-- `window.echoDepthsDebug` — development-only chapter selection, injected input, tick advancement, chapter restart, authored solution stepping, and asset status.
+- `window.echoDepthsDebug` — development-only chapter selection, manual fixed-tick advancement, chapter restart, and asset-status reading. It exposes no authored solution step, direct fact injection, teleport, or production surface.
 
 ## Repository boundary
 

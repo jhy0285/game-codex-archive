@@ -22,6 +22,7 @@ export const WORLD_FACT_TO_OBJECTIVE_FACT: Readonly<Record<string, ObjectiveFact
   'lower-seal-echo': 'echo-on-final-plate',
   'upper-seal-player': 'player-holding-final-lever',
   'dual-seal': 'escape-timer-active',
+  'final-door-opened': 'final-door-released',
 }
 
 export const objectiveFactsFromWorld = (

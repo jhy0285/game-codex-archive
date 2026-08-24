@@ -17,6 +17,16 @@ export type RuntimeState = {
   cores: Record<string, { position: Vec3; carriedBy?: 'player' | 'echo'; receiver: boolean }>
   crates?: Record<string, { position: Vec3; carriedBy?: 'player' | 'echo' }>
   barriers?: Record<string, { position: Vec3; open?: boolean }>
+  enemies?: Record<string, {
+    position: Vec3
+    forward: Vec3
+    state: string
+    target?: 'player' | 'echo'
+    targetVisible: boolean
+    defeated: boolean
+    detection: number
+  }>
+  escapeSeconds?: number
   echoesCreated?: number
   mobileControlsVisible?: boolean
   fixedTick?: number
@@ -71,11 +81,18 @@ export async function rotateCameraCardinal(page: Page): Promise<void> {
   await holdKey(page, 'q', 25)
 }
 
-export async function moveAxis(page: Page, axis: 'x' | 'z', target: number, label: string, maximumTicks = 720): Promise<void> {
+export async function moveAxis(
+  page: Page,
+  axis: 'x' | 'z',
+  target: number,
+  label: string,
+  maximumTicks = 720,
+  nearStepTicks = 12,
+): Promise<void> {
   const positive = axis === 'x' ? 'd' : 's'
   const negative = axis === 'x' ? 'a' : 'w'
   let held: string | undefined
-  for (let elapsed = 0; elapsed < maximumTicks; elapsed += 12) {
+  for (let elapsed = 0; elapsed < maximumTicks;) {
     const player = (await readState(page)).player
     if (!player) throw new Error(`${label}: Player unavailable`)
     const delta = target - player.position[axis]
@@ -89,10 +106,22 @@ export async function moveAxis(page: Page, axis: 'x' | 'z', target: number, labe
       await page.keyboard.down(key)
       held = key
     }
-    await advanceTicks(page, 12)
+    const stepTicks = Math.abs(delta) < 1 ? nearStepTicks : 12
+    await advanceTicks(page, stepTicks)
+    elapsed += stepTicks
   }
   if (held) await page.keyboard.up(held)
   throw new Error(`${label}: Player did not reach ${axis}=${target}; final=${JSON.stringify((await readState(page)).player)}`)
+}
+
+export async function moveAxisPrecise(
+  page: Page,
+  axis: 'x' | 'z',
+  target: number,
+  label: string,
+  maximumTicks = 720,
+): Promise<void> {
+  return moveAxis(page, axis, target, label, maximumTicks, 4)
 }
 
 export async function waitForState(page: Page, predicate: (state: RuntimeState) => boolean, maximumTicks: number, label: string): Promise<RuntimeState> {

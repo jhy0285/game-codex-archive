@@ -1,8 +1,12 @@
 # ECHO DEPTHS Progress
 
-Snapshot: 2026-08-18, Asia/Seoul.
+Snapshot: 2026-08-25, Asia/Seoul.
 
 ## Current state
+
+The Chapter 4–5 temporal-mastery revision is locally complete on `feat/ch4-ch5-temporal-mastery`, based on open Chapter 3 repair head `8e84c7465a953caeec1a6be44bb3da264a969d75`. It adds actual Watcher/Guardian FOV and Rapier LOS, cover and attention states, rear/high positional attacks, physical knockback/trap resolution, one canonical Core across Echo replacement, a real powered vertical platform, and live two-actor final synchronization. The objective model records minimal physical outcomes instead of internal solution history.
+
+Final local evidence is PASS: `npm ci` with 0 vulnerabilities; strict Vite build with 38 modules; Vitest 17 files / 126 tests; full Playwright 25/25 in 24.6 minutes; focused desktop/mobile success-capture 4/4 in 6.9 minutes. The four generated PNGs were visually inspected. No deployment, production promotion, asset edit, sibling edit, `main` edit, or base-branch edit was performed.
 
 The independent `echo-depths-3d` source tree contains a skippable Stage 00 PC orientation room before the five-chapter 3D time-echo campaign, ending, strict TypeScript source, pure-rule and physics tests, KayKit character/animation integration, bilingual HTML/CSS UI, desktop/mobile input, and deterministic browser-facing state API.
 
@@ -135,6 +139,14 @@ The user requested two things: (1) reframe the chapter 1 clear condition so that
   - Visually: the SecurityScannerPanel and SecurityScannerBeacons materials are cloned per-plate and lerp between a near-black navy (0x141820) and a bright white-cyan (0xeaffff) based on the device state, alongside the existing scale dip and emissive boost. The active color is distinct from any chapter accent so the state change is obvious.
   - Local evidence: 96/96 Vitest pass, including the door-close-on-echo-departure regression. A dedicated Playwright test (tests/player-walks-plate.spec.ts) confirms both the actor-agnostic fact addition and the visible color shift via the canvas.
   - Production redeploy via vercel redeploy; the canonical URL https://echo-depths-3d.vercel.app is updated and the user can confirm the new behavior from any browser, including a phone on a remote session.
+
+## 2026-08-25 — Chapter 4–5 temporal mastery
+
+- Chapter 4 now requires an Echo that actually becomes visible after the physical bell stimulus, present-player cover use, a real upper rear flank, and physical knockback into the trap. The door cannot open from a scripted fact or an unknocked trap overlap.
+- Chapter 5 now uses the same single Core through a first Echo carry/throw recording and a replacement lower-seal recording. The present Player rides the Core-powered platform, waits for actual Guardian-to-Echo visibility, lands the rear/high strike, and holds the upper seal simultaneously with the Echo to release the final door.
+- Snapshot restoration covers every new attention field. Frontal/low attacks, early exits, fake receiver interaction, duplicate Core state, direct lower-seal target assignment, and non-simultaneous final seals are covered negatively.
+- English/Korean objectives remain broad enough to preserve discovery. Outcome requirements are minimal and physical: Watcher trapped; Core received, Guardian defeated, final door released.
+- Local final gates pass: build, Vitest 126/126, Playwright 25/25, and capture rerun 4/4. GitHub push/PR state is recorded after remote delivery; Vercel remains intentionally untouched.
 
 
 

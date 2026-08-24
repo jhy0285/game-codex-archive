@@ -26,6 +26,7 @@ export const ObjectiveFacts = {
   EchoOnFinalPlate: 'echo-on-final-plate',
   PlayerHoldingFinalLever: 'player-holding-final-lever',
   EscapeTimerActive: 'escape-timer-active',
+  FinalDoorReleased: 'final-door-released',
   PlayerAtExit: 'player-at-exit',
 } as const
 
@@ -281,11 +282,6 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     enemies: [{ id: 'watcher', spawn: v(2.4, 0.98, -0.4), role: 'watcher' }],
     objectives: [
       {
-        id: 'lure-watcher',
-        labelKey: 'objective.watcher.lure',
-        requiredFacts: [ObjectiveFacts.WatcherLuredByEcho],
-      },
-      {
         id: 'defeat-with-hazard',
         labelKey: 'objective.watcher.hazard',
         requiredFacts: [ObjectiveFacts.WatcherDefeatedByHazard],
@@ -297,7 +293,6 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
       },
     ],
     victoryFacts: [
-      ObjectiveFacts.WatcherLuredByEcho,
       ObjectiveFacts.WatcherDefeatedByHazard,
       ObjectiveFacts.PlayerAtExit,
     ],
@@ -339,38 +334,28 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
       {
         id: 'power-well',
         labelKey: 'objective.paradox.core',
-        requiredFacts: [ObjectiveFacts.CoreThrownDownWell, ObjectiveFacts.CoreInWellReceiver],
+        requiredFacts: [ObjectiveFacts.CoreInWellReceiver],
       },
       {
         id: 'break-guardian-seal',
         labelKey: 'objective.paradox.guardian',
-        requiredFacts: [
-          ObjectiveFacts.GuardianDistractedByEcho,
-          ObjectiveFacts.GuardianRearSealBrokenFromHeight,
-        ],
+        requiredFacts: [ObjectiveFacts.GuardianRearSealBrokenFromHeight],
       },
       {
         id: 'synchronize',
-        labelKey: 'objective.paradox.sync',
-        requiredFacts: [
-          ObjectiveFacts.EchoOnFinalPlate,
-          ObjectiveFacts.PlayerHoldingFinalLever,
-        ],
+        labelKey: 'objective.paradox.finalDoor',
+        requiredFacts: [ObjectiveFacts.FinalDoorReleased],
       },
       {
         id: 'escape',
         labelKey: 'objective.paradox.escape',
-        requiredFacts: [ObjectiveFacts.EscapeTimerActive, ObjectiveFacts.PlayerAtExit],
+        requiredFacts: [ObjectiveFacts.PlayerAtExit],
       },
     ],
     victoryFacts: [
-      ObjectiveFacts.CoreThrownDownWell,
       ObjectiveFacts.CoreInWellReceiver,
-      ObjectiveFacts.GuardianDistractedByEcho,
       ObjectiveFacts.GuardianRearSealBrokenFromHeight,
-      ObjectiveFacts.EchoOnFinalPlate,
-      ObjectiveFacts.PlayerHoldingFinalLever,
-      ObjectiveFacts.EscapeTimerActive,
+      ObjectiveFacts.FinalDoorReleased,
       ObjectiveFacts.PlayerAtExit,
     ],
   },

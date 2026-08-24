@@ -545,23 +545,31 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(deliveryTicks).toBeGreaterThan(20)
       expect(deliveryTicks).toBeLessThan(80)
       expect(world.debugState().facts).toEqual(expect.arrayContaining(['core-thrown-down', 'core-receiver']))
-      expect(world.debugState().objectiveFacts.slice(0, 2)).toEqual(['core-thrown-down', 'core-receiver'])
+      expect(world.debugState().objectiveFacts).toEqual(['core-receiver', 'guardian-defeated', 'final-door-opened'])
     } finally {
       world.dispose()
       physics.dispose()
     }
   })
 
-  it('clears Chapter 4 by having the echo lure a stationary watcher into the reachable flank trap', async () => {
+  it('clears Chapter 4 only after real Echo acquisition and a high rear strike into the trap', async () => {
     const { physics, world } = await createWorld(4)
     try {
       const echo = actor('echo', 'echo', [-0.8, 0.72, 3.1])
       echo.interactHeld = true
-      const player = actor('player', 'player', [2.7, 3.25, -0.95])
+      const player = actor('player', 'player', [3.0, 3.1, -1.2])
       expect(world.interact(echo)).toBe('lever')
+      expect(world.debugState().facts).not.toContain('lured-by-echo')
+      expect(world.debugState().enemies.watcher?.target).toBeUndefined()
       stepWorld(world, physics, 1, [player, echo])
       expect(world.debugState().facts).toContain('lured-by-echo')
-      expect(world.attack(player, new THREE.Vector3(-1, 0, 1)), JSON.stringify({ player: player.position, state: world.debugState() })).toBe('watcher')
+      const acquired = world.debugState().enemies.watcher
+      expect(acquired, JSON.stringify(acquired)).toMatchObject({ target: 'echo', targetVisible: true })
+      const strikeDirection = new THREE.Vector3()
+        .subVectors(new THREE.Vector3(2.4, 0.98, -0.4), player.position)
+        .setY(0)
+        .normalize()
+      expect(world.attack(player, strikeDirection), JSON.stringify({ player: player.position, state: world.debugState() })).toBe('watcher')
 
       for (let tick = 2; tick < 90 && !world.debugState().enemies.watcher?.defeated; tick += 1) {
         stepWorld(world, physics, tick, [player, echo])
@@ -582,7 +590,112 @@ describe('DungeonWorld authored runtime contracts', () => {
     }
   })
 
-  it('clears the full Chapter 5 objective chain after a real core delivery, echo seal lure, high attack, and dual seal', async () => {
+  it('lets a late bell stimulus turn patrol into real Echo acquisition', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      for (let tick = 1; tick <= 168; tick += 1) stepWorld(world, physics, tick, [])
+      const echo = actor('echo', 'echo', [-0.98, 1.264, 3.05])
+      echo.interactHeld = true
+      expect(world.interact(echo)).toBe('lever')
+      const watcherPosition = world.debugState().enemies.watcher?.position
+      if (!watcherPosition) throw new Error('Watcher position is missing')
+      const origin = new THREE.Vector3(watcherPosition.x, watcherPosition.y + 0.62, watcherPosition.z)
+      const target = echo.position.clone().add(new THREE.Vector3(0, 0.62, 0))
+      const ray = target.clone().sub(origin)
+      const hit = physics.castRay(
+        { x: origin.x, y: origin.y, z: origin.z },
+        { x: ray.x / ray.length(), y: ray.y / ray.length(), z: ray.z / ray.length() },
+        ray.length(),
+        new Set(['watcher', 'guardian']),
+        new Set(['wall', 'door']),
+      )
+      expect(hit, JSON.stringify(hit?.tag)).toBeUndefined()
+      for (let tick = 169; tick < 360 && world.debugState().enemies.watcher?.target !== 'echo'; tick += 1) {
+        stepWorld(world, physics, tick, [echo])
+      }
+      const lateAcquired = world.debugState().enemies.watcher
+      expect(lateAcquired, JSON.stringify(lateAcquired)).toMatchObject({ target: 'echo', targetVisible: true })
+      expect(world.debugState().facts).toContain('lured-by-echo')
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('runs Watcher attention through alert, chase, investigate, recovery, and patrol', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const echo = actor('echo', 'echo', [-0.8, 1.08, 3.1])
+      stepWorld(world, physics, 1, [echo])
+      expect(world.debugState().enemies.watcher).toMatchObject({ state: 'alert', target: 'echo', targetVisible: true })
+      for (let tick = 2; tick <= 24; tick += 1) stepWorld(world, physics, tick, [echo])
+      expect(world.debugState().enemies.watcher).toMatchObject({ state: 'chase', target: 'echo', targetVisible: true })
+
+      stepWorld(world, physics, 25, [])
+      expect(world.debugState().enemies.watcher).toMatchObject({ state: 'investigate', targetVisible: false })
+      for (let tick = 26; tick <= 176; tick += 1) stepWorld(world, physics, tick, [])
+      expect(['investigate', 'recovery']).toContain(world.debugState().enemies.watcher?.state)
+      for (let tick = 177; tick <= 260; tick += 1) stepWorld(world, physics, tick, [])
+      expect(world.debugState().enemies.watcher).toMatchObject({ state: 'patrol', targetVisible: false })
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('restores every mutable attention field with the recording snapshot', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const echo = actor('echo', 'echo', [-0.8, 1.08, 3.1])
+      stepWorld(world, physics, 1, [echo])
+      const snapshot = world.captureSnapshot()
+      for (let tick = 2; tick <= 220; tick += 1) stepWorld(world, physics, tick, [])
+      expect(world.debugState().enemies.watcher?.target).toBeUndefined()
+
+      world.restoreSnapshot(snapshot, false)
+      expect(world.debugState().enemies.watcher).toMatchObject({
+        state: snapshot.enemyState,
+        target: 'echo',
+        targetVisible: true,
+        forward: snapshot.enemyForward,
+      })
+      const restored = world.captureSnapshot()
+      expect(restored).toMatchObject({
+        enemyTargetVisible: snapshot.enemyTargetVisible,
+        enemyLastKnown: snapshot.enemyLastKnown,
+        enemyAlertTicks: snapshot.enemyAlertTicks,
+        enemySearchTicks: snapshot.enemySearchTicks,
+        enemyRecoveryTicks: snapshot.enemyRecoveryTicks,
+        enemyStimulusTicks: snapshot.enemyStimulusTicks,
+        enemyStimulusPosition: snapshot.enemyStimulusPosition,
+      })
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('rejects a frontal low Watcher hit and keeps the exit physically blocked', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const echo = actor('echo', 'echo', [-0.8, 1.08, 3.1])
+      stepWorld(world, physics, 1, [echo])
+      const frontalPlayer = actor('player', 'player', [1.45, 1.08, 0.55])
+      expect(world.attack(frontalPlayer, new THREE.Vector3(0.7, 0, -0.9).normalize())).toBe('shield')
+      expect(world.debugState().facts).not.toContain('watcher-trapped')
+      expect(world.debugState().doors['gallery-door']?.open).toBe(false)
+
+      const exitPlayer = actor('player', 'player', [8.35, 1.08, -1.8])
+      expect(world.interact(exitPlayer)).toBe('exit')
+      stepWorld(world, physics, 2, [exitPlayer, echo])
+      expect(world.complete).toBe(false)
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('clears Chapter 5 through one real Core, Guardian LOS switch, high rear strike, and live dual seal', async () => {
     const { physics, world } = await createWorld(5)
     try {
       const coreStart = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'paradox-core')?.position
@@ -603,20 +716,32 @@ describe('DungeonWorld authored runtime contracts', () => {
 
       physics.createActor('echo', 'echo', { x: lowerSeal[0], y: lowerSeal[1], z: lowerSeal[2] })
       const echo = actor('echo', 'echo', lowerSeal)
-      const player = actor('player', 'player', [1.7, 5.3, 2.5])
-      stepWorld(world, physics, 120, [player, echo])
+      const player = actor('player', 'player', [3.0, 5.3, 1.35])
+      let attentionTick = 120
+      while (world.debugState().enemies.guardian?.target !== 'echo' && attentionTick < 360) {
+        stepWorld(world, physics, attentionTick, [echo])
+        attentionTick += 1
+      }
       expect(world.debugState().facts).toEqual(expect.arrayContaining(['lower-seal-echo', 'guardian-target-echo']))
-      expect(world.attack(player, new THREE.Vector3(0, 0, 1))).toBe('guardian')
+      expect(world.debugState().enemies.guardian).toMatchObject({ target: 'echo', targetVisible: true })
+      const guardianPosition = world.debugState().enemies.guardian?.position
+      if (!guardianPosition) throw new Error('Guardian position is missing')
+      expect(world.attack(player, new THREE.Vector3(
+        guardianPosition.x - player.position.x,
+        0,
+        guardianPosition.z - player.position.z,
+      ))).toBe('guardian')
 
       player.position.set(...upperSeal)
       player.interactHeld = true
       expect(world.interact(player)).toBe('lever')
-      stepWorld(world, physics, 121, [player, echo])
-      stepWorld(world, physics, 122, [player, echo])
+      stepWorld(world, physics, attentionTick, [player, echo])
+      stepWorld(world, physics, attentionTick + 1, [player, echo])
+      stepWorld(world, physics, attentionTick + 2, [player, echo])
 
       const opened = world.debugState()
       expect(opened.facts).toEqual(expect.arrayContaining([
-        'guardian-defeated', 'lower-seal-echo', 'upper-seal-player', 'dual-seal',
+        'guardian-defeated', 'lower-seal-echo', 'upper-seal-player', 'dual-seal', 'final-door-opened',
       ]))
       expect(opened.doors['final-door']?.open).toBe(true)
       expect(opened.escapeSeconds).toBeGreaterThan(0)
@@ -625,6 +750,63 @@ describe('DungeonWorld authored runtime contracts', () => {
       world.afterPhysics([player, echo])
       expect(world.complete).toBe(true)
     } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('rejects Guardian front and low strikes even while the real Echo holds attention', async () => {
+    const { physics, world } = await createWorld(5)
+    try {
+      const echo = actor('echo', 'echo', [-3.1, 1.08, 3.6])
+      stepWorld(world, physics, 1, [echo])
+      expect(world.debugState().enemies.guardian).toMatchObject({ target: 'echo', targetVisible: true })
+
+      const highFront = actor('player', 'player', [0.35, 5.3, 2.9])
+      expect(world.attack(highFront, new THREE.Vector3(1, 0, 0))).toBe('shield')
+      const lowRear = actor('player', 'player', [2.55, 4.15, 1.9])
+      expect(world.attack(lowRear, new THREE.Vector3(-1, 0, 1))).toBe('shield')
+      expect(world.debugState().facts).not.toContain('guardian-defeated')
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('carries the shared motor from the dock to the upper floor on the powered well platform', async () => {
+    const { physics, world } = await createWorld(5)
+    const coreStart = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'paradox-core')?.position
+    if (!coreStart) throw new Error('Chapter 5 core start is missing')
+    const carrier = actor('player', 'player', coreStart)
+    const record = physics.createActor('platform-player', 'player', { x: 3.05, y: 3.79, z: -1.8 })
+    const motor = new CharacterMotor(physics, record)
+    try {
+      expect(world.interact(carrier)).toBe('core')
+      carrier.position.set(-1, 3.75, -0.8)
+      expect(world.throwOrDrop(carrier, new THREE.Vector3(-1, 0, 0))).toBe('core')
+      for (let tick = 1; tick < 120 && !world.debugState().cores['paradox-core']?.receiver; tick += 1) {
+        stepWorld(world, physics, tick, [carrier])
+      }
+      expect(world.debugState().cores['paradox-core']?.receiver).toBe(true)
+      expect(Object.keys(world.captureSnapshot().dynamics).filter((id) => id === 'paradox-core')).toEqual(['paradox-core'])
+
+      let highestY = motor.position.y
+      for (let tick = 120; tick <= 720; tick += 1) {
+        const platformActor = actor('platform-player', 'player', [motor.position.x, motor.position.y, motor.position.z])
+        world.beforePhysics(tick, [platformActor])
+        const support = world.supportMotion(motor.position)
+        motor.setSupportDelta(support.delta, support.supported)
+        motor.prepare({ moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false })
+        physics.step()
+        motor.syncAfterStep()
+        platformActor.position.copy(motor.position)
+        world.afterPhysics([platformActor])
+        highestY = Math.max(highestY, motor.position.y)
+      }
+      expect(highestY).toBeGreaterThan(6)
+      expect(motor.position.x).toBeCloseTo(3.05, 1)
+    } finally {
+      motor.dispose()
       world.dispose()
       physics.dispose()
     }
@@ -650,7 +832,10 @@ describe('DungeonWorld authored runtime contracts', () => {
   it('disposes an expired transient effect exactly once before world teardown', async () => {
     const { physics, scene, world } = await createWorld(4)
     try {
-      expect(world.attack(actor('player', 'player', [1.4, 0.98, -0.4]), new THREE.Vector3(1, 0, 0))).toBe('watcher')
+      const echo = actor('echo', 'echo', [-0.8, 0.72, 3.1])
+      const player = actor('player', 'player', [3.0, 3.1, -1.2])
+      stepWorld(world, physics, 1, [player, echo])
+      expect(world.attack(player, new THREE.Vector3(-0.6, 0, 0.8).normalize())).toBe('watcher')
       const wave = scene.getObjectByName('TemporalWave')
       if (!(wave instanceof THREE.Mesh)) throw new Error('Temporal wave was not created')
       let disposeCount = 0

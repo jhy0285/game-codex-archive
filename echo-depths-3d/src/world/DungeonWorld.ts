@@ -70,7 +70,15 @@ export type WorldDebugState = {
   elevators: Record<string, { y: number; active: boolean }>
   cores: Record<string, { position: Vec3; carriedBy?: ActorKind; receiver: boolean }>
   crates: Record<string, { position: Vec3; carriedBy?: ActorKind }>
-  enemies: Record<string, { position: Vec3; state: string; target?: ActorKind; defeated: boolean; detection: number }>
+  enemies: Record<string, {
+    position: Vec3
+    forward: Vec3
+    state: string
+    target?: ActorKind
+    targetVisible: boolean
+    defeated: boolean
+    detection: number
+  }>
   barriers: Record<string, { position: Vec3; open?: boolean }>
   objectiveFacts: string[]
   complete: boolean
@@ -111,6 +119,13 @@ export type DungeonWorldSnapshot = {
   enemyForward: Vec3
   enemyKnock: Vec3
   enemyDetection: number
+  enemyTargetVisible: boolean
+  enemyLastKnown: Vec3
+  enemyAlertTicks: number
+  enemySearchTicks: number
+  enemyRecoveryTicks: number
+  enemyStimulusTicks: number
+  enemyStimulusPosition: Vec3
   escapeTicks: number
   timelineTick: number
 }
@@ -141,6 +156,12 @@ const CARRY_PHYSICS_FORWARD_DISTANCE = 0.86
 const CARRY_PHYSICS_HEIGHT = 1.12
 const CARRY_MINIMUM_FORWARD_GAP = 1.02
 const CARRY_FOLLOW_RATE = 0.72
+const ENEMY_ALERT_TICKS = 18
+const ENEMY_SEARCH_TICKS = 150
+const ENEMY_RECOVERY_TICKS = 72
+const ENEMY_STIMULUS_TICKS = 180
+const WATCHER_REAR_DOT_MAX = -0.25
+const GUARDIAN_REAR_DOT_MAX = -0.45
 
 export const canActorRequestExit = (actor: ActorKind): boolean => actor === 'player'
 
@@ -179,6 +200,13 @@ export class DungeonWorld {
   private readonly enemyForward = new THREE.Vector3(0, 0, 1)
   private enemyKnock = new THREE.Vector3()
   private enemyDetection = 0
+  private enemyTargetVisible = false
+  private readonly enemyLastKnown = new THREE.Vector3()
+  private enemyAlertTicks = 0
+  private enemySearchTicks = 0
+  private enemyRecoveryTicks = 0
+  private enemyStimulusTicks = 0
+  private readonly enemyStimulusPosition = new THREE.Vector3()
   private receiverFilled = false
   private currentTick = 0
   private platformPhaseOffset = 0
@@ -200,6 +228,11 @@ export class DungeonWorld {
     this.root.add(this.playerInteractionOutline, this.echoInteractionOutline)
     this.scene.add(this.root)
     this.build()
+    const enemy = this.devices.get(chapter === 5 ? 'guardian' : 'watcher')
+    const attentionLandmark = this.devices.get(chapter === 5 ? 'lower-seal' : 'lure-bell')
+    if (enemy && attentionLandmark) {
+      this.faceEnemy(enemy, attentionLandmark.root.position.clone().sub(enemy.root.position).setY(0))
+    }
   }
 
   beforePhysics(tick: number, actors: readonly ActorContext[]): void {
@@ -264,10 +297,16 @@ export class DungeonWorld {
       candidate.holdUntilTick = this.currentTick + 24
       this.facts.add(`${definition.id}:${actor.kind}`)
       if (definition.id === 'tutorial-lever') this.facts.add('tutorial-lever')
-      if (definition.id === 'lure-bell' && actor.kind === 'echo') {
-        this.facts.add('lured-by-echo')
-        this.enemyTarget = 'echo'
-        this.enemyState = 'lured'
+      if (definition.id === 'lure-bell') {
+        // The bell is only an audible world-space stimulus. It never grants a
+        // target or puzzle fact by itself; the Watcher must still acquire an
+        // actor through its real FOV and line-of-sight checks.
+        this.enemyStimulusPosition.copy(candidate.root.position)
+        this.enemyStimulusTicks = ENEMY_STIMULUS_TICKS
+        this.enemyLastKnown.copy(candidate.root.position)
+        this.enemySearchTicks = ENEMY_SEARCH_TICKS
+        this.enemyRecoveryTicks = 0
+        this.enemyState = 'alert'
       }
       return definition.kind
     }
@@ -340,11 +379,27 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
     const enemy = this.devices.get(this.chapter === 5 ? 'guardian' : 'watcher')
     if (enemy && !this.enemyDefeated && enemy.root.position.distanceTo(actor.position) < 2.6) {
+      const horizontalToActor = actor.position.clone().sub(enemy.root.position).setY(0)
+      const actorSideDot = horizontalToActor.lengthSq() > 0.0001
+        ? horizontalToActor.normalize().dot(this.enemyForward)
+        : 1
       if (this.chapter === 5) {
         const heightAdvantage = actor.position.y - enemy.root.position.y
-        if (actor.kind === 'player' && this.enemyTarget === 'echo' && heightAdvantage > 1.3) {
+        const directionToEnemy = enemy.root.position.clone().sub(actor.position).setY(0)
+        const strikeDirection = direction.clone().setY(0).normalize()
+        const strikeAimed = directionToEnemy.lengthSq() > 0.0001
+          && strikeDirection.dot(directionToEnemy.normalize()) > 0.5
+        if (
+          actor.kind === 'player'
+          && this.enemyTarget === 'echo'
+          && this.enemyTargetVisible
+          && actorSideDot <= GUARDIAN_REAR_DOT_MAX
+          && heightAdvantage > 1.3
+          && strikeAimed
+        ) {
           this.enemyDefeated = true
           this.enemyState = 'sealed'
+          this.enemyTargetVisible = false
           this.facts.add('guardian-defeated')
           this.spawnWave(enemy.root.position, 0x8e6dff)
           return 'guardian'
@@ -352,9 +407,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         this.failureReason = 'guardian-shield'
         return 'shield'
       }
+      const heightAdvantage = actor.position.y - enemy.root.position.y
+      if (actor.kind !== 'player' || actorSideDot > WATCHER_REAR_DOT_MAX || heightAdvantage < 0.8) {
+        this.failureReason = 'watcher-facing'
+        return 'shield'
+      }
       const result = computeKnockback({
-        position: this.vec(actor.position), forward: this.vec(direction), range: 2.6, halfAngleRadians: Math.PI * 0.62,
-        baseStrength: 0.19, upwardStrength: 0, heightAdvantageThreshold: 1.3, heightAdvantageMultiplier: 1.65,
+        position: this.vec(actor.position), forward: this.vec(direction), range: 2.6, halfAngleRadians: Math.PI * 0.42,
+        baseStrength: 0.24, upwardStrength: 0, heightAdvantageThreshold: 1.3, heightAdvantageMultiplier: 1.55,
       }, { position: this.vec(enemy.root.position), mass: 1, radius: 0.55 })
       if (!result.hit) return undefined
       this.enemyKnock.set(result.impulse.x, 0, result.impulse.z)
@@ -455,9 +515,17 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
       if (device.definition.kind === 'enemy') {
         const target = this.enemyTarget
+        const shared = {
+          position: this.vec(device.root.position),
+          forward: this.vec(this.enemyForward),
+          state: this.enemyState,
+          targetVisible: this.enemyTargetVisible,
+          defeated: this.enemyDefeated,
+          detection: Number(this.enemyDetection.toFixed(3)),
+        }
         enemies[id] = target
-          ? { position: this.vec(device.root.position), state: this.enemyState, target, defeated: this.enemyDefeated, detection: Number(this.enemyDetection.toFixed(3)) }
-          : { position: this.vec(device.root.position), state: this.enemyState, defeated: this.enemyDefeated, detection: Number(this.enemyDetection.toFixed(3)) }
+          ? { ...shared, target }
+          : shared
       }
       if (device.definition.kind === 'gate' || device.definition.kind === 'shutter' || device.definition.kind === 'one-way-wall') {
         const position = device.body?.body.translation() ?? device.root.position
@@ -552,6 +620,13 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       enemyForward: this.vec(this.enemyForward),
       enemyKnock: this.vec(this.enemyKnock),
       enemyDetection: this.enemyDetection,
+      enemyTargetVisible: this.enemyTargetVisible,
+      enemyLastKnown: this.vec(this.enemyLastKnown),
+      enemyAlertTicks: this.enemyAlertTicks,
+      enemySearchTicks: this.enemySearchTicks,
+      enemyRecoveryTicks: this.enemyRecoveryTicks,
+      enemyStimulusTicks: this.enemyStimulusTicks,
+      enemyStimulusPosition: this.vec(this.enemyStimulusPosition),
       escapeTicks: this.escapeTicks,
       timelineTick: this.currentTick + this.platformPhaseOffset,
     }
@@ -572,6 +647,17 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     this.enemyForward.set(snapshot.enemyForward.x, snapshot.enemyForward.y, snapshot.enemyForward.z)
     this.enemyKnock.set(snapshot.enemyKnock.x, snapshot.enemyKnock.y, snapshot.enemyKnock.z)
     this.enemyDetection = snapshot.enemyDetection
+    this.enemyTargetVisible = snapshot.enemyTargetVisible
+    this.enemyLastKnown.set(snapshot.enemyLastKnown.x, snapshot.enemyLastKnown.y, snapshot.enemyLastKnown.z)
+    this.enemyAlertTicks = snapshot.enemyAlertTicks
+    this.enemySearchTicks = snapshot.enemySearchTicks
+    this.enemyRecoveryTicks = snapshot.enemyRecoveryTicks
+    this.enemyStimulusTicks = snapshot.enemyStimulusTicks
+    this.enemyStimulusPosition.set(
+      snapshot.enemyStimulusPosition.x,
+      snapshot.enemyStimulusPosition.y,
+      snapshot.enemyStimulusPosition.z,
+    )
     this.escapeTicks = snapshot.escapeTicks
     this.platformPhaseOffset = snapshot.timelineTick
     this.complete = false
@@ -594,7 +680,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
           || device.definition.kind === 'platform'
           || device.definition.kind === 'bridge'
         if (movingSurface) {
-          const nonBlocking = this.chapter === 2 && device.definition.kind === 'elevator' && saved.motionProgress > 0
+          const nonBlocking = (this.chapter === 2 && device.definition.kind === 'elevator' && saved.motionProgress > 0)
+            || (this.chapter === 5
+              && (device.definition.kind === 'elevator' || device.definition.kind === 'platform')
+              && saved.active)
           device.body.tag.nonBlocking = nonBlocking
           device.body.collider.setSensor(nonBlocking)
         }
@@ -655,6 +744,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
     if (this.enemyTarget === actor) {
       this.enemyTarget = undefined
+      this.enemyTargetVisible = false
       if (!this.enemyDefeated) this.enemyState = 'patrol'
       this.enemyDetection = 0
     }
@@ -1204,7 +1294,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const next = device.basePosition.clone().lerp(target, amount)
       device.delta.copy(next).sub(device.root.position)
       device.root.position.copy(next)
-      const nonBlocking = this.chapter === 2 && definition.kind === 'elevator' && device.motionProgress > 0
+      const nonBlocking = (this.chapter === 2 && definition.kind === 'elevator' && device.motionProgress > 0)
+        || (this.chapter === 5
+          && (definition.kind === 'elevator' || definition.kind === 'platform')
+          && device.active)
       device.body.tag.nonBlocking = nonBlocking
       device.body.collider.setSensor(nonBlocking)
       if (device.body.body.bodyType() !== RAPIER.RigidBodyType.KinematicPositionBased) {
@@ -1256,6 +1349,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       if (device.definition.kind !== 'door' || !device.body) continue
       const wasOpen = device.active
       device.active = open
+      if (this.chapter === 5 && open) this.facts.add('final-door-opened')
       if (wasOpen !== open) this.emitAudio({ type: 'door', id: device.definition.id, open })
       const targetY = device.basePosition.y + (open ? 4.8 : 0)
       device.root.position.y = THREE.MathUtils.lerp(device.root.position.y, targetY, 0.1)
@@ -1476,51 +1570,91 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const player = actors.find((actor) => actor.kind === 'player')
     const seesEcho = echo ? this.hasLineOfSight(enemy.root.position, echo.position) : false
     const seesPlayer = player ? this.hasLineOfSight(enemy.root.position, player.position) : false
-    if (this.chapter === 4 && this.facts.has('lured-by-echo')) {
-      this.enemyTarget = 'echo'
-      this.enemyState = 'lured'
-      this.enemyDetection = Math.max(0, this.enemyDetection - 0.035)
-    } else if (echo && seesEcho) {
-      this.enemyTarget = 'echo'
-      this.enemyState = 'lured'
-      this.facts.add(this.chapter === 5 ? 'guardian-target-echo' : 'lured-by-echo')
-      this.enemyDetection = Math.max(0, this.enemyDetection - 0.035)
-    } else if (player && seesPlayer) {
-      this.enemyTarget = 'player'
-      this.enemyState = 'alert'
-      if (this.chapter === 4) {
-        this.enemyDetection = Math.min(1, this.enemyDetection + 1 / 90)
+    const visibleActors = [
+      ...(echo && seesEcho ? [echo] : []),
+      ...(player && seesPlayer ? [player] : []),
+    ]
+    const retainedTarget = visibleActors.find((actor) => actor.kind === this.enemyTarget)
+    const visibleTarget = retainedTarget ?? visibleActors
+      .sort((a, b) => a.position.distanceToSquared(enemy.root.position) - b.position.distanceToSquared(enemy.root.position))[0]
+
+    if (visibleTarget) {
+      const changedTarget = this.enemyTarget !== visibleTarget.kind
+      this.enemyTarget = visibleTarget.kind
+      this.enemyTargetVisible = true
+      this.enemyLastKnown.copy(visibleTarget.position)
+      this.enemySearchTicks = ENEMY_SEARCH_TICKS
+      this.enemyRecoveryTicks = 0
+      this.enemyStimulusTicks = 0
+      if (changedTarget || ['patrol', 'investigate', 'recovery'].includes(this.enemyState)) {
+        this.enemyAlertTicks = ENEMY_ALERT_TICKS
+      }
+      if (this.enemyAlertTicks > 0) {
+        this.enemyState = 'alert'
+        this.enemyAlertTicks -= 1
+      } else {
+        this.enemyState = 'chase'
+      }
+      if (visibleTarget.kind === 'echo') {
+        this.facts.add(this.chapter === 5 ? 'guardian-target-echo' : 'lured-by-echo')
+        this.enemyDetection = Math.max(0, this.enemyDetection - 1 / 45)
+      } else if (this.chapter === 4) {
+        this.enemyDetection = Math.min(1, this.enemyDetection + 1 / 120)
         if (this.enemyDetection >= 1) {
           this.failed = true
           this.failureReason = 'seen'
         }
       }
     } else {
-      this.enemyDetection = Math.max(0, this.enemyDetection - 1 / 120)
-      if (this.enemyTarget === 'player') {
-        this.enemyTarget = undefined
+      const hadTarget = this.enemyTarget !== undefined
+      this.enemyTarget = undefined
+      this.enemyTargetVisible = false
+      this.enemyAlertTicks = 0
+      this.enemyDetection = Math.max(0, this.enemyDetection - 1 / 180)
+      if (this.enemyStimulusTicks > 0) {
+        this.enemyStimulusTicks -= 1
+        this.enemyLastKnown.copy(this.enemyStimulusPosition)
+        this.enemySearchTicks = Math.max(this.enemySearchTicks, this.enemyStimulusTicks)
+        this.enemyState = 'investigate'
+      } else if (hadTarget || this.enemySearchTicks > 0) {
+        this.enemySearchTicks = Math.max(0, this.enemySearchTicks - 1)
+        this.enemyState = 'investigate'
+        if (this.enemySearchTicks === 0) this.enemyRecoveryTicks = ENEMY_RECOVERY_TICKS
+      } else if (this.enemyRecoveryTicks > 0) {
+        this.enemyRecoveryTicks -= 1
+        this.enemyState = 'recovery'
+      } else {
         this.enemyState = 'patrol'
       }
     }
     if (this.enemyKnock.lengthSq() > 0.0001) {
-      this.faceEnemy(enemy, this.enemyKnock)
       this.moveEnemy(enemy, this.enemyKnock)
       this.enemyKnock.multiplyScalar(0.92)
-    } else if (this.enemyTarget) {
-      if (this.chapter !== 4) {
-        const target = actors.find((actor) => actor.kind === this.enemyTarget)
-        if (target) {
-          const direction = target.position.clone().sub(enemy.root.position).setY(0)
-          const distance = direction.length()
-          if (distance > 0.35) {
-            this.faceEnemy(enemy, direction)
-            this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.018 : 0.028))
-          }
-          if (this.chapter === 5 && this.enemyTarget === 'player' && distance < 1.2) {
-            this.failed = true
-            this.failureReason = 'guardian'
-          }
-        }
+      this.enemyState = 'knocked'
+    } else if (visibleTarget) {
+      const direction = visibleTarget.position.clone().sub(enemy.root.position).setY(0)
+      const distance = direction.length()
+      this.faceEnemy(enemy, direction)
+      if (this.enemyState === 'chase' && distance > 0.75) {
+        this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.008 : 0.006))
+      }
+      if (this.chapter === 5 && visibleTarget.kind === 'player' && this.enemyState === 'chase' && distance < 1.25) {
+        this.failed = true
+        this.failureReason = 'guardian'
+      }
+    } else if (this.enemyState === 'investigate') {
+      const direction = this.enemyLastKnown.clone().sub(enemy.root.position).setY(0)
+      if (direction.length() > 0.28) {
+        this.faceEnemy(enemy, direction)
+        this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.012 : 0.021))
+      } else {
+        this.enemyForward.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.018).normalize()
+        enemy.root.rotation.y = Math.atan2(this.enemyForward.x, this.enemyForward.z)
+      }
+    } else if (this.enemyState === 'recovery') {
+      if (enemy.definition.to) {
+        const patrolTarget = this.enemyDirection > 0 ? positionOf(enemy.definition.to) : enemy.basePosition
+        this.faceEnemy(enemy, patrolTarget.sub(enemy.root.position).setY(0))
       }
     } else if (enemy.definition.to) {
       const a = enemy.basePosition
@@ -1532,6 +1666,11 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         this.faceEnemy(enemy, direction)
         this.moveEnemy(enemy, direction.normalize().multiplyScalar(0.022))
       }
+    } else if (this.enemyState === 'patrol') {
+      // Stationary sentries still sweep their authored field instead of
+      // behaving as a frozen trigger volume.
+      this.enemyForward.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.006).normalize()
+      enemy.root.rotation.y = Math.atan2(this.enemyForward.x, this.enemyForward.z)
     }
     enemy.body.body.setNextKinematicTranslation(this.vec(enemy.root.position))
     enemy.body.body.setNextKinematicRotation({
@@ -1552,9 +1691,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.failed = true
       this.failureReason = 'trap'
     }
-    if (!this.enemyDefeated && hasEnemy) {
+    if (!this.enemyDefeated && hasEnemy && this.enemyState === 'knocked') {
       this.enemyDefeated = true
       this.enemyState = 'trapped'
+      this.enemyTargetVisible = false
       this.facts.add('watcher-trapped')
       this.spawnWave(trap.root.position, 0xe95757)
     }
@@ -1591,14 +1731,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const upperHeldByPlayer = this.deviceHeldBy('upper-seal', 'player')
       if (lowerHeldByEcho) this.facts.add('lower-seal-echo')
       else this.facts.delete('lower-seal-echo')
-      if (lowerHeldByEcho && this.facts.has('core-receiver')) {
-        this.enemyTarget = 'echo'
-        this.enemyState = 'lured'
-        this.facts.add('guardian-target-echo')
-      }
       if (upperHeldByPlayer) this.facts.add('upper-seal-player')
       else this.facts.delete('upper-seal-player')
-      if (lowerHeldByEcho && upperHeldByPlayer && this.facts.has('guardian-defeated')) {
+      if (
+        lowerHeldByEcho
+        && upperHeldByPlayer
+        && this.facts.has('core-receiver')
+        && this.facts.has('guardian-defeated')
+      ) {
         this.facts.add('dual-seal')
         if (this.escapeTicks === 0) this.escapeTicks = 35 * 60
       }
@@ -1804,13 +1944,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       return this.facts.has('receiver-filled')
     }
     if (this.chapter === 4) {
-      return this.facts.has('lured-by-echo') && this.facts.has('watcher-trapped')
+      return this.facts.has('watcher-trapped')
     }
-    return this.deviceHeldBy('lower-seal', 'echo')
-      && this.deviceHeldBy('upper-seal', 'player')
-      && this.facts.has('core-thrown-down')
-      && this.facts.has('core-receiver')
-      && this.facts.has('guardian-target-echo')
+    return this.facts.has('core-receiver')
       && this.facts.has('guardian-defeated')
       && this.facts.has('dual-seal')
       && this.escapeTicks > 0
@@ -1832,19 +1968,26 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (this.chapter === 1) return ['tutorial-lever', 'echo-plate']
     if (this.chapter === 2) return ['lift-lever-echo', 'elevator-ridden', 'cargo-plate']
     if (this.chapter === 3) return ['receiver-filled']
-    if (this.chapter === 4) return ['lured-by-echo', 'watcher-trapped']
-    return ['core-thrown-down', 'core-receiver', 'guardian-target-echo', 'guardian-defeated', 'lower-seal-echo', 'upper-seal-player', 'dual-seal']
+    if (this.chapter === 4) return ['watcher-trapped']
+    return ['core-receiver', 'guardian-defeated', 'final-door-opened']
   }
 
   private hasLineOfSight(from: THREE.Vector3, to: THREE.Vector3): boolean {
-    const direction = to.clone().sub(from)
+    const eye = from.clone().add(new THREE.Vector3(0, 0.62, 0))
+    const target = to.clone().add(new THREE.Vector3(0, 0.62, 0))
+    const direction = target.clone().sub(eye)
     const distance = direction.length()
+    const fovRadians = this.enemyState === 'patrol'
+      ? Math.PI * 0.62
+      : this.enemyState === 'recovery'
+        ? Math.PI * 0.72
+        : Math.PI * 0.94
     if (!canSeeTarget({
-      position: this.vec(from), forward: this.vec(this.enemyForward), range: this.chapter === 5 ? 7.5 : 6.5,
-      fovRadians: this.enemyState === 'patrol' ? Math.PI * 0.72 : Math.PI * 1.5, maxVerticalDelta: 5,
-    }, { position: this.vec(to), radius: 0.32 })) return false
+      position: this.vec(eye), forward: this.vec(this.enemyForward), range: this.chapter === 5 ? 8.5 : 7.2,
+      fovRadians, maxVerticalDelta: 5,
+    }, { position: this.vec(target), radius: 0.32 })) return false
     const hit = this.physics.castRay(
-      this.vec(from.clone().add(new THREE.Vector3(0, 0.6, 0))),
+      this.vec(eye),
       this.vec(direction.normalize()),
       distance,
       ENEMY_RAY_EXCLUSIONS,
@@ -1871,7 +2014,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       ENEMY_RAY_EXCLUSIONS,
       SOLID_SIGHT_KINDS,
     ) !== undefined)
-    if (!blocked) enemy.root.position.add(displacement)
+    if (!blocked) {
+      const next = enemy.root.position.clone().add(displacement)
+      if (this.chapter !== 5 || next.distanceToSquared(enemy.basePosition) <= 0.65 ** 2) {
+        enemy.root.position.copy(next)
+      }
+    }
   }
 
   private spawnWave(position: THREE.Vector3, color: number): void {

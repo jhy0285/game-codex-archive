@@ -39,7 +39,7 @@ describe('authored chapter objectives', () => {
     expect(evaluation.missingVictoryFacts).toEqual([ObjectiveFacts.WatcherDefeatedByHazard])
   })
 
-  it('requires echo distraction, height seal, both devices, and a live timer in the finale', () => {
+  it('keeps finale victory facts to physical outcomes rather than solution history', () => {
     const evaluation = evaluateChapterObjectives('paradox-well', [
       ObjectiveFacts.CoreInWellReceiver,
       ObjectiveFacts.GuardianDistractedByEcho,
@@ -49,21 +49,22 @@ describe('authored chapter objectives', () => {
     ])
     expect(evaluation.complete).toBe(false)
     expect(evaluation.missingVictoryFacts).toEqual([
-      ObjectiveFacts.CoreThrownDownWell,
       ObjectiveFacts.GuardianRearSealBrokenFromHeight,
-      ObjectiveFacts.EscapeTimerActive,
+      ObjectiveFacts.FinalDoorReleased,
     ])
   })
 
-  it('does not treat a directly socketed well core as the required upper-to-lower delivery', () => {
+  it('does not require an internal throw-history fact after the real Core reaches its receiver', () => {
     const chapter = CHAPTERS[4]
     if (!chapter) throw new Error('Paradox Well definition is missing')
-    const withoutThrow = chapter.victoryFacts.filter((fact) => fact !== ObjectiveFacts.CoreThrownDownWell)
-
-    const evaluation = evaluateChapterObjectives(chapter, withoutThrow)
-
-    expect(evaluation.complete).toBe(false)
-    expect(evaluation.missingVictoryFacts).toEqual([ObjectiveFacts.CoreThrownDownWell])
+    expect(chapter.victoryFacts).not.toContain(ObjectiveFacts.CoreThrownDownWell)
+    expect(chapter.victoryFacts).not.toContain(ObjectiveFacts.GuardianDistractedByEcho)
+    expect(chapter.victoryFacts).toEqual([
+      ObjectiveFacts.CoreInWellReceiver,
+      ObjectiveFacts.GuardianRearSealBrokenFromHeight,
+      ObjectiveFacts.FinalDoorReleased,
+      ObjectiveFacts.PlayerAtExit,
+    ])
   })
 
   it('maps renderer/world facts into typed objective facts', () => {

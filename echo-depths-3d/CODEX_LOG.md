@@ -233,5 +233,17 @@ Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLA
   - Local evidence: 96/96 Vitest pass, plus a Playwright regression test that snapshots the plate in both states and confirms both facts/door open and the visual color shift.
   - Production redeploy via vercel redeploy of the existing Ready deployment. The new alias is echo-depths-3d-k07wf9fbd-ai-build3.vercel.app and the canonical URL is updated.
 
+## 2026-08-25 — Chapter 4–5 attention and temporal-orchestration revision
+
+- Created `feat/ch4-ch5-temporal-mastery` from `origin/fix/echo2-ch3-structural` at `8e84c7465a953caeec1a6be44bb3da264a969d75`; the base branch remains the open, unmerged PR #1 source.
+- Replaced Chapter 4's direct lure lock with a deterministic Watcher that owns position, facing, state, current/last-known targets, stimulus, and alert/search/recovery timers. Per-tick Player/Echo FOV and Rapier LOS respect authored cover; the bell provides only a sound position.
+- Rejected frontal/low Watcher attacks, accepted a rear/high Player strike, applied real knockback, and limited trap defeat to a Watcher already in knocked state. The gallery door and exit stay blocked until the physical hazard outcome.
+- Rebuilt Chapter 5 around the same single `paradox-core`: a first recording carries and throws it into the receiver; a replacement recording walks to the lower seal. The receiver powers a vertical platform that physically carries the present Player to the upper Guardian flank.
+- Removed the lower-seal direct target assignment. The Guardian uses actual FOV/LOS and may switch visible targets; only a rear/high Player strike while it targets the visible Echo breaks the seal. Live Echo lower occupancy plus live Player upper hold then latch final-door release and start the escape timer.
+- Extended rewind snapshots with target visibility, last-known and stimulus positions, and attention timers. Preserved the 15-second 60 Hz Echo 2.0 tape, tick-aligned transform replay, recorded action resolver, deterministic update order, and no-planning Echo boundary.
+- Added broad bilingual objectives and minimal outcome facts, targeted Rapier/logic regressions, desktop keyboard full solutions, mobile touch-only full solutions, and optional successful-route screenshot output. No debug solution step, direct fact setter, teleport, outcome setter, production debug API, or test-only physics was added.
+- Final local evidence: `npm ci` 0 vulnerabilities; strict Vite build PASS (38 modules); Vitest 17 files / 126 tests PASS; Playwright 25/25 PASS in 24.6 minutes; focused success-capture rerun 4/4 PASS in 6.9 minutes. Four PNGs were visually inspected for visible gameplay, HUD, and touch controls.
+- No KayKit or other asset changed. No sibling project, `main`, base repair branch, Vercel project, deployment, alias, or production site changed.
+
 
 

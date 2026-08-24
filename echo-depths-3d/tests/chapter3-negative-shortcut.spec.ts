@@ -87,7 +87,7 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     expect(repicked.cores['memory-core']?.carriedBy).toBe('player')
     // Carry the Core around the north side of the Gate, then return WEST.
     await moveAxis(page, 'z', -1.0, 'route north around the Gate')
-    await moveAxis(page, 'x', -2.2, 'move safely outside the Gate west edge')
+    await moveAxis(page, 'x', -4.5, 'move safely outside the Gate west edge with carry clearance')
     await moveAxis(page, 'z', -1.8, 'return to the Gate-aligned west throw point')
     // Repeat the same real EAST throw from the WEST side.
     await holdKey(page, 'd', 1)

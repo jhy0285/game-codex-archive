@@ -14,13 +14,13 @@ The design uses 3D space as a rule, not as presentation alone. Floors are separa
 4. The tape captures current actor motor state and the mutable dungeon state, then quantizes movement, facing, held use, jump, use, attack, throw, and dash into one frame per 60 Hz simulation tick.
 5. Pressing `R` again, or reaching the 15-second runtime limit, seals the tape.
 6. The chapter is rebuilt, the record-start motor and dungeon snapshots are restored, present-owned carry/device state is transferred to the past echo, and both actors begin from the recorded motor state.
-7. The echo replays the same input frames through the same capsule motor and action resolver. It never follows a stored coordinate trail.
+7. The echo consumes one recorded transform/facing sample and one recorded input frame per fixed tick. Its real kinematic body follows the drift-free transform sample while recorded interactions, throws, attacks, and held use enter the same world resolver as present-player actions.
 8. When replay finishes, the echo stands at its last simulated position. One-shot actions cease; held use may remain active so a momentary lever stays held.
 9. Creating a new tape removes the old echo and restarts this cycle.
 
-The displayed route line is a preview and feedback device. It is not the replay authority.
+The displayed route line visualizes the same tick-aligned position samples that drive Echo 2.0 playback; it never grants collision, interaction, or objective facts by itself.
 
-`EchoSnapshot` combines the player's `MotorSnapshot` with `DungeonWorldSnapshot`. It preserves position, velocity, grounded state, facing, dash phase/cooldown, coyote time, jump buffer, world facts, device transforms and active ownership, remaining hold time, elevator/platform motion progress and timeline phase, crate/core transforms and linear/angular velocity, dynamic versus kinematic body type, carry ownership, receiver state, enemy state/target/facing/knockback/detection/defeat, and escape ticks. Restore clears failure/completion transients, retains the fixed gameplay sensors' sensor configuration, and remaps past player ownership to the echo before replay begins.
+`EchoSnapshot` combines the player's `MotorSnapshot` with `DungeonWorldSnapshot`. It preserves position, velocity, grounded state, facing, dash phase/cooldown, coyote time, jump buffer, world facts, device transforms and active ownership, remaining hold time, elevator/platform motion progress and timeline phase, crate/core transforms and linear/angular velocity, dynamic versus kinematic body type, carry ownership, receiver state, enemy state/target/target visibility/facing/last-known and stimulus positions/alert-search-recovery timers/knockback/detection/defeat, and escape ticks. Restore clears failure/completion transients, retains the fixed gameplay sensors' sensor configuration, and remaps past player ownership to the echo before replay begins.
 
 ## Determinism
 
@@ -114,39 +114,39 @@ Victory requires an echo-held bridge lever, a player catch of the echo-thrown co
 
 ### Chapter 4 — THE WATCHER'S GALLERY
 
-**Rules combined:** a fixed patrol, sight range and facing, wall/pillar occlusion, echo bait, directional knockback, height leverage, and a spike hazard.
+**Rules combined:** a deterministic patrol, facing and field of view, Rapier line-of-sight, wall/pillar occlusion, auditory investigation, visible Echo bait, alert/investigate/chase/recovery states, directional rear attack, height leverage, physical knockback, and a spike hazard.
 
-The watcher patrols a fixed segment until the echo rings `lure-bell`; it then holds its readable lure position while the present player takes the flank. Walls and pillars block Rapier sight rays. Patrol and knockback displacement use three parallel wall/door clearance rays across the enemy's width. The upper flank is reached through three stepped platforms. The watcher has no conventional damage goal.
+The Watcher owns a real world position and facing. Each fixed tick it tests both Player and Echo against range, state-dependent FOV, and a cover ray; chooses an actually visible target; preserves last-known/stimulus positions for investigation; and returns through recovery to its patrol. `lure-bell` supplies only a world-space sound stimulus—the bell does not assign a target or defeat state. Patrol, chase, investigation, and knockback displacement use three parallel wall/door clearance rays across the enemy's width. The upper flank is reached through three stepped platforms, and the Watcher has no conventional damage goal.
 
 **Solution:**
 
-1. Record a route that emerges from cover, approaches `lure-bell`, and presses `E` as the echo. End where the replay will keep the watcher's attention away from the present flank.
-2. On rewind, stay behind the authored cover until the echo uses the bell. The watcher deterministically locks attention to the echo and remains in the strike lane.
+1. Record a route that emerges from cover, approaches `lure-bell`, presses `E`, and ends with the Echo standing in the Watcher's real sight lane.
+2. On rewind, stay behind authored cover while the bell produces an investigation stimulus and the visible Echo becomes the Watcher's selected target.
 3. Move up `flank-step-a`, `flank-step-b`, and `flank-step-c` to `gallery-flank`, using the walls and pillars to break direct sight.
-4. Face from the higher side toward `spike-trap` and use directional attacks to push the watcher along that vector. Height increases the push strength.
-5. Continue until the watcher enters the trap, then use the exit.
+4. Enter the rear attack cone from above, face toward the Watcher, and attack once. Frontal or low attacks are shielded; a valid strike applies physical knockback along the attack direction.
+5. Let the knocked Watcher intersect the real `spike-trap`, then cross the released door and use the exit. The trap cannot neutralize a merely patrolling or chasing Watcher, and the exit remains blocked beforehand.
 
-Normal contact or repeated damage does not satisfy the room. Victory requires echo lure, hazard defeat, and exit use.
+Normal contact or repeated damage does not satisfy the room. The objective model requires only the real hazard defeat outcome and exit use; bell and attention facts remain internal evidence of how the physical solution was performed.
 
 ### Chapter 5 — THE PARADOX WELL
 
-**Rules combined:** three height bands, a climbable well ramp, a downward core throw, a core-powered elevator and moving platform, guardian attention, high-side seal strike, echo plate, player lever, and a timed escape.
+**Rules combined:** three height bands, a climbable well ramp, one physical Core transferred through time, a descending receiver entry, a powered vertical platform, live Guardian perception and target switching, a rear/high seal strike, Echo lower seal, Player upper seal, and a timed escape.
 
-The lower start holds `paradox-core` and `lower-seal`. The physical `well-ramp` climbs to the middle lip; the exposed `power-receiver` sits below and west of that lip so the core must be delivered by a descending throw. The middle height contains the guardian. The powered route continues by elevator and oscillating platform to `upper-seal` and the final exit.
+The lower start holds the sole `paradox-core` and `lower-seal`. The physical `well-ramp` climbs to the middle lip; the exposed `power-receiver` sits below and west of that lip so the same Core must enter while descending. The middle height contains the Guardian. Core power starts the vertical `well-platform`, which physically carries the present Player to the upper route, `guardian-flank`, `upper-seal`, and final exit.
 
 **Solution:**
 
-1. Pick up `paradox-core`, carry it up `well-ramp`, and use the trajectory preview from the middle lip to throw west and downward into `power-receiver`. The receiver accepts only an armed upper launch entering while descending; carrying or dropping the core beside the socket cannot satisfy it.
-2. Begin a recording that completes the core route and ends on `lower-seal`; after the receiver is powered, the replay's held lower seal reliably draws the guardian's attention.
-3. After rewind, let the echo settle on the powered lower seal while the elevator and platform remain available.
-4. As the present player, ride the powered elevator and moving platform to a point more than 1.3 world units above the guardian while staying within attack range on the opposite/high side.
-5. Attack while the guardian still targets the echo. This breaks the rear seal; ordinary frontal attacks only report the shield condition and do not reduce health.
-6. Reach `upper-seal`, press and hold `E` while the echo remains on `lower-seal`, and keep both devices active. Once core delivery, distraction, guardian seal, and both synchronizers are valid, the final door opens and a 35-second escape begins.
+1. Start the first recording, pick up the single `paradox-core`, carry it up `well-ramp`, and throw west/downward from the middle lip. On rewind the Echo repeats that real pickup, carry, and throw; no duplicate Core is spawned. The receiver accepts only the armed Core entering while descending.
+2. After that Core powers `power-receiver`, replace the first Echo with a second recording: walk down the traversable ramp to `lower-seal` and end the tape there.
+3. Let the second Echo settle on the physical lower seal. Occupancy powers the lower synchronizer but does not assign the Guardian's target.
+4. As the present Player, return up the ramp, board the powered vertical platform at its lower dock, ride it to the upper floor, and use cover to reach `guardian-flank`.
+5. Wait until the Guardian's actual FOV and Rapier LOS select the visible Echo, then attack from more than 1.3 world units above and inside the rear cone. A frontal or low strike reports the armor condition and changes no defeat state.
+6. Reach `upper-seal`, press and hold `E` while the Echo still physically occupies `lower-seal`. The live simultaneous occupancy latches final-door release and begins the 35-second escape.
 7. Traverse the upper escape platforms, reach the final passage, and press `E` before the countdown reaches zero.
 
-The guardian is a positional cooperation puzzle rather than a health bar. Victory requires the authored upper-to-lower core throw, core power, echo distraction, a height-qualified player strike, the echo lower plate, the player upper lever, active escape timing, and exit use.
+The Guardian is a positional cooperation puzzle rather than a health bar. The objective model requires only the single Core in its real receiver, Guardian defeat from the qualified positional strike, final-door release, and exit use. Throw, attention, and seal facts remain internal causal evidence rather than inflated victory history.
 
-Guardian contact uses the original target distance before the chase vector is normalized. Final synchronization is live: leaving the lower plate or releasing the upper lever removes that active fact. The 35-second escape begins only when the echo currently occupies the lower seal, the player currently holds the upper lever, and the guardian seal is already broken.
+The Guardian uses the same actual visibility pipeline as the Watcher and may switch between visible Player and Echo; cover blocks targeting. Contact uses the original target distance before the chase vector is normalized. Final synchronization is live: release is latched only when the Echo currently occupies the lower seal, the Player currently holds the upper lever, the Core is in the receiver, and the Guardian seal is already broken. The opened door remains released while the 35-second escape runs.
 
 ## Ending and scoring
 
