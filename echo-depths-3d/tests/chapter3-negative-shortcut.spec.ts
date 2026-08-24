@@ -80,7 +80,7 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     expect(firstThrow.cores['memory-core']?.position.x ?? 99).toBeLessThan((barrier?.position.x ?? 3))
     const rejectedCore = firstThrow.cores['memory-core']?.position
     await moveAxis(page, 'z', rejectedCore?.z ?? -2, 'return to the rejected Core')
-    await moveAxis(page, 'x', (rejectedCore?.x ?? -1) - 0.6, 'approach the rejected Core from the west')
+    await moveAxis(page, 'x', -0.6, 'stay WEST of the rejected Core')
     await pressKey(page, 'e')
     await advanceTicks(page, 2)
     const repicked = await readState(page)
