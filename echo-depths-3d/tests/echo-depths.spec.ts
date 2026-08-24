@@ -89,7 +89,7 @@ test.describe('Echo Depths keyboard runtime', () => {
     await page.keyboard.up('e')
     await advanceTicks(page, 2)
     await waitForState(page, (current) => current.levers?.['lift-lever']?.actor === 'echo' && current.levers['lift-lever']?.active === true, 900, 'second Echo did not hold the live lever')
-    await moveAxis(page, 'x', -1.0, 'approach the elevator for the original exit')
+    await moveAxis(page, 'x', 0.2, 'align with the elevator for the original exit')
     await moveAxis(page, 'z', -0.7, 'board the elevator for the original exit')
     await page.keyboard.down('d')
     await page.keyboard.down('Space')
