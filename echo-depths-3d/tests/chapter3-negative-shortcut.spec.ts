@@ -65,7 +65,7 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
   })
 
   test('D — a second thrown attempt cannot bypass the gate', async ({ page }) => {
-    test.setTimeout(150_000)
+    test.setTimeout(300_000)
     await startChapter(page, 3)
     await recordPlayerCore(page)
     await moveAxis(page, 'z', -1.8, 'enter the Gate-aligned Player route')

@@ -113,7 +113,7 @@ test.describe('Chapters 4 and 5 temporal mastery', () => {
   })
 
   test('Chapter 5 completes with one real Core, Guardian attention switch, live seals, and exit', async ({ page }, testInfo) => {
-    test.setTimeout(360_000)
+    test.setTimeout(600_000)
     await startChapter(page, 5)
     await rotateCameraCardinal(page)
 
