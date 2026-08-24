@@ -73,14 +73,16 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     // Throw EAST toward the authored one-way gate; the first attempt must stop WEST.
     await holdKey(page, 'd', 1)
     await pressKey(page, 'k')
-    await advanceTicks(page, 12)
+    await advanceTicks(page, 30)
     const firstThrow = await readState(page)
     expect(firstThrow.cores['memory-core']?.carriedBy).toBeUndefined()
     const barrier = firstThrow.barriers?.['atrium-one-way']
     expect(firstThrow.cores['memory-core']?.position.x ?? 99).toBeLessThan((barrier?.position.x ?? 3))
-    await moveAxis(page, 'z', firstThrow.cores['memory-core']?.position.z ?? -2, 'return to the rejected Core')
-    await moveAxis(page, 'x', firstThrow.cores['memory-core']?.position.x ?? -1, 're-approach the rejected Core')
+    const rejectedCore = firstThrow.cores['memory-core']?.position
+    await moveAxis(page, 'z', rejectedCore?.z ?? -2, 'return to the rejected Core')
+    await moveAxis(page, 'x', (rejectedCore?.x ?? -1) - 0.6, 'approach the rejected Core from the west')
     await pressKey(page, 'e')
+    await advanceTicks(page, 2)
     const repicked = await readState(page)
     expect(repicked.cores['memory-core']?.carriedBy).toBe('player')
     await holdKey(page, 'd', 1)
