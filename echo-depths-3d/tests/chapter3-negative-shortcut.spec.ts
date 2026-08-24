@@ -80,12 +80,16 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
     expect(firstThrow.cores['memory-core']?.position.x ?? 99).toBeLessThan((barrier?.position.x ?? 3))
     const rejectedCore = firstThrow.cores['memory-core']?.position
     await moveAxis(page, 'z', rejectedCore?.z ?? -1.8, 'return to the rejected Core')
-    await moveAxis(page, 'x', -0.6, 'approach the rejected Core from the west')
+    await moveAxis(page, 'x', rejectedCore?.x ?? 1.5, 'approach the rejected Core from the west')
     await pressKey(page, 'e')
     await advanceTicks(page, 2)
     const repicked = await readState(page)
     expect(repicked.cores['memory-core']?.carriedBy).toBe('player')
-    // Keep the Player WEST of the Gate and repeat the same real EAST throw.
+    // Carry the Core around the north side of the Gate, then return WEST.
+    await moveAxis(page, 'z', -1.0, 'route north around the Gate')
+    await moveAxis(page, 'x', -0.8, 'return west of the Gate')
+    await moveAxis(page, 'z', -1.8, 'return to the Gate-aligned west throw point')
+    // Repeat the same real EAST throw from the WEST side.
     await holdKey(page, 'd', 1)
     await pressKey(page, 'k')
     await advanceTicks(page, 20)
