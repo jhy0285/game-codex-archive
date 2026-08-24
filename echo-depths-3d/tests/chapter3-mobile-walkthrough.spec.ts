@@ -130,7 +130,7 @@ const advanceUntil = async (
 const startChapter3 = async (page: Page): Promise<void> => {
   await page.addInitScript(() => localStorage.setItem('echo-depths-language', 'en'))
   await page.goto('/')
-  await page.waitForFunction(() => typeof window.render_game_to_text === 'function')
+  await page.waitForFunction(() => typeof window.render_game_to_text === 'function' && typeof window.echoDepthsDebug === 'object')
   await page.evaluate(async () => {
     const debug = window.echoDepthsDebug as DebugApi | undefined
     if (!debug) throw new Error('echoDepthsDebug is unavailable')
@@ -189,5 +189,9 @@ test.describe('Chapter 3 mobile OBJECT TRANSFER', () => {
     await holdStick(page, 'east', 1)
     await tapAction(page, 'throw')
     await advanceUntil(page, (current) => current.objectives.facts.includes('receiver-filled'), 140, 'touch throw missed the receiver')
+    await moveAxis(page, 'x', 9.2, 'walk to the exit')
+    await moveAxis(page, 'z', -0.4, 'line up the exit')
+    await tapAction(page, 'interact')
+    await advanceUntil(page, (current) => current.mode === 'chapter-complete', 30, 'mobile exit did not complete Chapter 3')
   })
 })

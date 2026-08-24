@@ -29,6 +29,17 @@ export type PhysicsTag = {
   nonBlocking?: boolean
 }
 
+// Rapier collision groups are encoded as `(membership | (filter << 16))`.
+// The temporal gate is a real fixed collider for dynamic puzzle objects, but
+// Player/Echo capsules must be able to walk through it.
+const GROUP_WORLD = 0x0001
+const GROUP_ACTOR = 0x0002
+const GROUP_DYNAMIC = 0x0004
+const ACTOR_COLLISION_GROUPS = GROUP_ACTOR | ((GROUP_WORLD | GROUP_DYNAMIC) << 16)
+const DYNAMIC_COLLISION_GROUPS = GROUP_DYNAMIC | ((GROUP_WORLD | GROUP_ACTOR | GROUP_DYNAMIC) << 16)
+const CARRIED_DYNAMIC_COLLISION_GROUPS = GROUP_DYNAMIC | (GROUP_WORLD << 16)
+const CORE_BARRIER_COLLISION_GROUPS = GROUP_WORLD | (GROUP_DYNAMIC << 16)
+
 export type BodyRecord = {
   tag: PhysicsTag
   body: RAPIER.RigidBody
@@ -68,6 +79,17 @@ export class RapierWorld {
     return this.register({ tag: { id, kind }, body, collider })
   }
 
+  /** Fixed collider that blocks only dynamic puzzle objects. */
+  createCoreBarrier(id: string, center: Vec3, half: Vec3): BodyRecord {
+    const record = this.createStaticBox(id, 'gate', center, half)
+    record.collider.setCollisionGroups(CORE_BARRIER_COLLISION_GROUPS)
+    return record
+  }
+
+  setDynamicCollisionMode(collider: RAPIER.Collider, carried: boolean): void {
+    collider.setCollisionGroups(carried ? CARRIED_DYNAMIC_COLLISION_GROUPS : DYNAMIC_COLLISION_GROUPS)
+  }
+
   createDynamicBox(id: string, kind: 'crate' | 'core', center: Vec3, half: Vec3, density = 1): BodyRecord {
     const body = this.world.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
@@ -80,6 +102,7 @@ export class RapierWorld {
       RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setDensity(density).setFriction(0.82).setRestitution(kind === 'core' ? 0.42 : 0.05),
       body,
     )
+    collider.setCollisionGroups(DYNAMIC_COLLISION_GROUPS)
     return this.register({ tag: { id, kind }, body, collider })
   }
 
@@ -95,6 +118,7 @@ export class RapierWorld {
       RAPIER.ColliderDesc.ball(radius).setDensity(0.82).setFriction(0.46).setRestitution(0.56),
       body,
     )
+    collider.setCollisionGroups(DYNAMIC_COLLISION_GROUPS)
     return this.register({ tag: { id, kind: 'core' }, body, collider })
   }
 
@@ -114,6 +138,7 @@ export class RapierWorld {
       RAPIER.ColliderDesc.capsule(0.48, 0.31).setFriction(0).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS),
       body,
     )
+    collider.setCollisionGroups(ACTOR_COLLISION_GROUPS)
     return this.register({ tag: { id, kind }, body, collider })
   }
 

@@ -85,7 +85,7 @@ const advanceUntil = async (
 const startChapter3 = async (page: Page): Promise<void> => {
   await page.addInitScript(() => localStorage.setItem('echo-depths-language', 'en'))
   await page.goto('/')
-  await page.waitForFunction(() => typeof window.render_game_to_text === 'function')
+  await page.waitForFunction(() => typeof window.render_game_to_text === 'function' && typeof window.echoDepthsDebug === 'object')
   await page.evaluate(async () => {
     const debug = window.echoDepthsDebug as DebugApi | undefined
     if (!debug) throw new Error('echoDepthsDebug is unavailable')

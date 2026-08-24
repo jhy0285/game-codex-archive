@@ -1115,6 +1115,7 @@ export class GameApp {
       doors: world?.doors ?? {},
       elevators: world?.elevators ?? {},
       cores: world?.cores ?? {},
+      crates: world?.crates ?? {},
       barriers: world?.barriers ?? {},
       enemies: world?.enemies ?? {},
       objectives: { required: world?.objectiveFacts ?? [], facts: world?.facts ?? [], complete: world?.complete ?? false },

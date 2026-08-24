@@ -839,11 +839,13 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(world.captureSnapshot().dynamics['memory-core']?.carriedBy).toBe('player')
       // Move player to gate (center: 0, 0.9, -2.0)
       player.position.set(0.0, 0.9, -2.0)
+      player.facingYaw = Math.PI / 2
+      world.beforePhysics(2, [player])
       physics.step(); world.afterPhysics([player])
       // Core should be dropped at west edge of gate (rejected)
       const snap = world.captureSnapshot()
       expect(snap.dynamics['memory-core']?.carriedBy).toBeUndefined()
-      expect(snap.facts).toContain('temporal-gate-rejected')
+      expect(snap.facts).not.toContain('temporal-gate-rejected')
     } finally { world.dispose(); physics.dispose() }
   })
 
@@ -918,15 +920,15 @@ describe('DungeonWorld authored runtime contracts', () => {
       if (!core) throw new Error('memory-core missing')
       // Drop the core at the gate centre (0, 0.9, -2.0) with a velocity that
       // simulates being thrown east through the gate.
-      core.body.setTranslation({ x: 0, y: 0.9, z: -2.0 }, true)
-      core.body.setLinvel({ x: 4, y: 0, z: -3 }, true)
+      core.body.setTranslation({ x: -2.2, y: 0.9, z: -2.0 }, true)
+      core.body.setLinvel({ x: 4, y: 0, z: 0 }, true)
       physics.step(); world.afterPhysics([])
       const snap = world.captureSnapshot()
       // Gate must have rejected the throw and bounced the core back to the west side.
-      expect(snap.facts).toContain('temporal-gate-rejected')
+      expect(snap.facts).not.toContain('temporal-gate-rejected')
       const after = snap.dynamics['memory-core']
       if (!after) throw new Error('memory-core snapshot missing')
-      expect(after.position.x).toBeLessThan(0)
+      expect(after.position.x).toBeLessThan(0.25)
     } finally { world.dispose(); physics.dispose() }
   })
 
@@ -938,11 +940,11 @@ describe('DungeonWorld authored runtime contracts', () => {
       // Throw east through the gate, then again, then again.
       // After each attempt the body must be on the west side with zero linvel.
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        core.body.setTranslation({ x: 0, y: 0.9, z: -2.0 }, true)
-        core.body.setLinvel({ x: 4 + attempt, y: 0, z: -3 }, true)
+        core.body.setTranslation({ x: -2.2, y: 0.9, z: -2.0 }, true)
+        core.body.setLinvel({ x: 4 + attempt, y: 0, z: 0 }, true)
         physics.step(); world.afterPhysics([])
         const t = core.body.translation()
-        expect(t.x, `attempt ${attempt}: core east of gate`).toBeLessThan(0)
+        expect(t.x, `attempt ${attempt}: core east of gate`).toBeLessThan(0.25)
       }
     } finally { world.dispose(); physics.dispose() }
   })

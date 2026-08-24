@@ -69,6 +69,7 @@ export type WorldDebugState = {
   doors: Record<string, { open: boolean }>
   elevators: Record<string, { y: number; active: boolean }>
   cores: Record<string, { position: Vec3; carriedBy?: ActorKind; receiver: boolean }>
+  crates: Record<string, { position: Vec3; carriedBy?: ActorKind }>
   enemies: Record<string, { position: Vec3; state: string; target?: ActorKind; defeated: boolean; detection: number }>
   barriers: Record<string, { position: Vec3; open?: boolean }>
   objectiveFacts: string[]
@@ -227,7 +228,7 @@ export class DungeonWorld {
     this.updateCoreReceiver(actors)
     this.updateEnemy(actors)
     this.updateTrapHazards()
-    this.updateTemporalGates(actors)
+    this.updateTemporalGates()
     this.updateShutters(actors)
     this.updateOneWayWalls(actors)
     this.evaluateDerivedFacts(actors)
@@ -292,6 +293,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     carried.carriedBy = undefined
     carried.body.tag.carried = false
     carried.body.collider.setSensor(false)
+    this.physics.setDynamicCollisionMode(carried.body.collider, false)
     carried.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
     const effectiveDir = direction.clone().normalize()
     const origin = actor.position.clone().add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(effectiveDir, 0.72)
@@ -441,6 +443,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const doors: WorldDebugState['doors'] = {}
     const elevators: WorldDebugState['elevators'] = {}
     const cores: WorldDebugState['cores'] = {}
+    const crates: WorldDebugState['crates'] = {}
     const enemies: WorldDebugState['enemies'] = {}
     const barriers: WorldDebugState['barriers'] = {}
     for (const [id, device] of this.devices) {
@@ -465,14 +468,20 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
     }
     for (const [id, dynamic] of this.dynamics) {
-      if (dynamic.body.tag.kind !== 'core') continue
       const p = dynamic.body.body.translation()
+      if (dynamic.body.tag.kind === 'crate') {
+        crates[id] = dynamic.carriedBy
+          ? { position: { x: p.x, y: p.y, z: p.z }, carriedBy: dynamic.carriedBy }
+          : { position: { x: p.x, y: p.y, z: p.z } }
+        continue
+      }
+      if (dynamic.body.tag.kind !== 'core') continue
       cores[id] = dynamic.carriedBy
         ? { position: { x: p.x, y: p.y, z: p.z }, carriedBy: dynamic.carriedBy, receiver: this.receiverFilled }
         : { position: { x: p.x, y: p.y, z: p.z }, receiver: this.receiverFilled }
     }
     return {
-      facts: [...this.facts].sort(), pressurePlates, levers, doors, elevators, cores, enemies, barriers,
+      facts: [...this.facts].sort(), pressurePlates, levers, doors, elevators, cores, crates, enemies, barriers,
       objectiveFacts: this.requiredFacts(), complete: this.complete, escapeSeconds: Number((this.escapeTicks / 60).toFixed(1)),
     }
   }
@@ -601,7 +610,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       if (!dynamic) continue
       dynamic.carriedBy = remapActor(saved.carriedBy)
       dynamic.body.tag.carried = Boolean(dynamic.carriedBy)
-      dynamic.body.collider.setSensor(Boolean(dynamic.carriedBy))
+      const physicalCoreCarry = this.chapter === 3 && dynamic.body.tag.kind === 'core' && Boolean(dynamic.carriedBy)
+      dynamic.body.collider.setSensor(Boolean(dynamic.carriedBy) && !physicalCoreCarry)
+      this.physics.setDynamicCollisionMode(dynamic.body.collider, physicalCoreCarry)
       dynamic.upperThrowArmed = saved.upperThrowArmed
       dynamic.postCatchFlightArmed = saved.postCatchFlightArmed
       dynamic.redirectedCurrentFlight = saved.redirectedCurrentFlight
@@ -631,6 +642,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       dynamic.carriedBy = undefined
       dynamic.body.tag.carried = false
       dynamic.body.collider.setSensor(false)
+      this.physics.setDynamicCollisionMode(dynamic.body.collider, false)
       dynamic.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
       dynamic.body.body.setLinvel({ x: 0, y: 0.2, z: 0 }, true)
       dynamic.body.body.setAngvel({ x: 0, y: 0, z: 0 }, true)
@@ -792,7 +804,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const base = this.boxMesh([size[0], 0.06, size[2] * 0.5], baseMat); base.name = 'TemporalGateBase'
       base.position.y = -size[1]
       root.add(leftPost, rightPost, beam, base)
-      body = this.physics.createSensor(definition.id, 'gate', this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
+      // The gate is a real collider. Rapier collision groups make it solid to
+      // dynamic puzzle objects while Player/Echo capsules pass through.
+      body = this.physics.createCoreBarrier(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
     } else if (definition.kind === 'shutter') {
       // Physical shutter for Ch3 core transfer lane. Closed by default (blocks
       // dynamic cores/crates). Opens when the live Player is in EAST (so the
@@ -1351,56 +1365,31 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
   }
 
-  private updateTemporalGates(actors: readonly ActorContext[]): void {
+  private updateTemporalGates(): void {
     for (const [, device] of this.devices) {
       if (device.definition.kind !== 'gate' || !device.body) continue
-      const size = device.definition.size ?? [0.6, 0.6, 0.6]
-      const gx = device.root.position.x
-      const gy = device.root.position.y
-      const gz = device.root.position.z
-      const halfX = size[0] / 2
-      const halfY = size[1] / 2
-      const halfZ = size[2] / 2
-      // Find actors in the gate volume.
-      // One-way EAST→WEST is enforced by physical one-way-wall geometry, not by
-      // mutating ActorContext positions here.
-      const actorsInGate: ActorContext[] = []
-      for (const actor of actors) {
-        const ax = actor.position.x
-        const ay = actor.position.y
-        const az = actor.position.z
-        if (Math.abs(ax - gx) <= halfX + 0.5 && Math.abs(ay - gy) <= halfY + 1 && Math.abs(az - gz) <= halfZ + 0.5) {
-          actorsInGate.push(actor)
-        }
+      // A carried Core keeps a non-sensor collider while crossing the gate.
+      // If Rapier reports contact, drop it at the contact position. There is
+      // deliberately no coordinate correction or synthetic puzzle fact here;
+      // the fixed collider and collision policy are the rejection mechanism.
+      for (const record of this.physics.intersections(device.body.collider, new Set(['core', 'crate']))) {
+        const dynamic = this.dynamics.get(record.tag.id)
+        if (dynamic?.carriedBy) this.dropCarried(dynamic)
       }
-      // For each actor, check if they are carrying a dynamic core/crate.
-      // If so, drop it at the west edge of the gate.
-      for (const actor of actorsInGate) {
-        const carried = [...this.dynamics.values()].find((entry) => entry.carriedBy === actor.kind)
-        if (carried && (carried.body.tag.kind === 'core' || carried.body.tag.kind === 'crate')) {
-          this.dropCarried(carried)
-          carried.body.body.setTranslation({ x: gx - halfX - 0.6, y: gy, z: gz }, true)
-          carried.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
-          this.facts.add('temporal-gate-rejected')
-        }
-      }
-      // Block non-carried core/crate from crossing the gate. A thrown object
-      // that enters the gate volume is bounced back to the west side of the
-      // gate so a player cannot shortcut the chapter by throwing into the route.
+      // Kinematic carried bodies do not always produce an intersection pair
+      // when their target is advanced in the same Rapier step. Use the authored
+      // collider bounds only to detect contact and release the object; never
+      // move or reset its transform here.
+      const gatePosition = device.body.body.translation()
+      const gateSize = device.definition.size ?? [0.6, 0.6, 0.6]
       for (const dynamic of this.dynamics.values()) {
-        if (dynamic.carriedBy) continue
-        if (dynamic.body.tag.kind !== 'core' && dynamic.body.tag.kind !== 'crate') continue
-        const t = dynamic.body.body.translation()
-        const dx = t.x - gx
-        const dy = t.y - gy
-        const dz = t.z - gz
-        if (Math.abs(dx) > halfX + 0.4) continue
-        if (Math.abs(dy) > halfY + 0.6) continue
-        if (Math.abs(dz) > halfZ + 0.4) continue
-        // Inside the gate volume — bounce back to west edge.
-        dynamic.body.body.setTranslation({ x: gx - halfX - 0.6, y: t.y, z: t.z }, true)
-        dynamic.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
-        this.facts.add('temporal-gate-rejected')
+        if (!dynamic.carriedBy) continue
+        const p = dynamic.body.body.translation()
+        if (Math.abs(p.x - gatePosition.x) <= gateSize[0] / 2 + 0.5
+          && Math.abs(p.y - gatePosition.y) <= gateSize[1] / 2 + 0.6
+          && Math.abs(p.z - gatePosition.z) <= gateSize[2] / 2 + 0.5) {
+          this.dropCarried(dynamic)
+        }
       }
     }
   }
@@ -1638,7 +1627,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (dynamic.carriedBy) return
     dynamic.carriedBy = actor.kind
     dynamic.body.tag.carried = true
-    dynamic.body.collider.setSensor(true)
+    const physicalCoreCarry = this.chapter === 3 && dynamic.body.tag.kind === 'core'
+    dynamic.body.collider.setSensor(!physicalCoreCarry)
+    this.physics.setDynamicCollisionMode(dynamic.body.collider, physicalCoreCarry)
     dynamic.upperThrowArmed = false
     dynamic.redirectedCurrentFlight = false
     dynamic.body.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, true)
@@ -1650,6 +1641,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     dynamic.carriedBy = undefined
     dynamic.body.tag.carried = false
     dynamic.body.collider.setSensor(false)
+    this.physics.setDynamicCollisionMode(dynamic.body.collider, false)
     dynamic.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
     dynamic.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
     // 직후 catch volume에 재 pickup 방지 (0.5초 cooldown)
@@ -1806,7 +1798,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       return this.facts.has('tutorial-lever') && this.facts.has('echo-plate')
     }
     if (this.chapter === 2) {
-      return this.deviceHeldBy('lift-lever', 'echo') && this.devices.get('weight-plate')?.active === true && this.facts.has('elevator-ridden')
+      // The Echo lever is a recorded objective fact; requiring the transient
+      // momentary hold here made a valid cargo-plate route fail if the Player
+      // needed extra time to reach the exit.
+      return this.facts.has('lift-lever-echo') && this.devices.get('weight-plate')?.active === true && this.facts.has('elevator-ridden')
     }
     if (this.chapter === 3) {
       return this.facts.has('receiver-filled')
