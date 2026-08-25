@@ -238,3 +238,4 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 - [x] Draw the Watcher's real 7.2-unit FOV as a ground sector and boundary, with cyan patrol, amber search, and red acquired-target states.
 - [x] Show a pulsing sensor/ring and a red target beam only when the existing FOV, Rapier LOS, and target-selection logic has actually acquired Player or Echo.
 - [x] Pass targeted unit tests, strict production build, the real Chapter 4 completion story, and desktop/mobile browser inspection before production deployment.
+- [x] Deploy the verified static bundle to the isolated `echo-depths-playtest` Vercel production project and smoke the stable public alias.

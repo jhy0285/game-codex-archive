@@ -166,5 +166,7 @@ The east/north transfer shutter is now explicitly Core-only. Its full-span mecha
 
 The Chapter 4 Watcher is now the hooded Rogue from the same official KayKit Adventurers 2.0 series already used by the Player. It uses the existing Rig_Medium animations and is visually distinct from both the Player and the unchanged Chapter 5 Guardian. Its surveillance display is no longer a decorative approximation: the ground sector is generated from the same live range and FOV helpers used by target detection, with cyan patrol, amber search, red acquisition, a pulsing sensor/status ring, and a target beam gated by actual FOV plus Rapier line of sight. Local targeted tests, production build, real Chapter 4 completion, desktop rendering, portrait guidance, mobile landscape rendering, and browser error collection pass.
 
+Production deployment `dpl_8AkqppynEF8urDfsXD6VSLuPfubD` is Ready at `https://echo-depths-playtest.vercel.app`. The stable alias and new model return HTTP 200, desktop/mobile Chapter 4 renders pass, production debug API is absent, and the browser error/console collectors are empty.
+
 
 

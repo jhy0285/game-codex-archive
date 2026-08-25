@@ -282,6 +282,7 @@ Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLA
 - Replaced Chapter 4's primitive drone with the hooded Rogue character and shared KayKit animations. Chapter 5's armored procedural Guardian remains unchanged.
 - Replaced the approximate floating cone with an exact ground sector driven by the same live FOV/range helpers used by detection. Patrol, search, acquired target, and defeat states now update fill, boundary, sensor, ring, beam, and animation without changing physics or puzzle facts.
 - Targeted Vitest 55/55, strict build, real Chapter 4 completion 1/1, and desktop/mobile local visual/error review pass.
+- Pushed source commit `d8623493c31270438ed3685f364ea238c220e2f6` to `origin/feat/ch3-ch5-level-design-rebuild`, deployed the verified bundle as Vercel production `dpl_8AkqppynEF8urDfsXD6VSLuPfubD`, and verified `https://echo-depths-playtest.vercel.app` on desktop and mobile landscape with no page/console errors or production debug API.
 
 
 
