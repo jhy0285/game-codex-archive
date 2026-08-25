@@ -245,5 +245,17 @@ Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLA
 - Final local evidence: `npm ci` 0 vulnerabilities; strict Vite build PASS (38 modules); Vitest 17 files / 126 tests PASS; Playwright 25/25 PASS in 24.6 minutes; focused success-capture rerun 4/4 PASS in 6.9 minutes. Four PNGs were visually inspected for visible gameplay, HUD, and touch controls.
 - No KayKit or other asset changed. No sibling project, `main`, base repair branch, Vercel project, deployment, alias, or production site changed.
 
+## 2026-08-25 — Chapter 3–5 spatial level-design rebuild
+
+- Created `feat/ch3-ch5-level-design-rebuild` directly from fetched `origin/main` `410366f88ff3b935dc3137c161e886e3af523357` and kept all work within `echo-depths-3d/`.
+- Replaced Chapter 3's overlapping multi-floor/drop-step blockout with distinct flat WEST/EAST rooms, separate north Core and south Player lanes, a directional Player-only one-way passage, a live east-triggered physical transfer shutter, and a wide low-railed landing basin. The Echo replays the pickup and sends the same rewound `memory-core`; the live Player retrieves it and completes the real receiver intersection.
+- Rebuilt Chapter 4 into linked entry, bell/patrol, covered flank, walkable-ramp, high-rear, trap, and exit spaces. Watcher attention comes from actual FOV/LOS and cover; no jump input is used by either desktop or mobile completion.
+- Rebuilt Chapter 5 around a single 15-second recording and the single `paradox-core`. The same tape transfers the Core and continues to the lower seal; the live Player crosses separately, receives that Core, powers the only moving platform, reaches the Guardian's exposed rear while it sees the Echo, and holds the upper seal concurrently to release the final door.
+- Removed the hidden `upperThrowArmed`, `core-thrown-down`, and downward-velocity receiver requirements and removed the unused `well-elevator`. Receiver, enemy, seal, and victory state now derive from current collision, visibility, position, and live occupancy outcomes.
+- Added chapter-specific camera profiles, mobile-aware framing, raised-floor/platform obstruction candidates, exact player ray checks, and camera-side perimeter cutaways for Chapters 3–5. Chapter 1–2 retain their previous profile.
+- Rewrote Korean/English objectives and guidance for the new routes and added fast layout, camera, physics/world, shortcut-negative, render, desktop, mobile, and production-bundle coverage.
+- Final local evidence: Vitest 130/130; strict build PASS; render/framing 2/2 in 25.5 seconds; focused Chapter 3–5 completion 6/6 in 8.3 minutes; production-bundle smoke 6/6 in 47.6 seconds; full Playwright 20/20 in 12.6 minutes. Seventeen current screenshots were captured and representative frames inspected.
+- No asset, sibling project, `main`, Vercel production deployment, domain, or alias was changed.
+
 
 

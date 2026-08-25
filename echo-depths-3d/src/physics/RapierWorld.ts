@@ -27,6 +27,7 @@ export type PhysicsTag = {
   kind: PhysicsEntityKind
   carried?: boolean
   nonBlocking?: boolean
+  playerPassDirectionX?: 1 | -1
 }
 
 // Rapier collision groups are encoded as `(membership | (filter << 16))`.
@@ -39,6 +40,7 @@ const ACTOR_COLLISION_GROUPS = GROUP_ACTOR | ((GROUP_WORLD | GROUP_DYNAMIC) << 1
 const DYNAMIC_COLLISION_GROUPS = GROUP_DYNAMIC | ((GROUP_WORLD | GROUP_ACTOR | GROUP_DYNAMIC) << 16)
 const CARRIED_DYNAMIC_COLLISION_GROUPS = GROUP_DYNAMIC | (GROUP_WORLD << 16)
 const CORE_BARRIER_COLLISION_GROUPS = GROUP_WORLD | (GROUP_DYNAMIC << 16)
+const CLOSED_ONE_WAY_COLLISION_GROUPS = GROUP_WORLD | ((GROUP_ACTOR | GROUP_DYNAMIC) << 16)
 
 export type BodyRecord = {
   tag: PhysicsTag
@@ -169,6 +171,7 @@ export class RapierWorld {
       RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setFriction(0.92).setRestitution(0.18),
       body,
     )
+    collider.setCollisionGroups(CORE_BARRIER_COLLISION_GROUPS)
     return this.register({ tag: { id, kind: 'shutter' }, body, collider })
   }
 
@@ -185,7 +188,16 @@ export class RapierWorld {
       RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setFriction(0.92),
       body,
     )
-    return this.register({ tag: { id, kind: 'one-way-wall' }, body, collider })
+    collider.setCollisionGroups(CLOSED_ONE_WAY_COLLISION_GROUPS)
+    return this.register({ tag: { id, kind: 'one-way-wall', playerPassDirectionX: 1 }, body, collider })
+  }
+
+  setOneWayWallOpen(collider: RAPIER.Collider, open: boolean): void {
+    collider.setCollisionGroups(open ? CORE_BARRIER_COLLISION_GROUPS : CLOSED_ONE_WAY_COLLISION_GROUPS)
+  }
+
+  setShutterOpen(collider: RAPIER.Collider, open: boolean): void {
+    collider.setCollisionGroups(open ? 0 : CORE_BARRIER_COLLISION_GROUPS)
   }
 
   remove(id: string): void {

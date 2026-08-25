@@ -15,7 +15,6 @@ export const WORLD_FACT_TO_OBJECTIVE_FACT: Readonly<Record<string, ObjectiveFact
   'bridge-lever-echo': 'echo-holding-bridge-lever',
   'lured-by-echo': 'watcher-lured-by-echo',
   'watcher-trapped': 'watcher-defeated-by-hazard',
-  'core-thrown-down': 'core-thrown-down-well',
   'core-receiver': 'core-in-well-receiver',
   'guardian-target-echo': 'guardian-distracted-by-echo',
   'guardian-defeated': 'guardian-rear-seal-broken-from-height',

@@ -11,10 +11,10 @@ This ledger separates implementation present in the source tree from verificatio
 | Independent project scaffold | Present | Vite, strict TypeScript, Three.js, Rapier 3D, Vitest, Playwright configuration, no React |
 | 3D application shell | Present | Three.js WebGL canvas plus separate HTML/CSS screens, HUD, touch layer, loading, errors, pause, ending |
 | Character physics | Present | Rapier capsule kinematic controller, autostep, slope rules, ground snap, gravity, jump buffering, coyote time, landing, dash |
-| Camera | Present | Quarter-view follow damping, velocity look-ahead, yaw control, wall shortening, obstruction fade, shake |
+| Camera | Present | Chapter-specific Chapter 3–5 framing, mobile widening, east-landmark focus, camera-side perimeter cutaway, raised-floor/platform obstruction handling, orbit preservation across rewind, damping, and shake; Chapters 1–2 retain their original profile |
 | Deterministic echo | Present | Full motor/world record-start snapshot plus 60 Hz quantized input/action and transform/facing tape, collision-aware kinematic replay, shared world action resolver, ownership transfer to one replacement echo, terminal held use |
-| Dynamic interactions | Present | Crate and core carry/drop/throw with camera-heading placement, ballistic preview, core catch, attack redirect, pressure plates, levers, receivers, doors, fixed-sensor/kinematic overlap configuration, and prompt-matched interaction range |
-| Vertical machinery | Present | Counterweight elevator, final elevator, moving platform, rotating bridge, stairs, jumps, upper/lower routes |
+| Dynamic interactions | Present | Crate and Core carry/drop/throw with camera-heading placement, ballistic preview, physical gates/shutters, direction-aware player passage, pressure plates, levers, collision-driven receivers, doors, fixed-sensor/kinematic overlap configuration, and prompt-matched interaction range |
+| Vertical machinery | Present | Chapter 2 counterweight elevator, Chapter 4 walkable ramp, and Chapter 5's single receiver-powered boarding platform; no redundant final elevator or required precision-jump chain |
 | Enemy puzzles | Present | Deterministic patrol/alert/investigate/chase/recovery, live Player/Echo FOV and Rapier LOS through cover, world-space bell stimulus, visible-target switching, rear/high strike validation, physical knockback-only trap defeat, Guardian positional seal rule |
 | Orientation and five chapters | Present | Skippable Stage 00 PC tutorial, five campaign layouts, chapter transitions, final 35-second escape, stats, rank, replay, chapter selection |
 | Character presentation | Present | Official KayKit character and five clip libraries loaded through GLTFLoader, 13 AnimationMixer states with crossfades, locomotion speed scaling, and smoothed visual yaw |
@@ -37,7 +37,7 @@ This ledger separates implementation present in the source tree from verificatio
 | Playwright functional suite | Passed | 8/8 scenarios passed in 4.3 minutes, including a real desktop `E` interaction at the visible prompt |
 | Local visual browser inspection | Passed representative review | Settings, echo, Chapters 1–5, ending, portrait, and landscape captures show no black frame, missing actor/model, clipped primary UI, or unreadable copy |
 | Console, page, request failure review | Passed locally | Automatic browser collectors reported no unhandled page, console, or request failures |
-| Chapter 5 guardian and final synchronizers | Corrected and covered | One canonical Core is carried and thrown by the first Echo recording; a replacement Echo holds the lower seal; actual Guardian LOS, powered platform traversal, rear/high strike, and current Echo/Player dual-seal state release the final door |
+| Chapter 5 integrated timeline | Corrected and covered | One recording transfers one canonical Core and ends on the lower seal; the present Player delivers that same Core, rides the only platform, exploits actual Guardian LOS/rear exposure, and holds the upper seal concurrently to release the final door |
 | Chapter 4–5 temporal-mastery unit/physics gate | Passed locally | 17 Vitest files, 126/126; covers actual LOS/cover, attention lifecycle, snapshot restoration, strike rejection, physical trap entry, one Core, support motion, receiver, and live seals |
 | Chapter 4–5 desktop/mobile browser gate | Passed locally | Full Playwright 25/25 in 24.6 minutes; focused success-capture rerun 4/4 in 6.9 minutes; keyboard-only desktop and touch-only mobile solutions |
 | Candidate-deployment browser check | Passed | 5/5 in 59.7 seconds against the verified candidate |
@@ -199,3 +199,15 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 - [x] Preserve the 15-second, 60 Hz Echo 2.0 contract and restore all mutable perception state in rewind snapshots; add no AI planning, teleport, auto-interaction, solution step, fact injection, or production debug surface.
 - [x] Pass `npm ci` with 0 vulnerabilities, strict Vite build, Vitest 126/126, full Playwright 25/25, and focused desktop/mobile success-capture 4/4.
 - [x] Limit source work to `echo-depths-3d/` on `feat/ch4-ch5-temporal-mastery`, based on `fix/echo2-ch3-structural`; leave `main`, the base repair branch, production deployment, assets, and siblings unchanged.
+
+## 2026-08-25 — Chapter 3–5 level-design rebuild
+
+- [x] Branch `feat/ch3-ch5-level-design-rebuild` directly from verified `origin/main` `410366f88ff3b935dc3137c161e886e3af523357`; do not edit, merge, or deploy `main`.
+- [x] Give Chapters 3–5 distinct wide/mobile framing, add raised-floor and platform obstruction handling, and cut away only camera-side perimeter geometry while preserving Chapter 1–2 defaults.
+- [x] Rebuild Chapter 3 as readable WEST/EAST rooms with a flat Player-only one-way lane, separate Core lane, live east-triggered physical shutter, wide railed catch basin, and same-Core receiver delivery.
+- [x] Rebuild Chapter 4 as a safe-entry surveillance gallery with real FOV/LOS cover, readable hazard/patrol space, a fully walkable ramp, high rear flank, physical trap resolution, and zero required jumps.
+- [x] Rebuild Chapter 5 around one recording, one `paradox-core`, one transfer shutter, one powered moving platform, one continuous Echo Core-to-lower-seal timeline, actual Guardian exposure, and live dual seals.
+- [x] Remove receiver provenance and unused-device dependencies, including `upperThrowArmed`, `core-thrown-down`, downward-velocity history, and `well-elevator`; keep completion tied to current physical results.
+- [x] Synchronize Korean/English objectives and hints; add layout, camera, motor, Rapier/world, structural-negative, desktop, mobile, render, and production-bundle regressions.
+- [x] Capture and inspect 17 current Chapter 3–5 desktop/mobile PNGs; pass Vitest 130/130, strict build, render smoke 2/2, focused completion 6/6, and production-bundle smoke 6/6.
+- [x] Record the final full Playwright result and confirm that local verification did not mutate `main` or production; perform the feature-branch/PR handoff separately.

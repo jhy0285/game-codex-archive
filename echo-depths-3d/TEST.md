@@ -244,3 +244,17 @@ Even a clean Playwright run does not establish:
 - natural bilingual wording, animation polish, audio balance, or motion comfort.
 
 Those claims require a person to play and record observations. No such human pass is represented here.
+
+## 2026-08-25 Chapter 3–5 level-design rebuild evidence
+
+The current feature branch is based directly on `origin/main` `410366f88ff3b935dc3137c161e886e3af523357`. The final verification set covers the rebuilt spatial routes rather than injecting facts or teleporting actors:
+
+- `npm test`: PASS, 18 files and 130 tests in 2.00 seconds. Layout checks cover route separation, zero-jump authored traversal, basin dimensions, Core/receiver separation, removal of the duplicate lift, and camera occluder registration. World/Rapier tests cover directional one-way collision, full-height closed shutters, actual receiver intersection, one canonical Core, actual Watcher/Guardian LOS, the single moving platform, and simultaneous live seals.
+- `npm run build`: PASS, TypeScript project build plus Vite production bundle, 38 modules in 452 ms. The existing large Three.js bundle warning remains nonfatal.
+- Chapter 3–5 render/framing smoke: PASS, 2/2 in 25.5 seconds. It loads each rebuilt chapter, checks fatal console/page/request errors, and checks Chapter 4–5 mobile landmark/control framing.
+- Focused real-input completion: PASS, 6/6 in 8.3 minutes. It completes Chapter 3 on desktop and touch, Chapter 4 on desktop and touch with zero jump input, and Chapter 5 on desktop and touch with one recording, one Core, and one platform.
+- Local production-bundle smoke: PASS, 6/6 in 47.6 seconds. It verifies the built bundle's language/title/start flow, Chapter 1 route, mobile layout, fullscreen rejection, KayKit dependencies, error collectors, and absence of `window.echoDepthsDebug`.
+- Final full Playwright: PASS, 20/20 in 12.6 minutes with one worker. It includes Chapter 1–2 regression, Chapter 3 structural shortcut rejection and full completion, Chapter 4–5 desktop/mobile completion, rendering, UI, asset, console, page, and request checks.
+- Visual evidence: 17 PNGs cover Chapter 3 start/shutter/transfer/receiver, Chapter 4 start/cover/high flank/trap plus mobile start/final state, and Chapter 5 start/transfer/receiver/upper flank/final door plus mobile start/final door. Representative frames were directly inspected for visible actors, landmarks, routes, HUD, and non-overlapping landscape touch controls.
+
+The automated evidence does not establish physical-phone ergonomics, unaided first-time puzzle comprehension, subjective camera comfort, difficulty, pacing, or fun. Those remain human playtest items.

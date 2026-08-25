@@ -109,6 +109,7 @@ export class GameApp {
   private lastTime = performance.now()
   private manualStepping = false
   private failRestartTicks = 0
+  private activeFailureReason: FailureReason | '' = ''
   private destroyed = false
   private contextLost = false
   private throwWasHeld = false
@@ -280,7 +281,13 @@ export class GameApp {
       this.echo = this.createActor('echo', spawn, true)
       if (snapshot) this.echo.motor.restore(snapshot.player)
     }
+    // Rewinding into an Echo rebuilds the physics world, but it must not also
+    // rotate the player's controls. Preserve the current orbit for same-chapter
+    // snapshot rebuilds; fresh chapter loads still receive their authored view.
+    if (snapshot) this.camera.resize(window.innerWidth, window.innerHeight)
+    else this.camera.setChapter(chapter, window.innerWidth)
     this.camera.setObstructions(this.world.staticObstructions)
+    this.camera.snapTo(this.player.motor.position)
     if (chapter === 0) {
       if (!snapshot) {
         this.tutorialSteps.clear()
@@ -298,6 +305,7 @@ export class GameApp {
     this.tick = 0
     this.throwWasHeld = false
     this.failRestartTicks = 0
+    this.activeFailureReason = ''
     this.fixedLoop.reset()
     this.transitionPending = false
     return true
@@ -662,6 +670,7 @@ export class GameApp {
     if (this.failRestartTicks > 0 || this.mode !== 'playing') return
     this.stats.failures += 1
     this.failRestartTicks = 90
+    this.activeFailureReason = reason
     this.audio.cue('fail')
     this.hud.showFailure(reason)
     if (this.player) {
@@ -829,6 +838,28 @@ export class GameApp {
           : !this.world.facts.has('cargo-plate')
             ? 'counterweight-cargo'
             : 'reach-exit'
+    } else if (this.chapter === 3) {
+      objective = !this.echo
+        ? 'atrium-bridge'
+        : !this.world.facts.has('transfer-shutter:player-east')
+          ? 'atrium-catch'
+          : !this.world.facts.has('receiver-filled')
+            ? 'atrium-redirect'
+            : 'reach-exit'
+    } else if (this.chapter === 4) {
+      objective = !this.world.facts.has('lured-by-echo')
+        ? 'watcher-lure'
+        : !this.world.facts.has('watcher-trapped')
+          ? 'watcher-hazard'
+          : 'reach-exit'
+    } else if (this.chapter === 5) {
+      objective = !this.world.facts.has('core-receiver')
+        ? 'paradox-core'
+        : !this.world.facts.has('guardian-defeated')
+          ? 'paradox-guardian'
+          : !this.world.facts.has('dual-seal')
+            ? 'paradox-sync'
+            : 'paradox-escape'
     } else {
       return
     }
@@ -1119,6 +1150,7 @@ export class GameApp {
       barriers: world?.barriers ?? {},
       enemies: world?.enemies ?? {},
       objectives: { required: world?.objectiveFacts ?? [], facts: world?.facts ?? [], complete: world?.complete ?? false },
+      failureReason: this.activeFailureReason || world?.failureReason || '',
       tutorial: this.chapter === 0 ? { completed: [...this.tutorialSteps], ready: this.tutorialComplete } : null,
       score: Math.max(0, Math.round(10_000 - this.stats.elapsedMs / 100 - this.stats.failures * 350 - this.stats.restarts * 150)),
       resetCount: this.stats.restarts,

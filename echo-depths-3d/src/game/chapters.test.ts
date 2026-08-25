@@ -57,7 +57,7 @@ describe('authored chapter objectives', () => {
   it('does not require an internal throw-history fact after the real Core reaches its receiver', () => {
     const chapter = CHAPTERS[4]
     if (!chapter) throw new Error('Paradox Well definition is missing')
-    expect(chapter.victoryFacts).not.toContain(ObjectiveFacts.CoreThrownDownWell)
+    expect(chapter.victoryFacts).not.toContain('core-thrown-down-well')
     expect(chapter.victoryFacts).not.toContain(ObjectiveFacts.GuardianDistractedByEcho)
     expect(chapter.victoryFacts).toEqual([
       ObjectiveFacts.CoreInWellReceiver,

@@ -14,7 +14,7 @@ export type RuntimeState = {
   levers?: Record<string, { active: boolean; actor?: string }>
   doors?: Record<string, { open: boolean }>
   elevators?: Record<string, { y: number; active: boolean }>
-  cores: Record<string, { position: Vec3; carriedBy?: 'player' | 'echo'; receiver: boolean }>
+  cores: Record<string, { position: Vec3; velocity?: Vec3; carriedBy?: 'player' | 'echo'; receiver: boolean }>
   crates?: Record<string, { position: Vec3; carriedBy?: 'player' | 'echo' }>
   barriers?: Record<string, { position: Vec3; open?: boolean }>
   enemies?: Record<string, {
@@ -30,6 +30,8 @@ export type RuntimeState = {
   echoesCreated?: number
   mobileControlsVisible?: boolean
   fixedTick?: number
+  failureReason?: string
+  failures?: number
 }
 
 export async function readState(page: Page): Promise<RuntimeState> {
@@ -93,7 +95,12 @@ export async function moveAxis(
   const negative = axis === 'x' ? 'a' : 'w'
   let held: string | undefined
   for (let elapsed = 0; elapsed < maximumTicks;) {
-    const player = (await readState(page)).player
+    const state = await readState(page)
+    if (state.mode !== 'playing' || state.failureReason) {
+      if (held) await page.keyboard.up(held)
+      throw new Error(`${label}: run interrupted; state=${JSON.stringify(state)}`)
+    }
+    const player = state.player
     if (!player) throw new Error(`${label}: Player unavailable`)
     const delta = target - player.position[axis]
     if (Math.abs(delta) < 0.32) {
@@ -111,7 +118,7 @@ export async function moveAxis(
     elapsed += stepTicks
   }
   if (held) await page.keyboard.up(held)
-  throw new Error(`${label}: Player did not reach ${axis}=${target}; final=${JSON.stringify((await readState(page)).player)}`)
+  throw new Error(`${label}: Player did not reach ${axis}=${target}; final=${JSON.stringify(await readState(page))}`)
 }
 
 export async function moveAxisPrecise(
@@ -125,9 +132,13 @@ export async function moveAxisPrecise(
 }
 
 export async function waitForState(page: Page, predicate: (state: RuntimeState) => boolean, maximumTicks: number, label: string): Promise<RuntimeState> {
+  const startingFailures = (await readState(page)).failures ?? 0
   for (let elapsed = 0; elapsed <= maximumTicks; elapsed += 12) {
     const current = await readState(page)
     if (predicate(current)) return current
+    if (current.failureReason || (current.failures ?? 0) > startingFailures) {
+      throw new Error(`${label}; run failed before condition: ${JSON.stringify(current)}`)
+    }
     await advanceTicks(page, 12)
   }
   throw new Error(`${label}; final=${JSON.stringify(await readState(page))}`)

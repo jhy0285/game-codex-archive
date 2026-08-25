@@ -19,7 +19,6 @@ export const ObjectiveFacts = {
   BridgeLocked: 'bridge-locked',
   WatcherLuredByEcho: 'watcher-lured-by-echo',
   WatcherDefeatedByHazard: 'watcher-defeated-by-hazard',
-  CoreThrownDownWell: 'core-thrown-down-well',
   CoreInWellReceiver: 'core-in-well-receiver',
   GuardianDistractedByEcho: 'guardian-distracted-by-echo',
   GuardianRearSealBrokenFromHeight: 'guardian-rear-seal-broken-from-height',
@@ -222,10 +221,11 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     hintKey: 'chapter.atrium.hint',
     echoMaxTicks: 18 * 60,
     escapeTimeTicks: null,
-    playerSpawn: v(-6, 4.1, 5),
-    exitCenter: v(7, 2.6, -5),
-    // OBJECT TRANSFER: past self throws the SAME real Memory Core to present self
-    mechanics: ['move', 'carry', 'throw', 'height'],
+    playerSpawn: v(-7, 1.08, 2.8),
+    exitCenter: v(9.4, 1.08, -2.2),
+    // OBJECT TRANSFER: the past self throws the SAME real Memory Core through
+    // the north lane while the present self opens it from the east.
+    mechanics: ['move', 'carry', 'throw'],
     plates: [],
     levers: [],
     doorIds: ['atrium-door'],
@@ -234,14 +234,9 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     bridgeIds: [],
     trapIds: [],
     crates: [],
-    cores: [{ id: 'memory-core', spawn: v(-3.0, 3.75, 1.6) }],
+    cores: [{ id: 'memory-core', spawn: v(-6.2, 1.1, 2.45) }],
     enemies: [],
     objectives: [
-      {
-        id: 'cross-gate',
-        labelKey: 'objective.atrium.crossGate',
-        requiredFacts: [ObjectiveFacts.PlayerAtExit],
-      },
       {
         id: 'transfer-core',
         labelKey: 'objective.atrium.transfer',
@@ -267,8 +262,8 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     hintKey: 'chapter.watcher.hint',
     echoMaxTicks: 18 * 60,
     escapeTimeTicks: null,
-    playerSpawn: v(-7, 0.9, 5),
-    exitCenter: v(7, 3.2, -5),
+    playerSpawn: v(-7.4, 1.08, 3),
+    exitCenter: v(8.35, 1.08, -2.55),
     mechanics: ['echo', 'sight', 'cover', 'lure', 'knockback', 'hazard', 'height'],
     plates: [],
     levers: [{ id: 'lure-bell', mode: 'momentary' }],
@@ -279,7 +274,7 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     trapIds: ['spike-trap', 'gallery-void'],
     crates: [],
     cores: [],
-    enemies: [{ id: 'watcher', spawn: v(2.4, 0.98, -0.4), role: 'watcher' }],
+    enemies: [{ id: 'watcher', spawn: v(2.2, 0.98, 0.45), role: 'watcher' }],
     objectives: [
       {
         id: 'defeat-with-hazard',
@@ -306,13 +301,12 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     hintKey: 'chapter.paradox.hint',
     echoMaxTicks: 20 * 60,
     escapeTimeTicks: 35 * 60,
-    playerSpawn: v(-7, 0.9, 6),
-    exitCenter: v(8, 6.2, -7),
+    playerSpawn: v(-7.4, 1.08, 2.7),
+    exitCenter: v(8.25, 3.78, 2.65),
     mechanics: [
       'echo',
       'carry',
       'throw',
-      'elevator',
       'moving-platform',
       'sight',
       'cover',
@@ -323,13 +317,13 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     plates: [{ id: 'lower-seal', accepts: 'actor', requiredMass: 1 }],
     levers: [{ id: 'upper-seal', mode: 'momentary' }],
     doorIds: ['final-door'],
-    elevatorIds: ['well-elevator'],
+    elevatorIds: [],
     platformIds: ['well-platform'],
     bridgeIds: [],
     trapIds: ['well-void'],
     crates: [],
-    cores: [{ id: 'paradox-core', spawn: v(-5.7, 1.1, 2) }],
-    enemies: [{ id: 'guardian', spawn: v(1.7, 3.58, 2.5), role: 'guardian' }],
+    cores: [{ id: 'paradox-core', spawn: v(-6.2, 1.1, 2.55) }],
+    enemies: [{ id: 'guardian', spawn: v(0.8, 2.28, 0.85), role: 'guardian' }],
     objectives: [
       {
         id: 'power-well',

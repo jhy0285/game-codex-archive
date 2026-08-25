@@ -34,13 +34,17 @@ describe('localization-independent state reset', () => {
     state.plates[0]!.pressed = true
     state.levers[0]!.active = true
     state.doors[0]!.open = true
-    state.elevators[0]!.positionY = 4
     state.platforms[0]!.phaseTick = 91
     state.cores[0]!.velocity.x = 12
     state.enemies[0]!.mode = 'alert'
     state.traps[0]!.triggered = true
 
+    const elevatorState = createInitialChapterState('counterweight-hall')
+    elevatorState.elevators[0]!.positionY = 4
+    elevatorState.elevators[0]!.active = true
+
     const reset = resetChapterState(state)
+    const elevatorReset = resetChapterState(elevatorState)
     expect(reset).not.toBe(state)
     expect(reset.player).not.toBe(state.player)
     expect(reset.plates).not.toBe(state.plates)
@@ -60,7 +64,8 @@ describe('localization-independent state reset', () => {
     expect(reset.plates.every((plate) => !plate.pressed)).toBe(true)
     expect(reset.levers.every((lever) => !lever.active && !lever.latched)).toBe(true)
     expect(reset.doors.every((door) => !door.open && door.progress === 0)).toBe(true)
-    expect(reset.elevators.every((elevator) => elevator.positionY === 0 && !elevator.active)).toBe(true)
+    expect(elevatorReset.elevators).not.toBe(elevatorState.elevators)
+    expect(elevatorReset.elevators.every((elevator) => elevator.positionY === 0 && !elevator.active)).toBe(true)
     expect(reset.platforms.every((platform) => platform.phaseTick === 0 && !platform.active)).toBe(true)
     expect(reset.cores.every((core) => core.carriedBy === null && !core.redirected)).toBe(true)
     expect(reset.enemies.every((enemy) => enemy.mode === 'patrol' && enemy.detection === 0)).toBe(true)

@@ -1,6 +1,6 @@
 # ECHO DEPTHS — Delivery Plan
 
-Status: original implementation authorized on 2026-08-14; Chapter 4–5 temporal-mastery revision implemented on 2026-08-25 (Asia/Seoul) on `feat/ch4-ch5-temporal-mastery`, based on `fix/echo2-ch3-structural`.
+Status: Chapter 3–5 level-design and camera rebuild implemented on 2026-08-25 (Asia/Seoul) on `feat/ch3-ch5-level-design-rebuild`, based directly on `origin/main` at `410366f88ff3b935dc3137c161e886e3af523357`.
 
 ## Product contract
 
@@ -42,15 +42,15 @@ Record the lower lever interaction and final plate hold. On replay, ride the ena
 
 ### 3. THE SPLIT ATRIUM
 
-Record a lower rotating-bridge lever hold and a core throw toward the atrium. During replay, cross above, catch the core with a wide assist radius, preview its arc, redirect it with a directional attack, and land it in the upper receiver.
+Two flat, parallel routes make the temporal relationship readable: the Echo carries and throws the sole Core along the north transfer lane while the present Player crosses the south one-way passage. Reaching the east side opens the physical transfer shutter; the Player then retrieves the same landed Core from the catch basin, places it in the receiver, and exits. No stairs, hidden catch flag, scripted post-catch flight, or automatic receiver completion remains.
 
 ### 4. THE WATCHER'S GALLERY
 
-Record a route to the physical bell and end in a readable sight lane. The bell supplies only an investigation position; actual Echo visibility wins the Watcher's FOV/LOS target selection. During replay, keep the present Player behind cover, climb the higher rear flank, and use one height-qualified directional strike so physical knockback carries the Watcher into the trap and releases the exit.
+Record the safe bell route and leave the Echo in the Watcher's real sight lane. During replay, the present Player moves behind substantial cover, walks up one long gentle ramp without jumping, reaches the high rear flank, and uses one qualified directional strike so physical knockback carries the Watcher into the trap. The bell remains only an investigation stimulus; FOV, Rapier LOS, height, facing, and the trap decide the outcome.
 
 ### 5. THE PARADOX WELL
 
-Use one recording to make the Echo carry the sole physical Core up the ramp and throw it downward into the receiver. Replace that Echo with a second recording ending on the lower seal. The present Player returns up the ramp, rides the receiver-powered vertical platform, uses cover to reach the high rear flank while the Guardian truly sees the Echo, breaks the seal with the qualified strike, then holds the upper seal simultaneously with the Echo's live lower occupancy to release the final door and timer.
+Use one recording for both past duties: the Echo transfers the sole physical Core through the north lane and then finishes on the lower seal. The present Player crosses the separate south route, opens the shutter, retrieves that same Core, and places it in the receiver. That receiver powers the level's only moving platform; boarding makes it rise and carry the Player to the upper Guardian flank. A real Guardian-to-Echo sight line, rear/high strike, and live upper/lower seal synchronization release the timed final passage.
 
 ## Input and presentation
 
@@ -68,8 +68,8 @@ Use one recording to make the Echo carry the sole physical Core up the ramp and 
 4. `npm run test:e2e` covers language/start, real inputs, all five solutions, ending/replay reset, four target layouts, portrait/landscape touch, fullscreen rejection safety, asset HTTP status, overflow, and runtime error collection.
 5. Local browser captures are inspected for every chapter plus portrait and landscape mobile layouts; black frames, missing characters, broken animation, clipped HUD, unreadable text, errors, and failed first-party requests fail the gate.
 6. Only `echo-depths-3d/` paths are staged. The unrelated existing `echo-heist/package-lock.json` change remains untouched.
-7. For the 2026-08-25 revision, commits are pushed only to `feat/ch4-ch5-temporal-mastery`; `main` and `fix/echo2-ch3-structural` remain untouched and the change is offered as a stacked pull request.
-8. The 2026-08-25 revision performs no Vercel deployment or production promotion. Earlier deployment records remain historical facts for their recorded commits.
+7. For the 2026-08-25 rebuild, commits are pushed only to `feat/ch3-ch5-level-design-rebuild`; `main` remains untouched and the change is offered as a pull request based directly on `main`.
+8. The rebuild performs no manual Vercel deployment or production promotion. An automatically created pull-request preview may be inspected, but earlier production records remain historical facts for their recorded commits.
 
 ## Release records
 

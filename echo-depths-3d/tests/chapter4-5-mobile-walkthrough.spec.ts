@@ -65,24 +65,6 @@ async function holdStick(page: Page, direction: TouchDirection, ticks: number): 
   await advanceTicks(page, 1)
 }
 
-async function jumpWithStick(page: Page, direction: TouchDirection, ticks: number): Promise<void> {
-  const target = await stickPoint(page, direction)
-  const stickId = pointerId += 1
-  await page.locator('#move-zone').dispatchEvent('pointerdown', {
-    pointerId: stickId,
-    pointerType: 'touch',
-    isPrimary: true,
-    button: 0,
-    buttons: 1,
-    clientX: target.x,
-    clientY: target.y,
-  })
-  await tapAction(page, 'jump')
-  await advanceTicks(page, Math.max(0, ticks - 2))
-  await releaseTouch(page, stickId)
-  await advanceTicks(page, 4)
-}
-
 async function rotateCameraCardinalByTouch(page: Page): Promise<void> {
   const bounds = await page.locator('#camera-zone').boundingBox()
   if (!bounds) throw new Error('camera touch area is unavailable')
@@ -159,18 +141,16 @@ test.describe('Chapters 4 and 5 mobile touch walkthroughs', () => {
     test.setTimeout(360_000)
     await startChapter(page, 4)
     await expect.poll(async () => (await readState(page)).mobileControlsVisible).toBe(true)
+    await attachSuccessScreenshot(page, testInfo, 'chapter-4-mobile-start-overview')
     await rotateCameraCardinalByTouch(page)
 
     await tapAction(page, 'echo')
-    await moveTouchAxis(page, 'z', 0.5, 'touch covered gallery approach')
-    await moveTouchAxis(page, 'x', -3.45, 'touch west cover approach')
-    await moveTouchAxis(page, 'z', 2.5, 'touch north cover edge')
-    await moveTouchAxis(page, 'z', 3.1, 'touch bell lane')
-    await moveTouchAxis(page, 'x', -0.8, 'touch bell')
+    await moveTouchAxis(page, 'x', -1.9, 'touch safe bell route')
+    await moveTouchAxis(page, 'z', 3.0, 'touch bell')
     await tapAction(page, 'interact')
     await tapAction(page, 'echo')
-    await moveTouchAxis(page, 'x', -3.45, 'touch return to cover')
-    await moveTouchAxis(page, 'z', 1.0, 'touch settle behind cover')
+    await moveTouchAxis(page, 'x', -4.6, 'touch return to cover')
+    await moveTouchAxis(page, 'z', 0.0, 'touch settle behind cover')
     await waitForState(
       page,
       (current) => current.enemies?.watcher?.target === 'echo' && current.enemies.watcher.targetVisible,
@@ -178,14 +158,11 @@ test.describe('Chapters 4 and 5 mobile touch walkthroughs', () => {
       'touch Echo never drew real Watcher attention',
     )
 
-    await moveTouchAxis(page, 'z', -3.0, 'touch flank stair lane', 1_200)
-    await moveTouchAxis(page, 'x', 0.15, 'touch first flank stair', 1_200)
-    await jumpWithStick(page, 'east', 22)
-    await jumpWithStick(page, 'east', 22)
-    await jumpWithStick(page, 'east', 28)
-    await waitForState(page, (current) => (current.player?.position.y ?? 0) > 2.8, 240, 'touch Player missed the high flank')
-    await moveTouchAxis(page, 'x', 2.9, 'touch high strike x')
-    await moveTouchAxis(page, 'z', -1.2, 'touch high strike z')
+    await moveTouchAxis(page, 'z', -3.05, 'touch low ramp lane', 1_200)
+    await advanceTicks(page, 20)
+    await moveTouchAxis(page, 'x', 2.8, 'touch walk up the ramp', 1_500)
+    await waitForState(page, (current) => (current.player?.position.y ?? 0) > 2.6, 240, 'touch Player missed the high flank')
+    await moveTouchAxis(page, 'z', -1.7, 'touch high rear strike')
     const beforeStrike = await readState(page)
     const watcher = beforeStrike.enemies?.watcher
     const player = beforeStrike.player
@@ -199,8 +176,11 @@ test.describe('Chapters 4 and 5 mobile touch walkthroughs', () => {
       'touch strike did not knock the Watcher into the trap',
     )
     await attachSuccessScreenshot(page, testInfo, 'chapter-4-mobile-neutralized')
+    await moveTouchAxis(page, 'z', -3.05, 'touch return to ramp')
+    await moveTouchAxis(page, 'x', -4.6, 'touch walk down the ramp', 1_500)
+    await waitForState(page, (current) => (current.player?.position.y ?? 99) < 1.5, 240, 'touch Player did not descend')
+    await moveTouchAxis(page, 'z', -2.55, 'touch gallery exit')
     await moveTouchAxis(page, 'x', 8.35, 'touch cross gallery', 1_800)
-    await moveTouchAxis(page, 'z', -1.8, 'touch gallery exit')
     await tapAction(page, 'interact')
     await waitForState(page, (current) => current.mode === 'chapter-complete', 90, 'touch Chapter 4 did not complete')
   })
@@ -209,61 +189,59 @@ test.describe('Chapters 4 and 5 mobile touch walkthroughs', () => {
     test.setTimeout(600_000)
     await startChapter(page, 5)
     await expect.poll(async () => (await readState(page)).mobileControlsVisible).toBe(true)
+    await attachSuccessScreenshot(page, testInfo, 'chapter-5-mobile-start-overview')
     await rotateCameraCardinalByTouch(page)
 
     await tapAction(page, 'echo')
-    await moveTouchAxis(page, 'z', 2.0, 'touch Core lane')
-    await moveTouchAxis(page, 'x', -5.7, 'touch Paradox Core')
+    await moveTouchAxis(page, 'z', 2.55, 'touch Core lane')
+    await moveTouchAxis(page, 'x', -6.2, 'touch Paradox Core')
     await tapAction(page, 'interact')
     await expect.poll(async () => (await readState(page)).cores['paradox-core']?.carriedBy).toBe('player')
-    await moveTouchAxis(page, 'z', -0.8, 'touch carry to ramp')
-    await moveTouchAxis(page, 'x', -1.0, 'touch carry up ramp', 1_500)
-    await waitForState(page, (current) => (current.player?.position.y ?? 0) > 3.3, 180, 'touch Player missed the Core ramp')
-    await holdStick(page, 'west', 1)
+    await moveTouchAxis(page, 'x', 0.0, 'touch north transfer ledge')
+    await holdStick(page, 'east', 1)
     await tapAction(page, 'throw')
+    await moveTouchAxis(page, 'x', -1.75, 'touch return west')
+    await moveTouchAxis(page, 'z', -2.55, 'touch finish same tape on lower seal')
     await tapAction(page, 'echo')
-    const received = await waitForState(
+    await moveTouchAxis(page, 'x', 3.2, 'touch cross south passage')
+    await waitForState(page, (current) => current.barriers?.['well-transfer-shutter']?.open === true, 180, 'touch Player did not open transfer shutter')
+    const landed = await waitForState(
       page,
-      (current) => current.cores['paradox-core']?.receiver === true,
-      720,
-      'touch Echo did not deliver the same Core',
-    )
-    expect(Object.keys(received.cores)).toEqual(['paradox-core'])
-
-    await tapAction(page, 'echo')
-    await moveTouchAxis(page, 'x', -5.7, 'touch descend ramp', 1_500)
-    await moveTouchAxis(page, 'z', 3.6, 'touch lower seal lane')
-    await moveTouchAxis(page, 'x', -3.1, 'touch lower seal')
-    await tapAction(page, 'echo')
-    await waitForState(
-      page,
-      (current) => current.pressurePlates?.['lower-seal']?.actor === 'echo'
-        && current.pressurePlates['lower-seal']?.active === true,
+      (current) => current.echo.mode === 'holding'
+        && current.pressurePlates?.['lower-seal']?.actor === 'echo'
+        && current.cores['paradox-core']?.carriedBy === undefined
+        && (current.cores['paradox-core']?.position.x ?? 0) > 2.7,
       900,
-      'touch Echo did not occupy the lower seal',
+      'touch one-tape Echo did not transfer the Core and hold the lower seal',
     )
+    expect(Object.keys(landed.cores)).toEqual(['paradox-core'])
 
-    await moveTouchAxis(page, 'x', -5.7, 'touch west ramp return')
-    await moveTouchAxis(page, 'z', -0.8, 'touch powered ramp lane')
-    await moveTouchAxis(page, 'x', -0.9, 'touch climb middle floor', 1_500)
-    await waitForState(page, (current) => (current.player?.position.y ?? 0) > 3.3, 180, 'touch Player did not regain middle floor')
-    await moveTouchAxis(page, 'z', -1.8, 'touch platform lane')
-    await moveTouchAxis(page, 'x', 2.55, 'touch platform dock wait')
-    await waitForState(page, (current) => (current.elevators?.['well-platform']?.y ?? 99) < 2.9, 600, 'touch platform did not dock')
-    await moveTouchAxis(page, 'x', 3.05, 'touch board moving platform', 240)
+    const core = landed.cores['paradox-core']!
+    await moveTouchAxis(page, 'x', core.position.x, 'touch line up with east Core basin')
+    await moveTouchAxis(page, 'z', core.position.z, 'touch same landed Core')
+    await tapAction(page, 'interact')
+    await expect.poll(async () => (await readState(page)).cores['paradox-core']?.carriedBy).toBe('player')
+    await moveTouchAxis(page, 'z', 0.2, 'touch receiver lane')
+    await moveTouchAxis(page, 'x', 6.4, 'touch east receiver')
+    await tapAction(page, 'interact')
+    await waitForState(page, (current) => current.cores['paradox-core']?.receiver === true, 240, 'touch same Core did not power receiver')
+
+    await moveTouchAxis(page, 'z', -2.65, 'touch platform lane')
+    await moveTouchAxis(page, 'x', 4.15, 'touch platform dock wait')
+    await waitForState(page, (current) => (current.elevators?.['well-platform']?.y ?? 99) < 0.9, 900, 'touch platform did not dock')
+    await moveTouchAxis(page, 'x', 4.0, 'touch step beside platform')
+    await moveTouchAxis(page, 'x', 4.15, 'touch board moving platform', 240)
     await waitForState(
       page,
-      (current) => (current.elevators?.['well-platform']?.y ?? 0) > 4.45
-        && (current.player?.position.y ?? 0) > 5,
+      (current) => (current.elevators?.['well-platform']?.y ?? 0) > 3.0
+        && (current.player?.position.y ?? 0) > 3.8,
       1_500,
       'touch platform did not lift the Player',
     )
-    await jumpWithStick(page, 'east', 20)
-    await moveTouchAxis(page, 'x', 5.4, 'touch upper floor')
-    await moveTouchAxis(page, 'z', 1.35, 'touch Guardian cover')
-    await moveTouchAxis(page, 'x', 3.0, 'touch Guardian flank')
-    await moveTouchAxis(page, 'z', 1.8, 'touch Guardian rear edge')
-    await moveTouchAxis(page, 'x', 2.25, 'touch Guardian strike range')
+    await moveTouchAxis(page, 'x', 5.3, 'touch upper floor')
+    await moveTouchAxis(page, 'x', 4.5, 'touch enter the high Guardian flank')
+    await moveTouchAxis(page, 'z', 2.2, 'touch exposed Guardian rear')
+    await moveTouchAxis(page, 'x', 2.2, 'touch Guardian strike range')
     const distracted = await waitForState(
       page,
       (current) => current.enemies?.guardian?.target === 'echo' && current.enemies.guardian.targetVisible,
@@ -277,10 +255,8 @@ test.describe('Chapters 4 and 5 mobile touch walkthroughs', () => {
     await tapAction(page, 'attack')
     await waitForState(page, (current) => current.enemies?.guardian?.defeated === true, 120, 'touch Guardian strike failed')
 
-    await jumpWithStick(page, 'east', 20)
-    await moveTouchAxis(page, 'x', 5.2, 'touch leave Guardian flank')
-    await moveTouchAxis(page, 'z', -1.7, 'touch upper seal lane')
-    await moveTouchAxis(page, 'x', 6.2, 'touch upper seal')
+    await moveTouchAxis(page, 'x', 6.8, 'touch leave Guardian flank')
+    await moveTouchAxis(page, 'z', -1.25, 'touch upper seal')
     const holdId = pointerId += 1
     await page.locator('[data-action="interact"]').dispatchEvent('pointerdown', {
       pointerId: holdId,
@@ -300,8 +276,8 @@ test.describe('Chapters 4 and 5 mobile touch walkthroughs', () => {
     )
     expect(released.escapeSeconds).toBeGreaterThan(0)
     await attachSuccessScreenshot(page, testInfo, 'chapter-5-mobile-final-door')
-    await moveTouchAxis(page, 'z', 0.3, 'touch final passage lane')
-    await moveTouchAxis(page, 'x', 8.85, 'touch final exit')
+    await moveTouchAxis(page, 'z', 2.65, 'touch final passage lane')
+    await moveTouchAxis(page, 'x', 8.25, 'touch final exit')
     await tapAction(page, 'interact')
     await waitForState(page, (current) => current.mode === 'chapter-complete', 90, 'touch Chapter 5 did not complete')
   })

@@ -42,8 +42,6 @@ type DynamicRecord = {
   body: BodyRecord
   mesh: THREE.Object3D
   carriedBy: ActorKind | undefined
-  upperThrowArmed: boolean
-  postCatchFlightArmed: boolean
   redirectedCurrentFlight: boolean
   carryPosition: THREE.Vector3
   carryTarget: THREE.Vector3
@@ -68,7 +66,7 @@ export type WorldDebugState = {
   levers: Record<string, { active: boolean; actor?: ActorKind }>
   doors: Record<string, { open: boolean }>
   elevators: Record<string, { y: number; active: boolean }>
-  cores: Record<string, { position: Vec3; carriedBy?: ActorKind; receiver: boolean }>
+  cores: Record<string, { position: Vec3; velocity: Vec3; carriedBy?: ActorKind; receiver: boolean }>
   crates: Record<string, { position: Vec3; carriedBy?: ActorKind }>
   enemies: Record<string, {
     position: Vec3
@@ -82,6 +80,7 @@ export type WorldDebugState = {
   barriers: Record<string, { position: Vec3; open?: boolean }>
   objectiveFacts: string[]
   complete: boolean
+  failureReason: string
   escapeSeconds: number
 }
 
@@ -101,8 +100,6 @@ type DynamicSnapshot = TransformSnapshot & {
   velocity: Vec3
   angularVelocity: Vec3
   kinematic: boolean
-  upperThrowArmed: boolean
-  postCatchFlightArmed: boolean
   redirectedCurrentFlight: boolean
   carriedBy?: ActorKind
 }
@@ -137,12 +134,11 @@ const CORE_KIND: ReadonlySet<PhysicsEntityKind> = new Set(['core'])
 const TRAP_OCCUPANT_KINDS: ReadonlySet<PhysicsEntityKind> = new Set(['player', 'echo', 'enemy'])
 const ENEMY_RAY_EXCLUSIONS: ReadonlySet<string> = new Set(['watcher', 'guardian'])
 const SOLID_SIGHT_KINDS: ReadonlySet<PhysicsEntityKind> = new Set(['wall', 'door'])
-const WELL_MIN_THROW_DROP = 2.2
-const WELL_THROW_UPWARD_SPEED = 3.4
-// Ch3's recorded throw clears the shuttered lane, then lands in the east-side
-// catch basin. It deliberately stops short of the receiver so the live Player
-// must pick up this same physical Core and make the final delivery.
-const ATRIUM_THROW_SPEED = 5.2
+const WELL_THROW_UPWARD_SPEED = 2.4
+// The recorded throw clears the shuttered lane and lands in the protected basin.
+// It deliberately stops short of the receiver so the live Player must deliver
+// this same physical Core.
+const ATRIUM_THROW_SPEED = 7.2
 const ATRIUM_THROW_UPWARD_SPEED = 1.4
 const CORE_LOST_Y = -4
 const TRAJECTORY_STEP_SECONDS = 0.075
@@ -181,12 +177,10 @@ export class DungeonWorld {
   private readonly root = new THREE.Group()
   private readonly devices = new Map<string, DeviceRecord>()
   private readonly dynamics = new Map<string, DynamicRecord>()
-  /** Live open/closed state per shutter device id (chapter 3 transfer lane). */
+  /** Live open/closed state per spatial Core-transfer shutter. */
   private readonly shutters = new Map<string, boolean>()
   /** A player can open a one-way crossing only from its west approach. */
   private readonly oneWayOpening = new Map<string, boolean>()
-  /** Last known actor position per actor id, used to enforce one-way gate traversal. */
-  private readonly actorPreviousX = new Map<string, number>()
   private readonly materials: THREE.Material[] = []
   private readonly geometries: THREE.BufferGeometry[] = []
   private readonly effects: EffectRecord[] = []
@@ -236,8 +230,6 @@ export class DungeonWorld {
   }
 
   beforePhysics(tick: number, actors: readonly ActorContext[]): void {
-    // Snapshot actor x-positions so updateTemporalGates can detect the direction of crossing.
-    for (const actor of actors) this.actorPreviousX.set(actor.id, actor.position.x)
     this.currentTick = tick
     this.updateHeldLevers(actors)
     this.updatePlatforms(tick, actors)
@@ -254,7 +246,12 @@ export class DungeonWorld {
 
   afterPhysics(actors: readonly ActorContext[]): void {
     for (const dynamic of this.dynamics.values()) {
-      if (dynamic.recentlyDropped > 0) dynamic.recentlyDropped -= 1
+      if (dynamic.recentlyDropped > 0) {
+        dynamic.recentlyDropped -= 1
+        if (dynamic.recentlyDropped === 0 && !dynamic.carriedBy) {
+          this.physics.setDynamicCollisionMode(dynamic.body.collider, false)
+        }
+      }
     }
     this.syncDynamics()
     this.updatePlates(actors)
@@ -332,23 +329,22 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     carried.carriedBy = undefined
     carried.body.tag.carried = false
     carried.body.collider.setSensor(false)
-    this.physics.setDynamicCollisionMode(carried.body.collider, false)
+    // A short actor-collision grace period prevents the thrower's reversing
+    // capsule from batting its own projectile sideways. World geometry and
+    // puzzle barriers remain solid throughout the physical flight.
+    this.physics.setDynamicCollisionMode(carried.body.collider, true)
     carried.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
     const effectiveDir = direction.clone().normalize()
     const origin = actor.position.clone().add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(effectiveDir, 0.72)
     carried.body.body.setTranslation(origin, true)
     const isCore = carried.body.tag.kind === 'core'
-    const coreThrowSpeed = this.chapter === 3 ? ATRIUM_THROW_SPEED : 7.2
+    const coreThrowSpeed = this.chapter === 3 || this.chapter === 5 ? ATRIUM_THROW_SPEED : 7.2
     const impulse = effectiveDir.clone().multiplyScalar(isCore ? coreThrowSpeed : 3.8)
     impulse.y = isCore
       ? this.chapter === 3 ? ATRIUM_THROW_UPWARD_SPEED : this.chapter === 5 ? WELL_THROW_UPWARD_SPEED : 5.8
       : 2.4
     carried.body.body.setLinvel(impulse, true)
-    if (this.chapter === 5 && isCore) {
-      const receiver = this.devices.get('power-receiver')
-      carried.upperThrowArmed = Boolean(receiver && origin.y - receiver.root.position.y >= WELL_MIN_THROW_DROP)
-      if (carried.upperThrowArmed) this.facts.add('core-thrown-down')
-    }
+    carried.recentlyDropped = 30
     return carried.body.tag.kind
   }
 
@@ -378,7 +374,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
     }
     const enemy = this.devices.get(this.chapter === 5 ? 'guardian' : 'watcher')
-    if (enemy && !this.enemyDefeated && enemy.root.position.distanceTo(actor.position) < 2.6) {
+    const strikeRange = this.chapter >= 4 ? 3.5 : 2.6
+    if (enemy && !this.enemyDefeated && enemy.root.position.distanceTo(actor.position) < strikeRange) {
       const horizontalToActor = actor.position.clone().sub(enemy.root.position).setY(0)
       const actorSideDot = horizontalToActor.lengthSq() > 0.0001
         ? horizontalToActor.normalize().dot(this.enemyForward)
@@ -408,12 +405,18 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         return 'shield'
       }
       const heightAdvantage = actor.position.y - enemy.root.position.y
-      if (actor.kind !== 'player' || actorSideDot > WATCHER_REAR_DOT_MAX || heightAdvantage < 0.8) {
+      if (
+        actor.kind !== 'player'
+        || this.enemyTarget !== 'echo'
+        || !this.enemyTargetVisible
+        || actorSideDot > WATCHER_REAR_DOT_MAX
+        || heightAdvantage < 0.8
+      ) {
         this.failureReason = 'watcher-facing'
         return 'shield'
       }
       const result = computeKnockback({
-        position: this.vec(actor.position), forward: this.vec(direction), range: 2.6, halfAngleRadians: Math.PI * 0.42,
+        position: this.vec(actor.position), forward: this.vec(direction), range: strikeRange, halfAngleRadians: Math.PI * 0.42,
         baseStrength: 0.24, upwardStrength: 0, heightAdvantageThreshold: 1.3, heightAdvantageMultiplier: 1.55,
       }, { position: this.vec(enemy.root.position), mass: 1, radius: 0.55 })
       if (!result.hit) return undefined
@@ -544,13 +547,20 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         continue
       }
       if (dynamic.body.tag.kind !== 'core') continue
+      const velocity = dynamic.body.body.linvel()
+      const shared = {
+        position: { x: p.x, y: p.y, z: p.z },
+        velocity: { x: velocity.x, y: velocity.y, z: velocity.z },
+        receiver: this.receiverFilled,
+      }
       cores[id] = dynamic.carriedBy
-        ? { position: { x: p.x, y: p.y, z: p.z }, carriedBy: dynamic.carriedBy, receiver: this.receiverFilled }
-        : { position: { x: p.x, y: p.y, z: p.z }, receiver: this.receiverFilled }
+        ? { ...shared, carriedBy: dynamic.carriedBy }
+        : shared
     }
     return {
       facts: [...this.facts].sort(), pressurePlates, levers, doors, elevators, cores, crates, enemies, barriers,
-      objectiveFacts: this.requiredFacts(), complete: this.complete, escapeSeconds: Number((this.escapeTicks / 60).toFixed(1)),
+      objectiveFacts: this.requiredFacts(), complete: this.complete, failureReason: this.failureReason,
+      escapeSeconds: Number((this.escapeTicks / 60).toFixed(1)),
     }
   }
 
@@ -568,8 +578,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       if (
         Math.abs(position.x - device.root.position.x) <= size[0] + 0.32 &&
         Math.abs(position.z - device.root.position.z) <= size[2] + 0.32 &&
-        Math.abs(actorBottom - platformTop) <= 0.42
-      ) return { delta: device.delta.clone(), supported: device.body.tag.nonBlocking === true }
+        Math.abs(actorBottom - platformTop) <= 0.65
+      ) return { delta: device.delta.clone(), supported: true }
     }
     return { delta: new THREE.Vector3(), supported: false }
   }
@@ -603,8 +613,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         velocity: { x: velocity.x, y: velocity.y, z: velocity.z },
         angularVelocity: { x: angularVelocity.x, y: angularVelocity.y, z: angularVelocity.z },
         kinematic: dynamic.body.body.bodyType() === RAPIER.RigidBodyType.KinematicPositionBased,
-        upperThrowArmed: dynamic.upperThrowArmed,
-        postCatchFlightArmed: dynamic.postCatchFlightArmed,
         redirectedCurrentFlight: dynamic.redirectedCurrentFlight,
       }
       dynamics[id] = dynamic.carriedBy ? { ...base, carriedBy: dynamic.carriedBy } : base
@@ -680,10 +688,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
           || device.definition.kind === 'platform'
           || device.definition.kind === 'bridge'
         if (movingSurface) {
-          const nonBlocking = (this.chapter === 2 && device.definition.kind === 'elevator' && saved.motionProgress > 0)
-            || (this.chapter === 5
-              && (device.definition.kind === 'elevator' || device.definition.kind === 'platform')
-              && saved.active)
+          const nonBlocking = (this.chapter === 2
+            && device.definition.kind === 'elevator'
+            && saved.motionProgress > 0)
+            || (this.chapter === 5 && device.definition.kind === 'platform')
           device.body.tag.nonBlocking = nonBlocking
           device.body.collider.setSensor(nonBlocking)
         }
@@ -699,11 +707,11 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       if (!dynamic) continue
       dynamic.carriedBy = remapActor(saved.carriedBy)
       dynamic.body.tag.carried = Boolean(dynamic.carriedBy)
-      const physicalCoreCarry = this.chapter === 3 && dynamic.body.tag.kind === 'core' && Boolean(dynamic.carriedBy)
+      const physicalCoreCarry = (this.chapter === 3 || this.chapter === 5)
+        && dynamic.body.tag.kind === 'core'
+        && Boolean(dynamic.carriedBy)
       dynamic.body.collider.setSensor(Boolean(dynamic.carriedBy) && !physicalCoreCarry)
       this.physics.setDynamicCollisionMode(dynamic.body.collider, physicalCoreCarry)
-      dynamic.upperThrowArmed = saved.upperThrowArmed
-      dynamic.postCatchFlightArmed = saved.postCatchFlightArmed
       dynamic.redirectedCurrentFlight = saved.redirectedCurrentFlight
       const kinematic = Boolean(dynamic.carriedBy) || saved.kinematic
       dynamic.body.body.setBodyType(
@@ -769,8 +777,22 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const stone = this.material(0x2b3440, 0.84, 0.12)
     const trim = this.material(0x5f5962, 0.72, 0.22)
     const wood = this.material(0x473a35, 0.9, 0.02)
+    const safe = this.material(0x29454c, 0.78, 0.18)
+    const echoRoute = this.material(0x463758, 0.72, 0.24, layout.accent, 0.08)
+    const danger = this.material(0x4a2932, 0.76, 0.16, 0x7a2638, 0.08)
     for (const box of layout.boxes) {
-      const material = box.tone === 'trim' ? trim : box.tone === 'wood' ? wood : stone
+      const baseMaterial = box.tone === 'trim'
+        ? trim
+        : box.tone === 'wood'
+          ? wood
+          : box.tone === 'safe'
+            ? safe
+            : box.tone === 'echo'
+              ? echoRoute
+              : box.tone === 'danger'
+                ? danger
+                : stone
+      const material = box.wall || box.occluder ? this.cloneMaterial(baseMaterial) : baseMaterial
       const mesh = this.boxMesh(box.size, material)
       mesh.name = box.id
       mesh.position.set(...box.position)
@@ -779,14 +801,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.physics.createStaticBox(box.id, box.wall ? 'wall' : 'floor', this.vec(mesh.position), {
         x: box.size[0], y: box.size[1], z: box.size[2],
       }, false, { x: mesh.quaternion.x, y: mesh.quaternion.y, z: mesh.quaternion.z, w: mesh.quaternion.w })
-      if (box.wall) this.staticObstructions.push(mesh)
+      if (box.wall || box.occluder) this.staticObstructions.push(mesh)
       this.addEdgeGlow(mesh, layout.accent)
     }
 
     const columnGeometry = this.geometry(new THREE.CylinderGeometry(0.42, 0.56, 3.6, 8))
     const columnMaterial = this.material(0x34323b, 0.86, 0.18)
     for (const [index, point] of layout.pillars.entries()) {
-      const mesh = new THREE.Mesh(columnGeometry, columnMaterial)
+      const mesh = new THREE.Mesh(columnGeometry, this.cloneMaterial(columnMaterial))
       mesh.name = `pillar-${index}`
       mesh.position.set(point[0], point[1] + 1.3, point[2])
       mesh.castShadow = true
@@ -1149,10 +1171,19 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
     root.name = definition.id
     root.position.copy(position)
+    const cameraOccludingDevice = this.chapter >= 3
+      && (definition.kind === 'elevator' || definition.kind === 'platform' || definition.kind === 'bridge')
     root.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.castShadow = true
         object.receiveShadow = true
+        if (cameraOccludingDevice
+          && (object.name === 'IndustrialPlatformDeck' || object.name === 'IndustrialPlatformInset')) {
+          object.material = Array.isArray(object.material)
+            ? object.material.map((material) => this.cloneMaterial(material))
+            : this.cloneMaterial(object.material)
+          this.staticObstructions.push(object)
+        }
       }
     })
     this.root.add(root)
@@ -1175,8 +1206,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       body,
       mesh: root,
       carriedBy: undefined,
-      upperThrowArmed: false,
-      postCatchFlightArmed: false,
       redirectedCurrentFlight: false,
       carryPosition: position.clone(),
       carryTarget: position.clone(),
@@ -1251,7 +1280,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       z: size.z / 2,
     })
     model.traverse((object) => {
-      if (object instanceof THREE.Mesh) this.staticObstructions.push(object)
+      if (object instanceof THREE.Mesh) {
+        object.material = Array.isArray(object.material)
+          ? object.material.map((material) => this.cloneMaterial(material))
+          : this.cloneMaterial(object.material)
+        this.staticObstructions.push(object)
+      }
     })
   }
 
@@ -1272,8 +1306,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
   }
 
-  private updatePlatforms(tick: number, actors: readonly ActorContext[]): void {
-    const phaseTick = tick + this.platformPhaseOffset
+  private updatePlatforms(_tick: number, actors: readonly ActorContext[]): void {
     for (const device of this.devices.values()) {
       const { definition } = device
       if (!definition.to || !device.body) continue
@@ -1288,16 +1321,23 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         amount = device.motionProgress
       } else if (definition.kind === 'platform') {
         device.active = this.facts.has('core-receiver')
-        amount = device.active ? (Math.sin(phaseTick * 0.018 - Math.PI / 2) + 1) / 2 : 0
+        const boarded = device.active && this.playerBoardedPlatform(device, actors)
+        const ascending = boarded || (device.motionProgress > 0 && device.motionProgress < 1)
+        device.motionProgress = THREE.MathUtils.clamp(
+          device.motionProgress + (device.active && ascending ? 0.008 : -0.008),
+          0,
+          1,
+        )
+        amount = device.motionProgress
       }
       const target = positionOf(definition.to)
       const next = device.basePosition.clone().lerp(target, amount)
       device.delta.copy(next).sub(device.root.position)
       device.root.position.copy(next)
-      const nonBlocking = (this.chapter === 2 && definition.kind === 'elevator' && device.motionProgress > 0)
-        || (this.chapter === 5
-          && (definition.kind === 'elevator' || definition.kind === 'platform')
-          && device.active)
+      const nonBlocking = (this.chapter === 2
+        && definition.kind === 'elevator'
+        && device.motionProgress > 0)
+        || (this.chapter === 5 && definition.kind === 'platform')
       device.body.tag.nonBlocking = nonBlocking
       device.body.collider.setSensor(nonBlocking)
       if (device.body.body.bodyType() !== RAPIER.RigidBodyType.KinematicPositionBased) {
@@ -1489,7 +1529,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   }
 
   /**
-   * Ch3 transfer-lane shutter. The shutter is closed by default and physically
+   * Spatial transfer-lane shutter. The shutter is closed by default and physically
    * blocks dynamic cores/crates (it has a real collider, not a sensor). It opens
    * only when the live Player is currently located on the EAST side of the
    * shutter (the `openZone` field of the device definition, or any position east
@@ -1500,18 +1540,19 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
    * etc.) so the shutter state never leaks from a previous recording timeline.
    */
   private updateShutters(actors: readonly ActorContext[]): void {
-    if (this.chapter !== 3) return
+    if (this.chapter !== 3 && this.chapter !== 5) return
     for (const [, device] of this.devices) {
       if (device.definition.kind !== 'shutter' || !device.body) continue
       const size = device.definition.size ?? [1.4, 1.4, 1.6]
       const openAtX = device.definition.openAtX ?? 0
       const player = actors.find((a) => a.kind === 'player')
       const isOpen = !!player && player.position.x >= openAtX
+      this.physics.setShutterOpen(device.body.collider, isOpen)
       // The authored transform is immutable. Opening lowers the full collider
       // beneath the lower floor instead of stacking offsets every tick or
       // raising it into the Core's flight path.
       const closedY = device.basePosition.y
-      const openY = closedY - (size[1] + size[1] / 2 + 0.1)
+      const openY = -size[1] - 0.5
       const target = {
         x: device.basePosition.x,
         y: isOpen ? openY : closedY,
@@ -1525,6 +1566,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
       const wasOpen = this.shutters.get(device.definition.id)
       this.shutters.set(device.definition.id, isOpen)
+      const spatialFact = `${device.definition.id}:player-east`
+      if (isOpen) this.facts.add(spatialFact)
+      else this.facts.delete(spatialFact)
       if (wasOpen === false && isOpen) this.emitAudio({ type: 'shutter', id: device.definition.id, open: true })
     }
   }
@@ -1532,31 +1576,21 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   private updateOneWayWalls(actors: readonly ActorContext[]): void {
     for (const [, device] of this.devices) {
       if (device.definition.kind !== 'one-way-wall' || !device.body) continue
-      const size = device.definition.size ?? [1.0, 1.6, 1.6]
-      // Player-only trigger: echo and carried dynamic cores/crates must NOT
-      // open the wall. Opening latches only long enough for the current player
-      // to clear the passage, then cannot be reopened from the east side.
+      // The collider remains raised at all times. CharacterMotor ignores it
+      // only for a live Player moving WEST→EAST; Echo and physical Core bodies
+      // always collide, and an east-side Player cannot travel back through it.
       const player = actors.find((actor) => actor.kind === 'player')
-      const wasOpening = this.oneWayOpening.get(device.definition.id) === true
-      const clearedEastEdge = player !== undefined
-        && player.position.x > device.basePosition.x + size[0] / 2 + 0.45
-      const playerCanOpenFromWest = player !== undefined && player.position.x < device.basePosition.x
-      const isOpen = wasOpening ? !clearedEastEdge : playerCanOpenFromWest
-      this.oneWayOpening.set(device.definition.id, isOpen)
-      const closedY = device.basePosition.y
-      // Lower the collider until even its top is below the walkable lower-floor
-      // surface. A player cannot jump over a partially lowered wall.
-      const openY = closedY - (size[1] + size[1] / 2 + 0.12)
-      const target = {
-        x: device.basePosition.x,
-        y: isOpen ? openY : closedY,
-        z: device.basePosition.z,
-      }
+      const playerApproachingFromWest = player !== undefined && player.position.x < device.basePosition.x
+      this.oneWayOpening.set(device.definition.id, playerApproachingFromWest)
+      this.physics.setOneWayWallOpen(device.body.collider, false)
+      device.body.tag.nonBlocking = false
+      const target = this.vec(device.basePosition)
       const t = device.body.body.translation()
       if (Math.abs(t.x - target.x) > 0.01 || Math.abs(t.y - target.y) > 0.01 || Math.abs(t.z - target.z) > 0.01) {
         device.body.body.setNextKinematicTranslation(target)
         if (device.root) device.root.position.set(target.x, target.y, target.z)
       }
+      this.setEmissiveIntensity(device.root.getObjectByName('OneWayWallStripe'), playerApproachingFromWest ? 2.2 : 0.7)
     }
   }
   private updateEnemy(actors: readonly ActorContext[]): void {
@@ -1767,21 +1801,20 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (dynamic.carriedBy) return
     dynamic.carriedBy = actor.kind
     dynamic.body.tag.carried = true
-    const physicalCoreCarry = this.chapter === 3 && dynamic.body.tag.kind === 'core'
+    const physicalCoreCarry = (this.chapter === 3 || this.chapter === 5) && dynamic.body.tag.kind === 'core'
     dynamic.body.collider.setSensor(!physicalCoreCarry)
     this.physics.setDynamicCollisionMode(dynamic.body.collider, physicalCoreCarry)
-    dynamic.upperThrowArmed = false
     dynamic.redirectedCurrentFlight = false
     dynamic.body.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, true)
     this.placeCarriedObject(dynamic, actor, true)
-    // Ch3 removed: 'core-caught' / 'postCatchFlightArmed' pickup-time effects.
+    // Catching transfers the physical Core only; no pickup-time objective state is synthesized.
   }
 
   private dropCarried(dynamic: DynamicRecord): void {
     dynamic.carriedBy = undefined
     dynamic.body.tag.carried = false
     dynamic.body.collider.setSensor(false)
-    this.physics.setDynamicCollisionMode(dynamic.body.collider, false)
+    this.physics.setDynamicCollisionMode(dynamic.body.collider, true)
     dynamic.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
     dynamic.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
     // 직후 catch volume에 재 pickup 방지 (0.5초 cooldown)
@@ -1818,7 +1851,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   private fillReceiver(core: DynamicRecord): boolean {
     if (core.carriedBy || this.receiverFilled || core.body.body.bodyType() !== RAPIER.RigidBodyType.Dynamic) return false
 
-    if (this.chapter === 5 && (!core.upperThrowArmed || !this.facts.has('core-thrown-down') || core.body.body.linvel().y > 0.35)) return false
     this.receiverFilled = true
     core.carriedBy = undefined
     core.body.tag.carried = false
@@ -2015,10 +2047,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       SOLID_SIGHT_KINDS,
     ) !== undefined)
     if (!blocked) {
-      const next = enemy.root.position.clone().add(displacement)
-      if (this.chapter !== 5 || next.distanceToSquared(enemy.basePosition) <= 0.65 ** 2) {
-        enemy.root.position.copy(next)
-      }
+      enemy.root.position.add(displacement)
     }
   }
 
@@ -2082,6 +2111,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       : new THREE.MeshStandardMaterial({ color, roughness, metalness, emissive, emissiveIntensity: emissive ? 0.8 : 0, transparent: opacity < 1, opacity, depthWrite: opacity >= 1 })
     this.materials.push(material)
     return material
+  }
+
+  private cloneMaterial(material: THREE.Material): THREE.Material {
+    const clone = material.clone()
+    this.materials.push(clone)
+    return clone
   }
 
   private vec(vector: THREE.Vector3): Vec3 {
