@@ -2,15 +2,6 @@
 
 Snapshot: 2026-08-17, Asia/Seoul.
 
-## Chapter 4–5 public Sites release — 2026-08-25
-
-- Public game URL: `https://echo-depths-3d.gamedev21210.chatgpt.site`
-- Source branch: `feat/ch4-ch5-temporal-mastery`
-- Hosting: OpenAI Sites, public access
-- Release evidence: production build PASS and Vitest 126/126 before publication
-- Scope: Chapter 4 attention mechanics, Chapter 5 temporal orchestration, hosting adapter, and social preview metadata
-- Existing Vercel projects, aliases, sibling games, and `main` were not changed by this release.
-
 ## Required identity
 
 - GitHub repository: `https://github.com/jhy0285/game-codex-archive`
