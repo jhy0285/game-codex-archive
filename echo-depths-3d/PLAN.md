@@ -1,6 +1,6 @@
 # ECHO DEPTHS — Delivery Plan
 
-Status: implementation authorized on 2026-08-14 (Asia/Seoul).
+Status: original implementation authorized on 2026-08-14; Chapter 4–5 temporal-mastery revision implemented on 2026-08-25 (Asia/Seoul) on `feat/ch4-ch5-temporal-mastery`, based on `fix/echo2-ch3-structural`.
 
 ## Product contract
 
@@ -14,7 +14,7 @@ The project is isolated to `echo-depths-3d/`. The protected projects `404-not-fo
 - Three.js owns the WebGL scene; semantic HUD, menus, touch controls, loading, errors, pause, rotation guidance, and ending remain HTML/CSS.
 - Rapier 3D compatibility build owns collision bodies and colliders. A capsule-based kinematic character controller handles slopes, stairs, gravity, jump, landing, and moving-platform displacement.
 - Render meshes and physics handles are separate records and synchronize after each simulation step.
-- A 60 Hz accumulator drives gameplay. Echo recordings store normalized movement axes, facing/camera intent, and discrete action bits per simulation tick; replay runs the same controller and action resolver from the same chapter snapshot.
+- A 60 Hz accumulator drives gameplay. Echo recordings store normalized movement axes, facing/camera intent, discrete action bits, and tick-aligned transform/facing samples per simulation tick; replay applies those samples through the real Echo kinematic body and sends recorded actions through the same world resolver from the same chapter snapshot.
 - GLTFLoader loads selected KayKit GLTF/GLB files when available. AnimationMixer actions use named clips, normalized locomotion speed, and crossfades for Idle, Walk, Run, Jump, Fall, Land, Carry, Throw, Interact, Attack, Dash, Hit, and Defeat.
 - If the official files require a manual itch.io download, implementation and testing continue with original code-native low-poly visual rigs while preserving the loader/mixer integration point. A release using those temporary rigs is not represented as KayKit-integrated.
 - Shared geometries/materials and instancing are used for repeated dungeon pieces. Pixel ratio is capped and quality defaults adapt for mobile.
@@ -23,7 +23,7 @@ The project is isolated to `echo-depths-3d/`. The protected projects `404-not-fo
 ## Core rules
 
 1. Recording toggles with `R`; confirming creates exactly one echo and restores the mutable chapter snapshot.
-2. The echo replays inputs and actions, never teleports between recorded coordinates, and holds its final input-neutral pose when its recording ends.
+2. The echo follows its recorded transform/facing samples one fixed tick at a time through its kinematic body, replays only recorded actions, and holds its final input-neutral pose when its recording ends. It never plans, tracks a moving Core, auto-interacts, aims, or retries.
 3. Present player and echo do not collide with each other; both can operate plates, levers, carried objects, thrown cores, attacks, and baitable enemy perception.
 4. Object and actor updates have a stable order: input, moving supports, character controller, actions, dynamic objects, devices, enemies, objectives, then presentation.
 5. Catch, redirect, interaction, and simultaneous-device windows use generous spatial/time tolerances.
@@ -46,11 +46,11 @@ Record a lower rotating-bridge lever hold and a core throw toward the atrium. Du
 
 ### 4. THE WATCHER'S GALLERY
 
-Record a route that emerges from cover to lure a fixed-path watcher toward a floor trap. During replay, use pillars and wall occlusion to reach the higher flank, then strike with height-assisted knockback so the watcher falls into the trap or void and releases the seal.
+Record a route to the physical bell and end in a readable sight lane. The bell supplies only an investigation position; actual Echo visibility wins the Watcher's FOV/LOS target selection. During replay, keep the present Player behind cover, climb the higher rear flank, and use one height-qualified directional strike so physical knockback carries the Watcher into the trap and releases the exit.
 
 ### 5. THE PARADOX WELL
 
-Record an echo that holds the lower plate, baits the guardian, and turns its shield lever. The present player rides moving platforms and an elevator, transfers a core between heights, avoids sight cones, attacks the exposed guardian from the opposite/high side, then reaches the upper synchronizer. Current and echo activate different final devices within the escape window and sprint to the portal before time expires.
+Use one recording to make the Echo carry the sole physical Core up the ramp and throw it downward into the receiver. Replace that Echo with a second recording ending on the lower seal. The present Player returns up the ramp, rides the receiver-powered vertical platform, uses cover to reach the high rear flank while the Guardian truly sees the Echo, breaks the seal with the qualified strike, then holds the upper seal simultaneously with the Echo's live lower occupancy to release the final door and timer.
 
 ## Input and presentation
 
@@ -68,8 +68,8 @@ Record an echo that holds the lower plate, baits the guardian, and turns its shi
 4. `npm run test:e2e` covers language/start, real inputs, all five solutions, ending/replay reset, four target layouts, portrait/landscape touch, fullscreen rejection safety, asset HTTP status, overflow, and runtime error collection.
 5. Local browser captures are inspected for every chapter plus portrait and landscape mobile layouts; black frames, missing characters, broken animation, clipped HUD, unreadable text, errors, and failed first-party requests fail the gate.
 6. Only `echo-depths-3d/` paths are staged. The unrelated existing `echo-heist/package-lock.json` change remains untouched.
-7. Meaningful commits are pushed directly to the requested `main` branch.
-8. A new Vercel project named `echo-depths-3d` is linked with this folder as Root Directory. A candidate deployment is verified before production promotion/aliasing, then the public URL and deployment logs are rechecked.
+7. For the 2026-08-25 revision, commits are pushed only to `feat/ch4-ch5-temporal-mastery`; `main` and `fix/echo2-ch3-structural` remain untouched and the change is offered as a stacked pull request.
+8. The 2026-08-25 revision performs no Vercel deployment or production promotion. Earlier deployment records remain historical facts for their recorded commits.
 
 ## Release records
 

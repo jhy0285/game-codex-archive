@@ -11,11 +11,8 @@ export const WORLD_FACT_TO_OBJECTIVE_FACT: Readonly<Record<string, ObjectiveFact
   'lift-lever-echo': 'echo-holding-counterweight-lever',
   'elevator-ridden': 'elevator-reached-upper',
   'cargo-plate': 'cargo-on-weight-plate',
-  'core-caught': 'core-caught-by-player',
-  'core-redirected': 'core-redirected-by-attack',
   'receiver-filled': 'core-in-atrium-receiver',
   'bridge-lever-echo': 'echo-holding-bridge-lever',
-  'core-route-complete': 'bridge-locked',
   'lured-by-echo': 'watcher-lured-by-echo',
   'watcher-trapped': 'watcher-defeated-by-hazard',
   'core-thrown-down': 'core-thrown-down-well',
@@ -25,6 +22,7 @@ export const WORLD_FACT_TO_OBJECTIVE_FACT: Readonly<Record<string, ObjectiveFact
   'lower-seal-echo': 'echo-on-final-plate',
   'upper-seal-player': 'player-holding-final-lever',
   'dual-seal': 'escape-timer-active',
+  'final-door-opened': 'final-door-released',
 }
 
 export const objectiveFactsFromWorld = (

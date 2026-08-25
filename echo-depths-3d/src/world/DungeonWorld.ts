@@ -21,6 +21,7 @@ export type WorldAudioEvent =
   | { type: 'door'; id: string; open: boolean }
   | { type: 'plate'; id: string; pressed: boolean }
   | { type: 'mechanism'; id: string; mechanism: 'elevator' | 'platform' | 'bridge'; moving: boolean }
+  | { type: 'shutter'; id: string; open: boolean }
   | { type: 'receiver'; id: string }
 
 type DeviceRecord = {
@@ -68,7 +69,17 @@ export type WorldDebugState = {
   doors: Record<string, { open: boolean }>
   elevators: Record<string, { y: number; active: boolean }>
   cores: Record<string, { position: Vec3; carriedBy?: ActorKind; receiver: boolean }>
-  enemies: Record<string, { position: Vec3; state: string; target?: ActorKind; defeated: boolean; detection: number }>
+  crates: Record<string, { position: Vec3; carriedBy?: ActorKind }>
+  enemies: Record<string, {
+    position: Vec3
+    forward: Vec3
+    state: string
+    target?: ActorKind
+    targetVisible: boolean
+    defeated: boolean
+    detection: number
+  }>
+  barriers: Record<string, { position: Vec3; open?: boolean }>
   objectiveFacts: string[]
   complete: boolean
   escapeSeconds: number
@@ -108,6 +119,13 @@ export type DungeonWorldSnapshot = {
   enemyForward: Vec3
   enemyKnock: Vec3
   enemyDetection: number
+  enemyTargetVisible: boolean
+  enemyLastKnown: Vec3
+  enemyAlertTicks: number
+  enemySearchTicks: number
+  enemyRecoveryTicks: number
+  enemyStimulusTicks: number
+  enemyStimulusPosition: Vec3
   escapeTicks: number
   timelineTick: number
 }
@@ -121,8 +139,11 @@ const ENEMY_RAY_EXCLUSIONS: ReadonlySet<string> = new Set(['watcher', 'guardian'
 const SOLID_SIGHT_KINDS: ReadonlySet<PhysicsEntityKind> = new Set(['wall', 'door'])
 const WELL_MIN_THROW_DROP = 2.2
 const WELL_THROW_UPWARD_SPEED = 3.4
-const ATRIUM_THROW_SPEED = 5.05
-const ATRIUM_THROW_UPWARD_SPEED = 0.7
+// Ch3's recorded throw clears the shuttered lane, then lands in the east-side
+// catch basin. It deliberately stops short of the receiver so the live Player
+// must pick up this same physical Core and make the final delivery.
+const ATRIUM_THROW_SPEED = 5.2
+const ATRIUM_THROW_UPWARD_SPEED = 1.4
 const CORE_LOST_Y = -4
 const TRAJECTORY_STEP_SECONDS = 0.075
 const TRAJECTORY_MAX_POINTS = 22
@@ -135,6 +156,12 @@ const CARRY_PHYSICS_FORWARD_DISTANCE = 0.86
 const CARRY_PHYSICS_HEIGHT = 1.12
 const CARRY_MINIMUM_FORWARD_GAP = 1.02
 const CARRY_FOLLOW_RATE = 0.72
+const ENEMY_ALERT_TICKS = 18
+const ENEMY_SEARCH_TICKS = 150
+const ENEMY_RECOVERY_TICKS = 72
+const ENEMY_STIMULUS_TICKS = 180
+const WATCHER_REAR_DOT_MAX = -0.25
+const GUARDIAN_REAR_DOT_MAX = -0.45
 
 export const canActorRequestExit = (actor: ActorKind): boolean => actor === 'player'
 
@@ -154,6 +181,12 @@ export class DungeonWorld {
   private readonly root = new THREE.Group()
   private readonly devices = new Map<string, DeviceRecord>()
   private readonly dynamics = new Map<string, DynamicRecord>()
+  /** Live open/closed state per shutter device id (chapter 3 transfer lane). */
+  private readonly shutters = new Map<string, boolean>()
+  /** A player can open a one-way crossing only from its west approach. */
+  private readonly oneWayOpening = new Map<string, boolean>()
+  /** Last known actor position per actor id, used to enforce one-way gate traversal. */
+  private readonly actorPreviousX = new Map<string, number>()
   private readonly materials: THREE.Material[] = []
   private readonly geometries: THREE.BufferGeometry[] = []
   private readonly effects: EffectRecord[] = []
@@ -167,6 +200,13 @@ export class DungeonWorld {
   private readonly enemyForward = new THREE.Vector3(0, 0, 1)
   private enemyKnock = new THREE.Vector3()
   private enemyDetection = 0
+  private enemyTargetVisible = false
+  private readonly enemyLastKnown = new THREE.Vector3()
+  private enemyAlertTicks = 0
+  private enemySearchTicks = 0
+  private enemyRecoveryTicks = 0
+  private enemyStimulusTicks = 0
+  private readonly enemyStimulusPosition = new THREE.Vector3()
   private receiverFilled = false
   private currentTick = 0
   private platformPhaseOffset = 0
@@ -188,9 +228,16 @@ export class DungeonWorld {
     this.root.add(this.playerInteractionOutline, this.echoInteractionOutline)
     this.scene.add(this.root)
     this.build()
+    const enemy = this.devices.get(chapter === 5 ? 'guardian' : 'watcher')
+    const attentionLandmark = this.devices.get(chapter === 5 ? 'lower-seal' : 'lure-bell')
+    if (enemy && attentionLandmark) {
+      this.faceEnemy(enemy, attentionLandmark.root.position.clone().sub(enemy.root.position).setY(0))
+    }
   }
 
   beforePhysics(tick: number, actors: readonly ActorContext[]): void {
+    // Snapshot actor x-positions so updateTemporalGates can detect the direction of crossing.
+    for (const actor of actors) this.actorPreviousX.set(actor.id, actor.position.x)
     this.currentTick = tick
     this.updateHeldLevers(actors)
     this.updatePlatforms(tick, actors)
@@ -214,7 +261,9 @@ export class DungeonWorld {
     this.updateCoreReceiver(actors)
     this.updateEnemy(actors)
     this.updateTrapHazards()
-    this.updateTemporalGates(actors)
+    this.updateTemporalGates()
+    this.updateShutters(actors)
+    this.updateOneWayWalls(actors)
     this.evaluateDerivedFacts(actors)
     this.updateCoreLoss()
     if (this.exitRequestedBy === 'player' && this.canExit()) this.complete = true
@@ -248,10 +297,16 @@ export class DungeonWorld {
       candidate.holdUntilTick = this.currentTick + 24
       this.facts.add(`${definition.id}:${actor.kind}`)
       if (definition.id === 'tutorial-lever') this.facts.add('tutorial-lever')
-      if (definition.id === 'lure-bell' && actor.kind === 'echo') {
-        this.facts.add('lured-by-echo')
-        this.enemyTarget = 'echo'
-        this.enemyState = 'lured'
+      if (definition.id === 'lure-bell') {
+        // The bell is only an audible world-space stimulus. It never grants a
+        // target or puzzle fact by itself; the Watcher must still acquire an
+        // actor through its real FOV and line-of-sight checks.
+        this.enemyStimulusPosition.copy(candidate.root.position)
+        this.enemyStimulusTicks = ENEMY_STIMULUS_TICKS
+        this.enemyLastKnown.copy(candidate.root.position)
+        this.enemySearchTicks = ENEMY_SEARCH_TICKS
+        this.enemyRecoveryTicks = 0
+        this.enemyState = 'alert'
       }
       return definition.kind
     }
@@ -277,6 +332,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     carried.carriedBy = undefined
     carried.body.tag.carried = false
     carried.body.collider.setSensor(false)
+    this.physics.setDynamicCollisionMode(carried.body.collider, false)
     carried.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
     const effectiveDir = direction.clone().normalize()
     const origin = actor.position.clone().add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(effectiveDir, 0.72)
@@ -297,12 +353,18 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   }
 
   attack(actor: ActorContext, direction: THREE.Vector3): string | undefined {
-    const core = [...this.dynamics.values()].find((entry) =>
-      entry.body.tag.kind === 'core'
-      && !entry.carriedBy
-      && !this.receiverFilled
-      && !entry.redirectedCurrentFlight
-      && entry.body.body.bodyType() === RAPIER.RigidBodyType.Dynamic)
+    // Ch3 removed: no air-redirect / catch-time mechanic. The core reaches the receiver
+    // exclusively via the echo's recorded throw. Ch5 may still use the core field for its
+    // own logic, so we keep `redirectedCurrentFlight` but only set it in non-Ch3 chapters.
+    const allowRedirect = this.chapter !== 3 && this.chapter !== 0
+    const core = allowRedirect
+      ? [...this.dynamics.values()].find((entry) =>
+          entry.body.tag.kind === 'core'
+          && !entry.carriedBy
+          && !this.receiverFilled
+          && !entry.redirectedCurrentFlight
+          && entry.body.body.bodyType() === RAPIER.RigidBodyType.Dynamic)
+      : undefined
     if (core) {
       const p = core.body.body.translation()
       const corePosition = new THREE.Vector3(p.x, p.y, p.z)
@@ -311,18 +373,33 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         const redirected = new THREE.Vector3(redirectedState.x, Math.max(2.8, redirectedState.y * 0.45 + 2.6), redirectedState.z)
         core.body.body.setLinvel(redirected, true)
         core.redirectedCurrentFlight = true
-        this.facts.add('core-redirected')
         this.spawnWave(corePosition, 0xc15bf2)
         return 'core'
       }
     }
     const enemy = this.devices.get(this.chapter === 5 ? 'guardian' : 'watcher')
     if (enemy && !this.enemyDefeated && enemy.root.position.distanceTo(actor.position) < 2.6) {
+      const horizontalToActor = actor.position.clone().sub(enemy.root.position).setY(0)
+      const actorSideDot = horizontalToActor.lengthSq() > 0.0001
+        ? horizontalToActor.normalize().dot(this.enemyForward)
+        : 1
       if (this.chapter === 5) {
         const heightAdvantage = actor.position.y - enemy.root.position.y
-        if (actor.kind === 'player' && this.enemyTarget === 'echo' && heightAdvantage > 1.3) {
+        const directionToEnemy = enemy.root.position.clone().sub(actor.position).setY(0)
+        const strikeDirection = direction.clone().setY(0).normalize()
+        const strikeAimed = directionToEnemy.lengthSq() > 0.0001
+          && strikeDirection.dot(directionToEnemy.normalize()) > 0.5
+        if (
+          actor.kind === 'player'
+          && this.enemyTarget === 'echo'
+          && this.enemyTargetVisible
+          && actorSideDot <= GUARDIAN_REAR_DOT_MAX
+          && heightAdvantage > 1.3
+          && strikeAimed
+        ) {
           this.enemyDefeated = true
           this.enemyState = 'sealed'
+          this.enemyTargetVisible = false
           this.facts.add('guardian-defeated')
           this.spawnWave(enemy.root.position, 0x8e6dff)
           return 'guardian'
@@ -330,9 +407,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         this.failureReason = 'guardian-shield'
         return 'shield'
       }
+      const heightAdvantage = actor.position.y - enemy.root.position.y
+      if (actor.kind !== 'player' || actorSideDot > WATCHER_REAR_DOT_MAX || heightAdvantage < 0.8) {
+        this.failureReason = 'watcher-facing'
+        return 'shield'
+      }
       const result = computeKnockback({
-        position: this.vec(actor.position), forward: this.vec(direction), range: 2.6, halfAngleRadians: Math.PI * 0.62,
-        baseStrength: 0.19, upwardStrength: 0, heightAdvantageThreshold: 1.3, heightAdvantageMultiplier: 1.65,
+        position: this.vec(actor.position), forward: this.vec(direction), range: 2.6, halfAngleRadians: Math.PI * 0.42,
+        baseStrength: 0.24, upwardStrength: 0, heightAdvantageThreshold: 1.3, heightAdvantageMultiplier: 1.55,
       }, { position: this.vec(enemy.root.position), mass: 1, radius: 0.55 })
       if (!result.hit) return undefined
       this.enemyKnock.set(result.impulse.x, 0, result.impulse.z)
@@ -421,7 +503,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const doors: WorldDebugState['doors'] = {}
     const elevators: WorldDebugState['elevators'] = {}
     const cores: WorldDebugState['cores'] = {}
+    const crates: WorldDebugState['crates'] = {}
     const enemies: WorldDebugState['enemies'] = {}
+    const barriers: WorldDebugState['barriers'] = {}
     for (const [id, device] of this.devices) {
       if (device.definition.kind === 'plate') pressurePlates[id] = withOptionalActor(device.active, device.actor)
       if (device.definition.kind === 'lever') levers[id] = withOptionalActor(device.active, device.actor)
@@ -431,42 +515,43 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
       if (device.definition.kind === 'enemy') {
         const target = this.enemyTarget
+        const shared = {
+          position: this.vec(device.root.position),
+          forward: this.vec(this.enemyForward),
+          state: this.enemyState,
+          targetVisible: this.enemyTargetVisible,
+          defeated: this.enemyDefeated,
+          detection: Number(this.enemyDetection.toFixed(3)),
+        }
         enemies[id] = target
-          ? { position: this.vec(device.root.position), state: this.enemyState, target, defeated: this.enemyDefeated, detection: Number(this.enemyDetection.toFixed(3)) }
-          : { position: this.vec(device.root.position), state: this.enemyState, defeated: this.enemyDefeated, detection: Number(this.enemyDetection.toFixed(3)) }
+          ? { ...shared, target }
+          : shared
+      }
+      if (device.definition.kind === 'gate' || device.definition.kind === 'shutter' || device.definition.kind === 'one-way-wall') {
+        const position = device.body?.body.translation() ?? device.root.position
+        const open = device.definition.kind === 'shutter' ? this.shutters.get(device.definition.id) : undefined
+        barriers[device.definition.id] = open === undefined
+          ? { position: { x: position.x, y: position.y, z: position.z } }
+          : { position: { x: position.x, y: position.y, z: position.z }, open }
       }
     }
     for (const [id, dynamic] of this.dynamics) {
-      if (dynamic.body.tag.kind !== 'core') continue
       const p = dynamic.body.body.translation()
+      if (dynamic.body.tag.kind === 'crate') {
+        crates[id] = dynamic.carriedBy
+          ? { position: { x: p.x, y: p.y, z: p.z }, carriedBy: dynamic.carriedBy }
+          : { position: { x: p.x, y: p.y, z: p.z } }
+        continue
+      }
+      if (dynamic.body.tag.kind !== 'core') continue
       cores[id] = dynamic.carriedBy
         ? { position: { x: p.x, y: p.y, z: p.z }, carriedBy: dynamic.carriedBy, receiver: this.receiverFilled }
         : { position: { x: p.x, y: p.y, z: p.z }, receiver: this.receiverFilled }
     }
     return {
-      facts: [...this.facts].sort(), pressurePlates, levers, doors, elevators, cores, enemies,
+      facts: [...this.facts].sort(), pressurePlates, levers, doors, elevators, cores, crates, enemies, barriers,
       objectiveFacts: this.requiredFacts(), complete: this.complete, escapeSeconds: Number((this.escapeTicks / 60).toFixed(1)),
     }
-  }
-
-  performDebugSolutionStep(step: number, player: ActorContext, echo: ActorContext | undefined): void {
-    const required = this.requiredFacts()
-    if (step < required.length) {
-      const fact = required[step]
-      if (fact) {
-        this.facts.add(fact)
-        this.applyDebugDeviceFact(fact)
-      }
-    }
-    if (this.chapter === 1 && step === 0) this.facts.add('tutorial-lever')
-    if (this.chapter === 5 && this.facts.has('dual-seal') && this.escapeTicks === 0) this.escapeTicks = 35 * 60
-    if (step >= required.length) {
-      const exit = this.devices.get('exit')
-      if (exit) player.position.copy(exit.root.position)
-      this.exitRequestedBy = 'player'
-      this.complete = this.canExit()
-    }
-    if (echo && this.chapter > 0) void echo
   }
 
   resetFailure(): void {
@@ -535,6 +620,13 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       enemyForward: this.vec(this.enemyForward),
       enemyKnock: this.vec(this.enemyKnock),
       enemyDetection: this.enemyDetection,
+      enemyTargetVisible: this.enemyTargetVisible,
+      enemyLastKnown: this.vec(this.enemyLastKnown),
+      enemyAlertTicks: this.enemyAlertTicks,
+      enemySearchTicks: this.enemySearchTicks,
+      enemyRecoveryTicks: this.enemyRecoveryTicks,
+      enemyStimulusTicks: this.enemyStimulusTicks,
+      enemyStimulusPosition: this.vec(this.enemyStimulusPosition),
       escapeTicks: this.escapeTicks,
       timelineTick: this.currentTick + this.platformPhaseOffset,
     }
@@ -555,6 +647,17 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     this.enemyForward.set(snapshot.enemyForward.x, snapshot.enemyForward.y, snapshot.enemyForward.z)
     this.enemyKnock.set(snapshot.enemyKnock.x, snapshot.enemyKnock.y, snapshot.enemyKnock.z)
     this.enemyDetection = snapshot.enemyDetection
+    this.enemyTargetVisible = snapshot.enemyTargetVisible
+    this.enemyLastKnown.set(snapshot.enemyLastKnown.x, snapshot.enemyLastKnown.y, snapshot.enemyLastKnown.z)
+    this.enemyAlertTicks = snapshot.enemyAlertTicks
+    this.enemySearchTicks = snapshot.enemySearchTicks
+    this.enemyRecoveryTicks = snapshot.enemyRecoveryTicks
+    this.enemyStimulusTicks = snapshot.enemyStimulusTicks
+    this.enemyStimulusPosition.set(
+      snapshot.enemyStimulusPosition.x,
+      snapshot.enemyStimulusPosition.y,
+      snapshot.enemyStimulusPosition.z,
+    )
     this.escapeTicks = snapshot.escapeTicks
     this.platformPhaseOffset = snapshot.timelineTick
     this.complete = false
@@ -577,7 +680,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
           || device.definition.kind === 'platform'
           || device.definition.kind === 'bridge'
         if (movingSurface) {
-          const nonBlocking = this.chapter === 2 && device.definition.kind === 'elevator' && saved.motionProgress > 0
+          const nonBlocking = (this.chapter === 2 && device.definition.kind === 'elevator' && saved.motionProgress > 0)
+            || (this.chapter === 5
+              && (device.definition.kind === 'elevator' || device.definition.kind === 'platform')
+              && saved.active)
           device.body.tag.nonBlocking = nonBlocking
           device.body.collider.setSensor(nonBlocking)
         }
@@ -593,7 +699,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       if (!dynamic) continue
       dynamic.carriedBy = remapActor(saved.carriedBy)
       dynamic.body.tag.carried = Boolean(dynamic.carriedBy)
-      dynamic.body.collider.setSensor(Boolean(dynamic.carriedBy))
+      const physicalCoreCarry = this.chapter === 3 && dynamic.body.tag.kind === 'core' && Boolean(dynamic.carriedBy)
+      dynamic.body.collider.setSensor(Boolean(dynamic.carriedBy) && !physicalCoreCarry)
+      this.physics.setDynamicCollisionMode(dynamic.body.collider, physicalCoreCarry)
       dynamic.upperThrowArmed = saved.upperThrowArmed
       dynamic.postCatchFlightArmed = saved.postCatchFlightArmed
       dynamic.redirectedCurrentFlight = saved.redirectedCurrentFlight
@@ -623,6 +731,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       dynamic.carriedBy = undefined
       dynamic.body.tag.carried = false
       dynamic.body.collider.setSensor(false)
+      this.physics.setDynamicCollisionMode(dynamic.body.collider, false)
       dynamic.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
       dynamic.body.body.setLinvel({ x: 0, y: 0.2, z: 0 }, true)
       dynamic.body.body.setAngvel({ x: 0, y: 0, z: 0 }, true)
@@ -635,6 +744,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
     if (this.enemyTarget === actor) {
       this.enemyTarget = undefined
+      this.enemyTargetVisible = false
       if (!this.enemyDefeated) this.enemyState = 'patrol'
       this.enemyDetection = 0
     }
@@ -784,8 +894,47 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const base = this.boxMesh([size[0], 0.06, size[2] * 0.5], baseMat); base.name = 'TemporalGateBase'
       base.position.y = -size[1]
       root.add(leftPost, rightPost, beam, base)
-      body = this.physics.createSensor(definition.id, 'gate', this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
-      } else if (definition.kind === 'door') {
+      // The gate is a real collider. Rapier collision groups make it solid to
+      // dynamic puzzle objects while Player/Echo capsules pass through.
+      body = this.physics.createCoreBarrier(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
+    } else if (definition.kind === 'shutter') {
+      // Physical shutter for Ch3 core transfer lane. Closed by default (blocks
+      // dynamic cores/crates). Opens when the live Player is in EAST (so the
+      // recorded-timeline shutter state never leaks across rebuilds).
+      root = new THREE.Group()
+      const slatMat = this.material(0xc15bf2, 0.34, 0.6, 0x6b3a92)
+      for (let i = 0; i < 4; i += 1) {
+        const slat = this.boxMesh([size[0] * 0.42, size[1] * 0.18, 0.05], slatMat.clone())
+        slat.name = 'TransferShutterSlat'
+        slat.position.set(0, -size[1] * 0.5 + (i + 0.5) * (size[1] * 0.25), 0)
+        root.add(slat)
+      }
+      const frameMat = this.material(0x2a1a3a, 0.5, 0.5, 0x4a2a5a)
+      const top = this.boxMesh([size[0] * 0.46, 0.04, 0.04], frameMat); top.name = 'TransferShutterFrame'
+      top.position.y = size[1] * 0.5 + 0.02
+      root.add(top)
+      body = this.physics.createShutter(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
+    } else if (definition.kind === 'one-way-wall') {
+      // Ch3 one-way physical wall. Collider is always present (real collision);
+      // the body translates DOWN by `openOffsetY` when an actor approaches from
+      // the WEST side, and UP back to closed position otherwise. No actor
+      // position mutation — the motor collides naturally with the body.
+      root = new THREE.Group()
+      const wallMat = this.material(0x4a3a78, 0.5, 0.7, 0x8d62ff)
+      const wall = this.boxMesh(size, wallMat)
+      wall.name = 'OneWayWall'
+      wall.castShadow = true
+      const stripeMat = this.material(accent, 0.3, 0.55, accent)
+      const stripe = this.boxMesh([size[0] * 0.6, 0.08, size[2] * 0.05], stripeMat)
+      stripe.name = 'OneWayWallStripe'
+      stripe.position.y = size[1] * 0.6
+      root.add(wall, stripe)
+      body = this.physics.createOneWayWall(definition.id, this.vec(position), {
+        x: size[0] / 2,
+        y: size[1] / 2,
+        z: size[2] / 2,
+      })
+    } else if (definition.kind === 'door') {
       root = new THREE.Group()
       const doorCore = this.boxMesh(size, this.material(0x1d2c36, 0.52, 0.68))
       doorCore.name = 'VaultDoorCore'
@@ -1145,7 +1294,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const next = device.basePosition.clone().lerp(target, amount)
       device.delta.copy(next).sub(device.root.position)
       device.root.position.copy(next)
-      const nonBlocking = this.chapter === 2 && definition.kind === 'elevator' && device.motionProgress > 0
+      const nonBlocking = (this.chapter === 2 && definition.kind === 'elevator' && device.motionProgress > 0)
+        || (this.chapter === 5
+          && (definition.kind === 'elevator' || definition.kind === 'platform')
+          && device.active)
       device.body.tag.nonBlocking = nonBlocking
       device.body.collider.setSensor(nonBlocking)
       if (device.body.body.bodyType() !== RAPIER.RigidBodyType.KinematicPositionBased) {
@@ -1197,6 +1349,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       if (device.definition.kind !== 'door' || !device.body) continue
       const wasOpen = device.active
       device.active = open
+      if (this.chapter === 5 && open) this.facts.add('final-door-opened')
       if (wasOpen !== open) this.emitAudio({ type: 'door', id: device.definition.id, open })
       const targetY = device.basePosition.y + (open ? 4.8 : 0)
       device.root.position.y = THREE.MathUtils.lerp(device.root.position.y, targetY, 0.1)
@@ -1284,11 +1437,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       .intersections(receiver.body.collider, CORE_KIND)
       .some((record) => record.tag.id === core.id)
     if (coreInsideReceiver && this.fillReceiver(core)) return
-    if (!core.carriedBy) {
+    if (!core.carriedBy && this.chapter !== 3) {
+      // Ch3 removed: frame-precision catch mechanic. The echo records its own pickup,
+      // the player records their own pickup after recording — no auto-catch on interactHeld.
       const player = actors.find((actor) => actor.kind === 'player')
       if (player && !core.recentlyDropped && isWithinCatchVolume(this.vec(player.position), this.vec(corePosition)) && player.interactHeld) {
         this.toggleCarry(player, core.id)
-        this.facts.add('core-caught')
       }
     }
   }
@@ -1305,40 +1459,106 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
   }
 
-    private updateTemporalGates(actors: readonly ActorContext[]): void {
+  private updateTemporalGates(): void {
     for (const [, device] of this.devices) {
       if (device.definition.kind !== 'gate' || !device.body) continue
-      const size = device.definition.size ?? [0.6, 0.6, 0.6]
-      const gx = device.root.position.x
-      const gy = device.root.position.y
-      const gz = device.root.position.z
-      const halfX = size[0] / 2
-      const halfY = size[1] / 2
-      const halfZ = size[2] / 2
-      // Find actors in the gate volume
-      const actorsInGate: ActorContext[] = []
-      for (const actor of actors) {
-        const ax = actor.position.x
-        const ay = actor.position.y
-        const az = actor.position.z
-        if (Math.abs(ax - gx) <= halfX + 0.5 && Math.abs(ay - gy) <= halfY + 1 && Math.abs(az - gz) <= halfZ + 0.5) {
-          actorsInGate.push(actor)
-        }
+      // A carried Core keeps a non-sensor collider while crossing the gate.
+      // If Rapier reports contact, drop it at the contact position. There is
+      // deliberately no coordinate correction or synthetic puzzle fact here;
+      // the fixed collider and collision policy are the rejection mechanism.
+      for (const record of this.physics.intersections(device.body.collider, new Set(['core', 'crate']))) {
+        const dynamic = this.dynamics.get(record.tag.id)
+        if (dynamic?.carriedBy) this.dropCarried(dynamic)
       }
-      // For each actor, check if they are carrying a dynamic core/crate
-      for (const actor of actorsInGate) {
-        const carried = [...this.dynamics.values()].find((entry) => entry.carriedBy === actor.kind)
-        if (carried && (carried.body.tag.kind === 'core' || carried.body.tag.kind === 'crate')) {
-          // Reject: drop the core/crate at the west edge of the gate
-          this.dropCarried(carried)
-          carried.body.body.setTranslation({ x: gx - halfX - 0.6, y: gy, z: gz }, true)
-          carried.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
-          this.facts.add('temporal-gate-rejected')
+      // Kinematic carried bodies do not always produce an intersection pair
+      // when their target is advanced in the same Rapier step. Use the authored
+      // collider bounds only to detect contact and release the object; never
+      // move or reset its transform here.
+      const gatePosition = device.body.body.translation()
+      const gateSize = device.definition.size ?? [0.6, 0.6, 0.6]
+      for (const dynamic of this.dynamics.values()) {
+        if (!dynamic.carriedBy) continue
+        const p = dynamic.body.body.translation()
+        if (Math.abs(p.x - gatePosition.x) <= gateSize[0] / 2 + 0.5
+          && Math.abs(p.y - gatePosition.y) <= gateSize[1] / 2 + 0.6
+          && Math.abs(p.z - gatePosition.z) <= gateSize[2] / 2 + 0.5) {
+          this.dropCarried(dynamic)
         }
       }
     }
   }
 
+  /**
+   * Ch3 transfer-lane shutter. The shutter is closed by default and physically
+   * blocks dynamic cores/crates (it has a real collider, not a sensor). It opens
+   * only when the live Player is currently located on the EAST side of the
+   * shutter (the `openZone` field of the device definition, or any position east
+   * of the shutter's center x by default). When opened, the body is translated
+   * downward so the lane is clear; when closed, the body sits in the lane.
+   *
+   * This deliberately ignores provenance facts (`EchoUsed`, `CoreThrownByEcho`,
+   * etc.) so the shutter state never leaks from a previous recording timeline.
+   */
+  private updateShutters(actors: readonly ActorContext[]): void {
+    if (this.chapter !== 3) return
+    for (const [, device] of this.devices) {
+      if (device.definition.kind !== 'shutter' || !device.body) continue
+      const size = device.definition.size ?? [1.4, 1.4, 1.6]
+      const openAtX = device.definition.openAtX ?? 0
+      const player = actors.find((a) => a.kind === 'player')
+      const isOpen = !!player && player.position.x >= openAtX
+      // The authored transform is immutable. Opening lowers the full collider
+      // beneath the lower floor instead of stacking offsets every tick or
+      // raising it into the Core's flight path.
+      const closedY = device.basePosition.y
+      const openY = closedY - (size[1] + size[1] / 2 + 0.1)
+      const target = {
+        x: device.basePosition.x,
+        y: isOpen ? openY : closedY,
+        z: device.basePosition.z,
+      }
+      const t = device.body.body.translation()
+      // Only move when the body is meaningfully off target — avoids jitter.
+      if (Math.abs(t.x - target.x) > 0.01 || Math.abs(t.y - target.y) > 0.01 || Math.abs(t.z - target.z) > 0.01) {
+        device.body.body.setNextKinematicTranslation(target)
+        if (device.root) device.root.position.set(target.x, target.y, target.z)
+      }
+      const wasOpen = this.shutters.get(device.definition.id)
+      this.shutters.set(device.definition.id, isOpen)
+      if (wasOpen === false && isOpen) this.emitAudio({ type: 'shutter', id: device.definition.id, open: true })
+    }
+  }
+
+  private updateOneWayWalls(actors: readonly ActorContext[]): void {
+    for (const [, device] of this.devices) {
+      if (device.definition.kind !== 'one-way-wall' || !device.body) continue
+      const size = device.definition.size ?? [1.0, 1.6, 1.6]
+      // Player-only trigger: echo and carried dynamic cores/crates must NOT
+      // open the wall. Opening latches only long enough for the current player
+      // to clear the passage, then cannot be reopened from the east side.
+      const player = actors.find((actor) => actor.kind === 'player')
+      const wasOpening = this.oneWayOpening.get(device.definition.id) === true
+      const clearedEastEdge = player !== undefined
+        && player.position.x > device.basePosition.x + size[0] / 2 + 0.45
+      const playerCanOpenFromWest = player !== undefined && player.position.x < device.basePosition.x
+      const isOpen = wasOpening ? !clearedEastEdge : playerCanOpenFromWest
+      this.oneWayOpening.set(device.definition.id, isOpen)
+      const closedY = device.basePosition.y
+      // Lower the collider until even its top is below the walkable lower-floor
+      // surface. A player cannot jump over a partially lowered wall.
+      const openY = closedY - (size[1] + size[1] / 2 + 0.12)
+      const target = {
+        x: device.basePosition.x,
+        y: isOpen ? openY : closedY,
+        z: device.basePosition.z,
+      }
+      const t = device.body.body.translation()
+      if (Math.abs(t.x - target.x) > 0.01 || Math.abs(t.y - target.y) > 0.01 || Math.abs(t.z - target.z) > 0.01) {
+        device.body.body.setNextKinematicTranslation(target)
+        if (device.root) device.root.position.set(target.x, target.y, target.z)
+      }
+    }
+  }
   private updateEnemy(actors: readonly ActorContext[]): void {
     const id = this.chapter === 5 ? 'guardian' : 'watcher'
     const enemy = this.devices.get(id)
@@ -1350,51 +1570,91 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const player = actors.find((actor) => actor.kind === 'player')
     const seesEcho = echo ? this.hasLineOfSight(enemy.root.position, echo.position) : false
     const seesPlayer = player ? this.hasLineOfSight(enemy.root.position, player.position) : false
-    if (this.chapter === 4 && this.facts.has('lured-by-echo')) {
-      this.enemyTarget = 'echo'
-      this.enemyState = 'lured'
-      this.enemyDetection = Math.max(0, this.enemyDetection - 0.035)
-    } else if (echo && seesEcho) {
-      this.enemyTarget = 'echo'
-      this.enemyState = 'lured'
-      this.facts.add(this.chapter === 5 ? 'guardian-target-echo' : 'lured-by-echo')
-      this.enemyDetection = Math.max(0, this.enemyDetection - 0.035)
-    } else if (player && seesPlayer) {
-      this.enemyTarget = 'player'
-      this.enemyState = 'alert'
-      if (this.chapter === 4) {
-        this.enemyDetection = Math.min(1, this.enemyDetection + 1 / 90)
+    const visibleActors = [
+      ...(echo && seesEcho ? [echo] : []),
+      ...(player && seesPlayer ? [player] : []),
+    ]
+    const retainedTarget = visibleActors.find((actor) => actor.kind === this.enemyTarget)
+    const visibleTarget = retainedTarget ?? visibleActors
+      .sort((a, b) => a.position.distanceToSquared(enemy.root.position) - b.position.distanceToSquared(enemy.root.position))[0]
+
+    if (visibleTarget) {
+      const changedTarget = this.enemyTarget !== visibleTarget.kind
+      this.enemyTarget = visibleTarget.kind
+      this.enemyTargetVisible = true
+      this.enemyLastKnown.copy(visibleTarget.position)
+      this.enemySearchTicks = ENEMY_SEARCH_TICKS
+      this.enemyRecoveryTicks = 0
+      this.enemyStimulusTicks = 0
+      if (changedTarget || ['patrol', 'investigate', 'recovery'].includes(this.enemyState)) {
+        this.enemyAlertTicks = ENEMY_ALERT_TICKS
+      }
+      if (this.enemyAlertTicks > 0) {
+        this.enemyState = 'alert'
+        this.enemyAlertTicks -= 1
+      } else {
+        this.enemyState = 'chase'
+      }
+      if (visibleTarget.kind === 'echo') {
+        this.facts.add(this.chapter === 5 ? 'guardian-target-echo' : 'lured-by-echo')
+        this.enemyDetection = Math.max(0, this.enemyDetection - 1 / 45)
+      } else if (this.chapter === 4) {
+        this.enemyDetection = Math.min(1, this.enemyDetection + 1 / 120)
         if (this.enemyDetection >= 1) {
           this.failed = true
           this.failureReason = 'seen'
         }
       }
     } else {
-      this.enemyDetection = Math.max(0, this.enemyDetection - 1 / 120)
-      if (this.enemyTarget === 'player') {
-        this.enemyTarget = undefined
+      const hadTarget = this.enemyTarget !== undefined
+      this.enemyTarget = undefined
+      this.enemyTargetVisible = false
+      this.enemyAlertTicks = 0
+      this.enemyDetection = Math.max(0, this.enemyDetection - 1 / 180)
+      if (this.enemyStimulusTicks > 0) {
+        this.enemyStimulusTicks -= 1
+        this.enemyLastKnown.copy(this.enemyStimulusPosition)
+        this.enemySearchTicks = Math.max(this.enemySearchTicks, this.enemyStimulusTicks)
+        this.enemyState = 'investigate'
+      } else if (hadTarget || this.enemySearchTicks > 0) {
+        this.enemySearchTicks = Math.max(0, this.enemySearchTicks - 1)
+        this.enemyState = 'investigate'
+        if (this.enemySearchTicks === 0) this.enemyRecoveryTicks = ENEMY_RECOVERY_TICKS
+      } else if (this.enemyRecoveryTicks > 0) {
+        this.enemyRecoveryTicks -= 1
+        this.enemyState = 'recovery'
+      } else {
         this.enemyState = 'patrol'
       }
     }
     if (this.enemyKnock.lengthSq() > 0.0001) {
-      this.faceEnemy(enemy, this.enemyKnock)
       this.moveEnemy(enemy, this.enemyKnock)
       this.enemyKnock.multiplyScalar(0.92)
-    } else if (this.enemyTarget) {
-      if (this.chapter !== 4) {
-        const target = actors.find((actor) => actor.kind === this.enemyTarget)
-        if (target) {
-          const direction = target.position.clone().sub(enemy.root.position).setY(0)
-          const distance = direction.length()
-          if (distance > 0.35) {
-            this.faceEnemy(enemy, direction)
-            this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.018 : 0.028))
-          }
-          if (this.chapter === 5 && this.enemyTarget === 'player' && distance < 1.2) {
-            this.failed = true
-            this.failureReason = 'guardian'
-          }
-        }
+      this.enemyState = 'knocked'
+    } else if (visibleTarget) {
+      const direction = visibleTarget.position.clone().sub(enemy.root.position).setY(0)
+      const distance = direction.length()
+      this.faceEnemy(enemy, direction)
+      if (this.enemyState === 'chase' && distance > 0.75) {
+        this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.008 : 0.006))
+      }
+      if (this.chapter === 5 && visibleTarget.kind === 'player' && this.enemyState === 'chase' && distance < 1.25) {
+        this.failed = true
+        this.failureReason = 'guardian'
+      }
+    } else if (this.enemyState === 'investigate') {
+      const direction = this.enemyLastKnown.clone().sub(enemy.root.position).setY(0)
+      if (direction.length() > 0.28) {
+        this.faceEnemy(enemy, direction)
+        this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.012 : 0.021))
+      } else {
+        this.enemyForward.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.018).normalize()
+        enemy.root.rotation.y = Math.atan2(this.enemyForward.x, this.enemyForward.z)
+      }
+    } else if (this.enemyState === 'recovery') {
+      if (enemy.definition.to) {
+        const patrolTarget = this.enemyDirection > 0 ? positionOf(enemy.definition.to) : enemy.basePosition
+        this.faceEnemy(enemy, patrolTarget.sub(enemy.root.position).setY(0))
       }
     } else if (enemy.definition.to) {
       const a = enemy.basePosition
@@ -1406,6 +1666,11 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         this.faceEnemy(enemy, direction)
         this.moveEnemy(enemy, direction.normalize().multiplyScalar(0.022))
       }
+    } else if (this.enemyState === 'patrol') {
+      // Stationary sentries still sweep their authored field instead of
+      // behaving as a frozen trigger volume.
+      this.enemyForward.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.006).normalize()
+      enemy.root.rotation.y = Math.atan2(this.enemyForward.x, this.enemyForward.z)
     }
     enemy.body.body.setNextKinematicTranslation(this.vec(enemy.root.position))
     enemy.body.body.setNextKinematicRotation({
@@ -1426,9 +1691,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.failed = true
       this.failureReason = 'trap'
     }
-    if (!this.enemyDefeated && hasEnemy) {
+    if (!this.enemyDefeated && hasEnemy && this.enemyState === 'knocked') {
       this.enemyDefeated = true
       this.enemyState = 'trapped'
+      this.enemyTargetVisible = false
       this.facts.add('watcher-trapped')
       this.spawnWave(trap.root.position, 0xe95757)
     }
@@ -1465,14 +1731,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const upperHeldByPlayer = this.deviceHeldBy('upper-seal', 'player')
       if (lowerHeldByEcho) this.facts.add('lower-seal-echo')
       else this.facts.delete('lower-seal-echo')
-      if (lowerHeldByEcho && this.facts.has('core-receiver')) {
-        this.enemyTarget = 'echo'
-        this.enemyState = 'lured'
-        this.facts.add('guardian-target-echo')
-      }
       if (upperHeldByPlayer) this.facts.add('upper-seal-player')
       else this.facts.delete('upper-seal-player')
-      if (lowerHeldByEcho && upperHeldByPlayer && this.facts.has('guardian-defeated')) {
+      if (
+        lowerHeldByEcho
+        && upperHeldByPlayer
+        && this.facts.has('core-receiver')
+        && this.facts.has('guardian-defeated')
+      ) {
         this.facts.add('dual-seal')
         if (this.escapeTicks === 0) this.escapeTicks = 35 * 60
       }
@@ -1501,21 +1767,21 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (dynamic.carriedBy) return
     dynamic.carriedBy = actor.kind
     dynamic.body.tag.carried = true
-    dynamic.body.collider.setSensor(true)
+    const physicalCoreCarry = this.chapter === 3 && dynamic.body.tag.kind === 'core'
+    dynamic.body.collider.setSensor(!physicalCoreCarry)
+    this.physics.setDynamicCollisionMode(dynamic.body.collider, physicalCoreCarry)
     dynamic.upperThrowArmed = false
     dynamic.redirectedCurrentFlight = false
     dynamic.body.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, true)
     this.placeCarriedObject(dynamic, actor, true)
-    if (id.includes('core') && actor.kind === 'player' && this.facts.has('core-thrown-by-echo')) {
-      this.facts.add('core-caught')
-      dynamic.postCatchFlightArmed = true
-    }
+    // Ch3 removed: 'core-caught' / 'postCatchFlightArmed' pickup-time effects.
   }
 
   private dropCarried(dynamic: DynamicRecord): void {
     dynamic.carriedBy = undefined
     dynamic.body.tag.carried = false
     dynamic.body.collider.setSensor(false)
+    this.physics.setDynamicCollisionMode(dynamic.body.collider, false)
     dynamic.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
     dynamic.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
     // 직후 catch volume에 재 pickup 방지 (0.5초 cooldown)
@@ -1569,7 +1835,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.emitAudio({ type: 'receiver', id: receiver.definition.id })
     }
     this.facts.add(this.chapter === 5 ? 'core-receiver' : 'receiver-filled')
-    if (this.chapter === 3 && this.facts.has('core-redirected')) this.facts.add('core-route-complete')
+    // Ch3 removed: 'core-route-complete' (only ever added if 'core-redirected' was present).
     return true
   }
 
@@ -1678,13 +1944,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       return this.facts.has('receiver-filled')
     }
     if (this.chapter === 4) {
-      return this.facts.has('lured-by-echo') && this.facts.has('watcher-trapped')
+      return this.facts.has('watcher-trapped')
     }
-    return this.deviceHeldBy('lower-seal', 'echo')
-      && this.deviceHeldBy('upper-seal', 'player')
-      && this.facts.has('core-thrown-down')
-      && this.facts.has('core-receiver')
-      && this.facts.has('guardian-target-echo')
+    return this.facts.has('core-receiver')
       && this.facts.has('guardian-defeated')
       && this.facts.has('dual-seal')
       && this.escapeTicks > 0
@@ -1701,40 +1963,31 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     return device?.active === true && device.actor === actor
   }
 
-  private applyDebugDeviceFact(fact: string): void {
-    const activate = (id: string, actor?: ActorKind) => {
-      const device = this.devices.get(id)
-      if (!device) return
-      device.active = true
-      device.actor = actor
-      device.holdUntilTick = Number.MAX_SAFE_INTEGER
-    }
-    if (fact === 'echo-plate') activate('echo-plate')
-    if (fact === 'lift-lever-echo') activate('lift-lever', 'echo')
-    if (fact === 'cargo-plate') activate('weight-plate')
-    if (fact === 'bridge-lever-echo') activate('bridge-lever', 'echo')
-    if (fact === 'lower-seal-echo') activate('lower-seal', 'echo')
-    if (fact === 'upper-seal-player') activate('upper-seal', 'player')
-  }
-
   private requiredFacts(): string[] {
     if (this.chapter === 0) return []
     if (this.chapter === 1) return ['tutorial-lever', 'echo-plate']
     if (this.chapter === 2) return ['lift-lever-echo', 'elevator-ridden', 'cargo-plate']
     if (this.chapter === 3) return ['receiver-filled']
-    if (this.chapter === 4) return ['lured-by-echo', 'watcher-trapped']
-    return ['core-thrown-down', 'core-receiver', 'guardian-target-echo', 'guardian-defeated', 'lower-seal-echo', 'upper-seal-player', 'dual-seal']
+    if (this.chapter === 4) return ['watcher-trapped']
+    return ['core-receiver', 'guardian-defeated', 'final-door-opened']
   }
 
   private hasLineOfSight(from: THREE.Vector3, to: THREE.Vector3): boolean {
-    const direction = to.clone().sub(from)
+    const eye = from.clone().add(new THREE.Vector3(0, 0.62, 0))
+    const target = to.clone().add(new THREE.Vector3(0, 0.62, 0))
+    const direction = target.clone().sub(eye)
     const distance = direction.length()
+    const fovRadians = this.enemyState === 'patrol'
+      ? Math.PI * 0.62
+      : this.enemyState === 'recovery'
+        ? Math.PI * 0.72
+        : Math.PI * 0.94
     if (!canSeeTarget({
-      position: this.vec(from), forward: this.vec(this.enemyForward), range: this.chapter === 5 ? 7.5 : 6.5,
-      fovRadians: this.enemyState === 'patrol' ? Math.PI * 0.72 : Math.PI * 1.5, maxVerticalDelta: 5,
-    }, { position: this.vec(to), radius: 0.32 })) return false
+      position: this.vec(eye), forward: this.vec(this.enemyForward), range: this.chapter === 5 ? 8.5 : 7.2,
+      fovRadians, maxVerticalDelta: 5,
+    }, { position: this.vec(target), radius: 0.32 })) return false
     const hit = this.physics.castRay(
-      this.vec(from.clone().add(new THREE.Vector3(0, 0.6, 0))),
+      this.vec(eye),
       this.vec(direction.normalize()),
       distance,
       ENEMY_RAY_EXCLUSIONS,
@@ -1761,7 +2014,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       ENEMY_RAY_EXCLUSIONS,
       SOLID_SIGHT_KINDS,
     ) !== undefined)
-    if (!blocked) enemy.root.position.add(displacement)
+    if (!blocked) {
+      const next = enemy.root.position.clone().add(displacement)
+      if (this.chapter !== 5 || next.distanceToSquared(enemy.basePosition) <= 0.65 ** 2) {
+        enemy.root.position.copy(next)
+      }
+    }
   }
 
   private spawnWave(position: THREE.Vector3, color: number): void {

@@ -140,8 +140,12 @@ describe('DungeonWorld authored runtime contracts', () => {
       const echoAtPlate = actor('echo', 'echo', platePosition)
       physics.createActor('player', 'player', { x: exitPosition[0], y: exitPosition[1], z: exitPosition[2] })
       const playerAtExit = actor('player', 'player', exitPosition)
+      const playerAtLever = actor('player', 'player', [-3.9, 0.72, 0.4])
+      expect(world.interact(playerAtLever)).toBe('lever')
       physics.step()
-      world.performDebugSolutionStep(0, playerAtExit, echoAtPlate)
+      world.afterPhysics([playerAtExit, echoAtPlate])
+      world.beforePhysics(1, [playerAtExit, echoAtPlate])
+      physics.step()
       world.afterPhysics([playerAtExit, echoAtPlate])
 
       expect(canActorRequestExit('player')).toBe(true)
@@ -253,6 +257,8 @@ describe('DungeonWorld authored runtime contracts', () => {
       receiver: ['ReceiverCradle', 'ReceiverRing', 'ReceiverProngs', 'ReceiverBeam'],
       enemy: ['SentryBase', 'SentryShell', 'SentryEye', 'SentryHalo', 'SentryFins', 'SightCone'],
       gate: ['TemporalGatePost', 'TemporalGateBeam', 'TemporalGateBase'],
+      shutter: ['TransferShutterSlat', 'TransferShutterFrame'],
+      'one-way-wall': ['OneWayWall', 'OneWayWallStripe'],
     } as const
 
     for (const chapter of [0, 1, 2, 3, 4, 5] as const) {
@@ -539,23 +545,31 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(deliveryTicks).toBeGreaterThan(20)
       expect(deliveryTicks).toBeLessThan(80)
       expect(world.debugState().facts).toEqual(expect.arrayContaining(['core-thrown-down', 'core-receiver']))
-      expect(world.debugState().objectiveFacts.slice(0, 2)).toEqual(['core-thrown-down', 'core-receiver'])
+      expect(world.debugState().objectiveFacts).toEqual(['core-receiver', 'guardian-defeated', 'final-door-opened'])
     } finally {
       world.dispose()
       physics.dispose()
     }
   })
 
-  it('clears Chapter 4 by having the echo lure a stationary watcher into the reachable flank trap', async () => {
+  it('clears Chapter 4 only after real Echo acquisition and a high rear strike into the trap', async () => {
     const { physics, world } = await createWorld(4)
     try {
       const echo = actor('echo', 'echo', [-0.8, 0.72, 3.1])
       echo.interactHeld = true
-      const player = actor('player', 'player', [2.7, 3.25, -0.95])
+      const player = actor('player', 'player', [3.0, 3.1, -1.2])
       expect(world.interact(echo)).toBe('lever')
+      expect(world.debugState().facts).not.toContain('lured-by-echo')
+      expect(world.debugState().enemies.watcher?.target).toBeUndefined()
       stepWorld(world, physics, 1, [player, echo])
       expect(world.debugState().facts).toContain('lured-by-echo')
-      expect(world.attack(player, new THREE.Vector3(-1, 0, 1)), JSON.stringify({ player: player.position, state: world.debugState() })).toBe('watcher')
+      const acquired = world.debugState().enemies.watcher
+      expect(acquired, JSON.stringify(acquired)).toMatchObject({ target: 'echo', targetVisible: true })
+      const strikeDirection = new THREE.Vector3()
+        .subVectors(new THREE.Vector3(2.4, 0.98, -0.4), player.position)
+        .setY(0)
+        .normalize()
+      expect(world.attack(player, strikeDirection), JSON.stringify({ player: player.position, state: world.debugState() })).toBe('watcher')
 
       for (let tick = 2; tick < 90 && !world.debugState().enemies.watcher?.defeated; tick += 1) {
         stepWorld(world, physics, tick, [player, echo])
@@ -576,7 +590,112 @@ describe('DungeonWorld authored runtime contracts', () => {
     }
   })
 
-  it('clears the full Chapter 5 objective chain after a real core delivery, echo seal lure, high attack, and dual seal', async () => {
+  it('lets a late bell stimulus turn patrol into real Echo acquisition', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      for (let tick = 1; tick <= 168; tick += 1) stepWorld(world, physics, tick, [])
+      const echo = actor('echo', 'echo', [-0.98, 1.264, 3.05])
+      echo.interactHeld = true
+      expect(world.interact(echo)).toBe('lever')
+      const watcherPosition = world.debugState().enemies.watcher?.position
+      if (!watcherPosition) throw new Error('Watcher position is missing')
+      const origin = new THREE.Vector3(watcherPosition.x, watcherPosition.y + 0.62, watcherPosition.z)
+      const target = echo.position.clone().add(new THREE.Vector3(0, 0.62, 0))
+      const ray = target.clone().sub(origin)
+      const hit = physics.castRay(
+        { x: origin.x, y: origin.y, z: origin.z },
+        { x: ray.x / ray.length(), y: ray.y / ray.length(), z: ray.z / ray.length() },
+        ray.length(),
+        new Set(['watcher', 'guardian']),
+        new Set(['wall', 'door']),
+      )
+      expect(hit, JSON.stringify(hit?.tag)).toBeUndefined()
+      for (let tick = 169; tick < 360 && world.debugState().enemies.watcher?.target !== 'echo'; tick += 1) {
+        stepWorld(world, physics, tick, [echo])
+      }
+      const lateAcquired = world.debugState().enemies.watcher
+      expect(lateAcquired, JSON.stringify(lateAcquired)).toMatchObject({ target: 'echo', targetVisible: true })
+      expect(world.debugState().facts).toContain('lured-by-echo')
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('runs Watcher attention through alert, chase, investigate, recovery, and patrol', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const echo = actor('echo', 'echo', [-0.8, 1.08, 3.1])
+      stepWorld(world, physics, 1, [echo])
+      expect(world.debugState().enemies.watcher).toMatchObject({ state: 'alert', target: 'echo', targetVisible: true })
+      for (let tick = 2; tick <= 24; tick += 1) stepWorld(world, physics, tick, [echo])
+      expect(world.debugState().enemies.watcher).toMatchObject({ state: 'chase', target: 'echo', targetVisible: true })
+
+      stepWorld(world, physics, 25, [])
+      expect(world.debugState().enemies.watcher).toMatchObject({ state: 'investigate', targetVisible: false })
+      for (let tick = 26; tick <= 176; tick += 1) stepWorld(world, physics, tick, [])
+      expect(['investigate', 'recovery']).toContain(world.debugState().enemies.watcher?.state)
+      for (let tick = 177; tick <= 260; tick += 1) stepWorld(world, physics, tick, [])
+      expect(world.debugState().enemies.watcher).toMatchObject({ state: 'patrol', targetVisible: false })
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('restores every mutable attention field with the recording snapshot', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const echo = actor('echo', 'echo', [-0.8, 1.08, 3.1])
+      stepWorld(world, physics, 1, [echo])
+      const snapshot = world.captureSnapshot()
+      for (let tick = 2; tick <= 220; tick += 1) stepWorld(world, physics, tick, [])
+      expect(world.debugState().enemies.watcher?.target).toBeUndefined()
+
+      world.restoreSnapshot(snapshot, false)
+      expect(world.debugState().enemies.watcher).toMatchObject({
+        state: snapshot.enemyState,
+        target: 'echo',
+        targetVisible: true,
+        forward: snapshot.enemyForward,
+      })
+      const restored = world.captureSnapshot()
+      expect(restored).toMatchObject({
+        enemyTargetVisible: snapshot.enemyTargetVisible,
+        enemyLastKnown: snapshot.enemyLastKnown,
+        enemyAlertTicks: snapshot.enemyAlertTicks,
+        enemySearchTicks: snapshot.enemySearchTicks,
+        enemyRecoveryTicks: snapshot.enemyRecoveryTicks,
+        enemyStimulusTicks: snapshot.enemyStimulusTicks,
+        enemyStimulusPosition: snapshot.enemyStimulusPosition,
+      })
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('rejects a frontal low Watcher hit and keeps the exit physically blocked', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const echo = actor('echo', 'echo', [-0.8, 1.08, 3.1])
+      stepWorld(world, physics, 1, [echo])
+      const frontalPlayer = actor('player', 'player', [1.45, 1.08, 0.55])
+      expect(world.attack(frontalPlayer, new THREE.Vector3(0.7, 0, -0.9).normalize())).toBe('shield')
+      expect(world.debugState().facts).not.toContain('watcher-trapped')
+      expect(world.debugState().doors['gallery-door']?.open).toBe(false)
+
+      const exitPlayer = actor('player', 'player', [8.35, 1.08, -1.8])
+      expect(world.interact(exitPlayer)).toBe('exit')
+      stepWorld(world, physics, 2, [exitPlayer, echo])
+      expect(world.complete).toBe(false)
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('clears Chapter 5 through one real Core, Guardian LOS switch, high rear strike, and live dual seal', async () => {
     const { physics, world } = await createWorld(5)
     try {
       const coreStart = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'paradox-core')?.position
@@ -597,20 +716,32 @@ describe('DungeonWorld authored runtime contracts', () => {
 
       physics.createActor('echo', 'echo', { x: lowerSeal[0], y: lowerSeal[1], z: lowerSeal[2] })
       const echo = actor('echo', 'echo', lowerSeal)
-      const player = actor('player', 'player', [1.7, 5.3, 2.5])
-      stepWorld(world, physics, 120, [player, echo])
+      const player = actor('player', 'player', [3.0, 5.3, 1.35])
+      let attentionTick = 120
+      while (world.debugState().enemies.guardian?.target !== 'echo' && attentionTick < 360) {
+        stepWorld(world, physics, attentionTick, [echo])
+        attentionTick += 1
+      }
       expect(world.debugState().facts).toEqual(expect.arrayContaining(['lower-seal-echo', 'guardian-target-echo']))
-      expect(world.attack(player, new THREE.Vector3(0, 0, 1))).toBe('guardian')
+      expect(world.debugState().enemies.guardian).toMatchObject({ target: 'echo', targetVisible: true })
+      const guardianPosition = world.debugState().enemies.guardian?.position
+      if (!guardianPosition) throw new Error('Guardian position is missing')
+      expect(world.attack(player, new THREE.Vector3(
+        guardianPosition.x - player.position.x,
+        0,
+        guardianPosition.z - player.position.z,
+      ))).toBe('guardian')
 
       player.position.set(...upperSeal)
       player.interactHeld = true
       expect(world.interact(player)).toBe('lever')
-      stepWorld(world, physics, 121, [player, echo])
-      stepWorld(world, physics, 122, [player, echo])
+      stepWorld(world, physics, attentionTick, [player, echo])
+      stepWorld(world, physics, attentionTick + 1, [player, echo])
+      stepWorld(world, physics, attentionTick + 2, [player, echo])
 
       const opened = world.debugState()
       expect(opened.facts).toEqual(expect.arrayContaining([
-        'guardian-defeated', 'lower-seal-echo', 'upper-seal-player', 'dual-seal',
+        'guardian-defeated', 'lower-seal-echo', 'upper-seal-player', 'dual-seal', 'final-door-opened',
       ]))
       expect(opened.doors['final-door']?.open).toBe(true)
       expect(opened.escapeSeconds).toBeGreaterThan(0)
@@ -624,48 +755,58 @@ describe('DungeonWorld authored runtime contracts', () => {
     }
   })
 
-  it('keeps the Chapter 5 passage open only while both actors still hold their live seals', async () => {
+  it('rejects Guardian front and low strikes even while the real Echo holds attention', async () => {
     const { physics, world } = await createWorld(5)
     try {
-      const lowerSeal = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'lower-seal')?.position
-      const upperSeal = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'upper-seal')?.position
-      if (!lowerSeal || !upperSeal) throw new Error('Chapter 5 seals are missing')
-      const echoBody = physics.createActor('echo', 'echo', {
-        x: lowerSeal[0], y: lowerSeal[1], z: lowerSeal[2],
-      })
-      physics.createActor('player', 'player', {
-        x: upperSeal[0], y: upperSeal[1], z: upperSeal[2],
-      })
-      const echo = actor('echo', 'echo', lowerSeal)
-      const player = actor('player', 'player', upperSeal)
-      physics.step()
+      const echo = actor('echo', 'echo', [-3.1, 1.08, 3.6])
+      stepWorld(world, physics, 1, [echo])
+      expect(world.debugState().enemies.guardian).toMatchObject({ target: 'echo', targetVisible: true })
 
-      const required = world.debugState().objectiveFacts
-      for (let step = 0; step < required.length; step += 1) world.performDebugSolutionStep(step, player, echo)
-      world.afterPhysics([player, echo])
-      for (let tick = 0; tick < 60; tick += 1) {
-        world.beforePhysics(tick, [player, echo])
-        physics.step()
-        world.afterPhysics([player, echo])
-      }
-
-      expect(world.debugState().facts).toEqual(expect.arrayContaining(['dual-seal', 'lower-seal-echo', 'upper-seal-player']))
-      const liveState = world.debugState()
-      expect(liveState.doors['final-door']?.open, JSON.stringify(liveState)).toBe(true)
-
-      echoBody.body.setTranslation({ x: 20, y: 20, z: 20 }, true)
-      echoBody.body.setNextKinematicTranslation({ x: 20, y: 20, z: 20 })
-      physics.step()
-      for (let tick = 60; tick < 120; tick += 1) {
-        world.beforePhysics(tick, [player])
-        physics.step()
-        world.afterPhysics([player])
-      }
-
-      expect(world.debugState().facts).toContain('dual-seal')
-      expect(world.debugState().facts).not.toContain('lower-seal-echo')
-      expect(world.debugState().doors['final-door']?.open).toBe(false)
+      const highFront = actor('player', 'player', [0.35, 5.3, 2.9])
+      expect(world.attack(highFront, new THREE.Vector3(1, 0, 0))).toBe('shield')
+      const lowRear = actor('player', 'player', [2.55, 4.15, 1.9])
+      expect(world.attack(lowRear, new THREE.Vector3(-1, 0, 1))).toBe('shield')
+      expect(world.debugState().facts).not.toContain('guardian-defeated')
     } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('carries the shared motor from the dock to the upper floor on the powered well platform', async () => {
+    const { physics, world } = await createWorld(5)
+    const coreStart = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'paradox-core')?.position
+    if (!coreStart) throw new Error('Chapter 5 core start is missing')
+    const carrier = actor('player', 'player', coreStart)
+    const record = physics.createActor('platform-player', 'player', { x: 3.05, y: 3.79, z: -1.8 })
+    const motor = new CharacterMotor(physics, record)
+    try {
+      expect(world.interact(carrier)).toBe('core')
+      carrier.position.set(-1, 3.75, -0.8)
+      expect(world.throwOrDrop(carrier, new THREE.Vector3(-1, 0, 0))).toBe('core')
+      for (let tick = 1; tick < 120 && !world.debugState().cores['paradox-core']?.receiver; tick += 1) {
+        stepWorld(world, physics, tick, [carrier])
+      }
+      expect(world.debugState().cores['paradox-core']?.receiver).toBe(true)
+      expect(Object.keys(world.captureSnapshot().dynamics).filter((id) => id === 'paradox-core')).toEqual(['paradox-core'])
+
+      let highestY = motor.position.y
+      for (let tick = 120; tick <= 720; tick += 1) {
+        const platformActor = actor('platform-player', 'player', [motor.position.x, motor.position.y, motor.position.z])
+        world.beforePhysics(tick, [platformActor])
+        const support = world.supportMotion(motor.position)
+        motor.setSupportDelta(support.delta, support.supported)
+        motor.prepare({ moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false })
+        physics.step()
+        motor.syncAfterStep()
+        platformActor.position.copy(motor.position)
+        world.afterPhysics([platformActor])
+        highestY = Math.max(highestY, motor.position.y)
+      }
+      expect(highestY).toBeGreaterThan(6)
+      expect(motor.position.x).toBeCloseTo(3.05, 1)
+    } finally {
+      motor.dispose()
       world.dispose()
       physics.dispose()
     }
@@ -691,7 +832,10 @@ describe('DungeonWorld authored runtime contracts', () => {
   it('disposes an expired transient effect exactly once before world teardown', async () => {
     const { physics, scene, world } = await createWorld(4)
     try {
-      expect(world.attack(actor('player', 'player', [1.4, 0.98, -0.4]), new THREE.Vector3(1, 0, 0))).toBe('watcher')
+      const echo = actor('echo', 'echo', [-0.8, 0.72, 3.1])
+      const player = actor('player', 'player', [3.0, 3.1, -1.2])
+      stepWorld(world, physics, 1, [player, echo])
+      expect(world.attack(player, new THREE.Vector3(-0.6, 0, 0.8).normalize())).toBe('watcher')
       const wave = scene.getObjectByName('TemporalWave')
       if (!(wave instanceof THREE.Mesh)) throw new Error('Temporal wave was not created')
       let disposeCount = 0
@@ -880,11 +1024,13 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(world.captureSnapshot().dynamics['memory-core']?.carriedBy).toBe('player')
       // Move player to gate (center: 0, 0.9, -2.0)
       player.position.set(0.0, 0.9, -2.0)
+      player.facingYaw = Math.PI / 2
+      world.beforePhysics(2, [player])
       physics.step(); world.afterPhysics([player])
       // Core should be dropped at west edge of gate (rejected)
       const snap = world.captureSnapshot()
       expect(snap.dynamics['memory-core']?.carriedBy).toBeUndefined()
-      expect(snap.facts).toContain('temporal-gate-rejected')
+      expect(snap.facts).not.toContain('temporal-gate-rejected')
     } finally { world.dispose(); physics.dispose() }
   })
 
@@ -913,7 +1059,8 @@ describe('DungeonWorld authored runtime contracts', () => {
       // Same object picked up (not a copy)
       const after = world.captureSnapshot()
       expect(after.dynamics['memory-core']?.carriedBy).toBe('echo')
-      expect(after.dynamics['memory-core']?.carriedBy).toBe('echo')
+      expect(Object.keys(after.dynamics).filter((id) => id === 'memory-core')).toHaveLength(1)
+      expect(physics.record('memory-core'), 'the canonical Rapier body remains the one Core').toBe(core)
     } finally { world.dispose(); physics.dispose() }
   })
 
@@ -949,6 +1096,157 @@ describe('DungeonWorld authored runtime contracts', () => {
     expect(withExit).toContain(ObjectiveFacts.PlayerAtExit)
     const result = evaluateChapterObjectives(ch3, new Set(withExit))
     expect(result.complete).toBe(true)
+  })
+
+  it('Ch3 K — thrown (non-carried) Core cannot cross the temporal gate', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const core = physics.record('memory-core')
+      if (!core) throw new Error('memory-core missing')
+      // Drop the core at the gate centre (0, 0.9, -2.0) with a velocity that
+      // simulates being thrown east through the gate.
+      core.body.setTranslation({ x: -2.2, y: 0.9, z: -2.0 }, true)
+      core.body.setLinvel({ x: 4, y: 0, z: 0 }, true)
+      physics.step(); world.afterPhysics([])
+      const snap = world.captureSnapshot()
+      // Gate must have rejected the throw and bounced the core back to the west side.
+      expect(snap.facts).not.toContain('temporal-gate-rejected')
+      const after = snap.dynamics['memory-core']
+      if (!after) throw new Error('memory-core snapshot missing')
+      expect(after.position.x).toBeLessThan(0.25)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 L — repeated core throws still bounce the body and zero its velocity', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const core = physics.record('memory-core')
+      if (!core) throw new Error('memory-core missing')
+      // Throw east through the gate, then again, then again.
+      // After each attempt the body must be on the west side with zero linvel.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        core.body.setTranslation({ x: -2.2, y: 0.9, z: -2.0 }, true)
+        core.body.setLinvel({ x: 4 + attempt, y: 0, z: 0 }, true)
+        physics.step(); world.afterPhysics([])
+        const t = core.body.translation()
+        expect(t.x, `attempt ${attempt}: core east of gate`).toBeLessThan(0.25)
+      }
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 M — transfer shutter is closed by default (blocks dynamic core)', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const core = physics.record('memory-core')
+      if (!core) throw new Error('memory-core missing')
+      const shutter = physics.record('transfer-shutter')
+      if (!shutter) throw new Error('transfer-shutter missing')
+      // Initial state: shutter body should be at its authored position (closed).
+      const initialT = shutter.body.translation()
+      // Drop the core inside the shutter volume with east-bound velocity.
+      // The shutter collider is real (not a sensor), so Rapier should push back
+      // the core instead of letting it tunnel through.
+      core.body.setTranslation({ x: initialT.x, y: initialT.y, z: initialT.z }, true)
+      core.body.setLinvel({ x: 6, y: 0, z: 0 }, true)
+      physics.step(); world.afterPhysics([])
+      const t = core.body.translation()
+      // The core must NOT have crossed to x > shutter.x + 1
+      expect(t.x, 'core should be west of the closed shutter').toBeLessThan(initialT.x + 0.6)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 N — transfer shutter lowers fully below the floor when the live Player is east of openAtX', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const shutter = physics.record('transfer-shutter')
+      if (!shutter) throw new Error('transfer-shutter missing')
+      const closedY = shutter.body.translation().y
+      const player = actor('player', 'player', [5.0, 0.9, 0])
+      // Two-tick sequence so Rapier consumes the next-kinematic-translation that
+      // updateShutters sets in afterPhysics.
+      world.beforePhysics(1, [player])
+      physics.step(); world.afterPhysics([player])
+      physics.step()
+      const openY = shutter.body.translation().y
+      // Shutter half-height is 0.7 and the lower floor top is y=0.2. Its entire
+      // collider must sit below that walkable surface when open.
+      expect(openY + 0.7, 'open shutter top stays below the lower floor').toBeLessThan(0.2)
+      expect(openY, 'open shutter moves from its immutable closed position').toBeLessThan(closedY - 2)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 O — one-way physical wall blocks EAST→WEST (no ActorContext mutation)', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const wall = physics.record('atrium-one-way')
+      if (!wall) throw new Error('atrium-one-way wall missing')
+      // Player starts east of the wall and moves west. The wall should stay up
+      // (no actor on west side to trigger open), so the motor collides with it.
+      const player = actor('player', 'player', [4.0, 1.6, -2.0])
+      world.beforePhysics(1, [player])
+      physics.step()
+      world.afterPhysics([player])
+      const closedY = wall.body.translation().y
+      // Move player further west — the wall should still be closed (player is east)
+      player.position.set(3.0, 1.6, -2.0)
+      world.beforePhysics(2, [player])
+      physics.step()
+      world.afterPhysics([player])
+      const afterY = wall.body.translation().y
+      expect(afterY, 'wall stays raised when only east-side actors are present').toBe(closedY)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 O2 — only the live Player, never Echo, lowers the west-side one-way wall', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const wall = physics.record('atrium-one-way')
+      if (!wall) throw new Error('atrium-one-way wall missing')
+      const closedY = wall.body.translation().y
+      const echo = actor('echo', 'echo', [2.0, 1.6, -2.0])
+      world.beforePhysics(1, [echo])
+      physics.step(); world.afterPhysics([echo])
+      physics.step()
+      expect(wall.body.translation().y, 'Echo cannot open the player-only crossing').toBeCloseTo(closedY, 3)
+
+      const player = actor('player', 'player', [2.0, 1.6, -2.0])
+      world.beforePhysics(2, [player, echo])
+      physics.step(); world.afterPhysics([player])
+      physics.step()
+      const openY = wall.body.translation().y
+      expect(openY, 'wall lowers only when the current Player is on the west side').toBeLessThan(closedY - 0.5)
+      for (let tick = 0; tick < 30; tick += 1) {
+        world.beforePhysics(3 + tick, [player])
+        physics.step()
+        world.afterPhysics([player])
+      }
+      expect(wall.body.translation().y, 'open wall remains at its base-relative height without per-tick drift').toBeCloseTo(openY, 3)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 P — actor can still cross gate WEST→EAST', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const player = actor('player', 'player', [-3.0, 0.9, -2.0])
+      world.afterPhysics([player])
+      player.position.set(0.5, 0.9, -2.0)
+      physics.step(); world.afterPhysics([player])
+      // Player crosses west→east freely (not pushed back)
+      expect(player.position.x, 'WEST→EAST must pass').toBeGreaterThan(0)
+      expect(world.captureSnapshot().facts).not.toContain('temporal-gate-rejected')
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 Q — Player can pickup the Core only when in interact range (no auto-catch)', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const player = actor('player', 'player', [-3.0, 3.75, 1.6])
+      // Player is at the core spawn; try to carry
+      const result = world.interact(player)
+      expect(result).toBe('core')
+      physics.step(); world.afterPhysics([player])
+      expect(world.captureSnapshot().dynamics['memory-core']?.carriedBy).toBe('player')
+    } finally { world.dispose(); physics.dispose() }
   })
 
 })

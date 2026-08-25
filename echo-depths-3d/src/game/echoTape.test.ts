@@ -57,7 +57,11 @@ describe('EchoTape', () => {
     for (const frame of frames) tape.record(frame)
     tape.finish()
     tape.beginReplay()
-    const replay = frames.map(() => tape.nextReplayFrame())
+    const replay = frames.map(() => {
+      const f = tape.nextReplayFrame()
+      tape.consumeReplayFrame()
+      return f
+    })
     expect(replay.every((frame, index) => inputFramesEqual(frame, frames[index]!))).toBe(true)
     expect(simulate(replay)).toEqual(simulate(frames))
   })
@@ -74,6 +78,7 @@ describe('EchoTape', () => {
     tape.finish()
     tape.beginReplay()
     tape.nextReplayFrame()
+    tape.consumeReplayFrame()
     const terminal = tape.nextReplayFrame()
     expect(terminal.moveX).toBe(0)
     expect(terminal.moveZ).toBe(0)
@@ -103,4 +108,64 @@ describe('EchoTape', () => {
     expect(tape.mode).toBe('ready')
     expect(() => tape.record(createInputFrame())).toThrow()
   })
+  it('captures a tick-aligned path sample per recorded frame', () => {
+    const tape = new EchoTape<Snapshot>()
+    tape.start({ tick: 0, actor: { x: 0, z: 0 }, doorOpen: false })
+    for (let i = 0; i < 5; i += 1) {
+      tape.record(
+        createInputFrame({ moveX: 1 }),
+        { x: i, y: 1, z: i * 2 },
+        i * 0.5,
+      )
+    }
+    expect(tape.recordedPath).toHaveLength(5)
+    expect(tape.recordedYaws).toEqual([0, 0.5, 1, 1.5, 2])
+    expect(tape.recordedPath[2]).toEqual({ x: 2, y: 1, z: 4 })
+  })
+
+  it('exposes pathAt / yawAt so replay stays aligned after rebuild', () => {
+    const tape = new EchoTape<Snapshot>()
+    tape.start({ tick: 0, actor: { x: 0, z: 0 }, doorOpen: false })
+    for (let i = 0; i < 8; i += 1) {
+      tape.record(createInputFrame({}), { x: i, y: 0.5, z: -i }, i * 0.1)
+    }
+    const recording = tape.finish()
+    expect(recording).not.toBeNull()
+    // Replace simulates GameApp's rebuildChapter() -> echoTape.replace() flow.
+    // The recorded path must survive this round trip.
+    tape.reset()
+    tape.replace(recording!)
+    expect(tape.recordedPath).toHaveLength(8)
+    expect(tape.pathAt(3)).toEqual({ x: 3, y: 0.5, z: -3 })
+    expect(tape.yawAt(7)).toBeCloseTo(0.7, 5)
+    // Out-of-range ticks clamp to the last sample.
+    expect(tape.pathAt(999)).toEqual({ x: 7, y: 0.5, z: -7 })
+    expect(tape.yawAt(999)).toBeCloseTo(0.7, 5)
+  })
+
+  it('exportRecording/import round-trip preserves path and yaws', () => {
+    const tape = new EchoTape<Snapshot>()
+    tape.start({ tick: 1, actor: { x: 1, z: 1 }, doorOpen: false })
+    tape.record(createInputFrame({ moveX: 1 }), { x: 2, y: 0, z: 3 }, 1.2)
+    tape.record(createInputFrame({ moveZ: -1 }), { x: 4, y: 0, z: 5 }, -0.7)
+    const exported = tape.exportRecording()
+    expect(exported).not.toBeNull()
+    expect(exported!.path).toHaveLength(2)
+    expect(exported!.yaws).toEqual([1.2, -0.7])
+    // Mutating the exported path must not affect future reads from the tape.
+    ;(exported!.path[0] as { x: number }).x = 999
+    expect(tape.pathAt(0)).toEqual({ x: 2, y: 0, z: 3 })
+  })
+
+  it('reset clears path and yaws alongside frames', () => {
+    const tape = new EchoTape<Snapshot>()
+    tape.start({ tick: 0, actor: { x: 0, z: 0 }, doorOpen: false })
+    tape.record(createInputFrame({}), { x: 1, y: 2, z: 3 }, 0.5)
+    tape.reset()
+    expect(tape.recordedPath).toHaveLength(0)
+    expect(tape.recordedYaws).toHaveLength(0)
+    expect(tape.pathAt(0)).toBeNull()
+    expect(tape.yawAt(0)).toBeNull()
+  })
+
 })

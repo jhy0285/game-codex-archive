@@ -10,12 +10,8 @@ declare global {
       selectChapter: (chapter: 1 | 2 | 3 | 4 | 5) => Promise<void>
       finishTutorial: () => Promise<void>
       setManualStepping: (enabled: boolean) => void
-      setInput: (input: Record<string, number | boolean>) => void
-      advanceInput: (input: Record<string, number | boolean>, ticks: number) => void
-      releaseAllInputs: () => void
       advanceTicks: (ticks: number) => void
       restartChapter: () => Promise<void>
-      solutionStep: (step: number) => void
       assetStatus: () => string
     }
   }

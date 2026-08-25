@@ -134,6 +134,7 @@ export class CharacterMotor {
       },
     )
     const corrected = this.controller.computedMovement()
+
     const wasGrounded = this.grounded
     this.grounded = this.controller.computedGrounded()
       || (this.supportedByPlatform && !this.jumpedThisTick && this.velocity.y <= 0)
@@ -149,6 +150,85 @@ export class CharacterMotor {
   syncAfterStep(): void {
     const translation = this.record.body.translation()
     this.position.set(translation.x, translation.y, translation.z)
+  }
+
+  /**
+   * Apply an echo replay transform: set the next kinematic translation to
+   * `target` while still respecting Rapier collision through the
+   * KinematicCharacterController. This bypasses the WALK_SPEED / DASH_SPEED
+   * cap that prepare() applies via desired normalization, so the echo can
+   * move at the recorded tick's intended speed (which can be larger than
+   * the live walk speed after a teleport or chapter select).
+   *
+   * `target` is in world space. The controller pushes the body back when
+   * an obstacle blocks the path; the echo never tunnels through walls.
+   */
+  setRecordedTranslation(target: Vec3, frame: MotorInput, fixedDelta = 1 / 60): void {
+    this.landedThisTick = false
+    this.jumpedThisTick = false
+    this.dashedThisTick = false
+    if (frame.jumpPressed) this.jumpBufferTicks = 7
+    else this.jumpBufferTicks = Math.max(0, this.jumpBufferTicks - 1)
+    const supported = this.grounded || this.supportedByPlatform
+    if (supported) this.coyoteTicks = 6
+    else this.coyoteTicks = Math.max(0, this.coyoteTicks - 1)
+    this.dashCooldownTicks = Math.max(0, this.dashCooldownTicks - 1)
+
+    if (frame.dashPressed && this.dashCooldownTicks === 0 && supported) {
+      this.dashTicks = 9
+      this.dashCooldownTicks = 38
+      this.dashedThisTick = true
+    }
+    this.dashTicks = Math.max(0, this.dashTicks - 1)
+
+    if (this.jumpBufferTicks > 0 && this.coyoteTicks > 0) {
+      this.velocity.y = 7.15
+      this.jumpBufferTicks = 0
+      this.coyoteTicks = 0
+      this.grounded = false
+      this.jumpedThisTick = true
+    } else if (!supported) {
+      this.velocity.y = Math.max(-14, this.velocity.y - 18 * fixedDelta)
+    } else {
+      this.velocity.y = 0
+    }
+
+    // Compute movement as the delta from current to target. Rapier will
+    // collide with any obstacle in between; the controller reports the
+    // collision-corrected movement.
+    this.movement.set(
+      target.x - this.position.x + this.supportDelta.x,
+      this.velocity.y * fixedDelta + this.supportDelta.y,
+      target.z - this.position.z + this.supportDelta.z,
+    )
+    this.supportDelta.set(0, 0, 0)
+    this.controller.computeColliderMovement(
+      this.record.collider,
+      this.movement,
+      undefined,
+      undefined,
+      (collider) => {
+        const tag = collider.parent()?.userData as { kind?: string; carried?: boolean; nonBlocking?: boolean } | undefined
+        if (tag?.carried || tag?.nonBlocking) return false
+        if (tag?.kind === 'plate' || tag?.kind === 'lever' || tag?.kind === 'trap' || tag?.kind === 'exit') return false
+        return tag?.kind !== 'player' && tag?.kind !== 'echo'
+      },
+    )
+    const corrected = this.controller.computedMovement()
+    const wasGrounded = this.grounded
+    this.grounded = this.controller.computedGrounded()
+      || (this.supportedByPlatform && !this.jumpedThisTick && this.velocity.y <= 0)
+    if (this.grounded && !wasGrounded && this.velocity.y < -1.1) this.landedThisTick = true
+    if (this.grounded && this.velocity.y < 0) this.velocity.y = 0
+    // Velocity is set from the corrected per-tick displacement so the next
+    // frame starts from a believable state if the echo is no longer replay-driven.
+    this.velocity.x = corrected.x / fixedDelta
+    this.velocity.z = corrected.z / fixedDelta
+    this.record.body.setNextKinematicTranslation({
+      x: this.position.x + corrected.x,
+      y: this.position.y + corrected.y,
+      z: this.position.z + corrected.z,
+    })
   }
 
   teleport(position: Vec3): void {

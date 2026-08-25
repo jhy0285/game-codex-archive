@@ -26,20 +26,6 @@ type ActorRuntime = {
   actionTicks: number
 }
 
-type DebugInput = {
-  moveX?: number
-  moveZ?: number
-  jump?: boolean
-  interact?: boolean
-  attack?: boolean
-  throw?: boolean
-  dash?: boolean
-  echo?: boolean
-  pause?: boolean
-  fullscreen?: boolean
-  cameraTurn?: number
-}
-
 type CampaignStats = {
   elapsedMs: number
   echoes: number
@@ -110,7 +96,6 @@ export class GameApp {
   private player: ActorRuntime | undefined
   private echo: ActorRuntime | undefined
   private echoPathLine: THREE.Line | undefined
-  private recordingYaws: number[] = []
   private mode: GameMode = 'loading'
   private language: Language
   private readonly hasSavedLanguage: boolean
@@ -122,8 +107,6 @@ export class GameApp {
   private transitionPending = false
   private rotationPaused = false
   private lastTime = performance.now()
-  private recordingPath: THREE.Vector3[] = []
-  private debugInput: DebugInput | undefined
   private manualStepping = false
   private failRestartTicks = 0
   private destroyed = false
@@ -227,11 +210,8 @@ export class GameApp {
   }
 
   private clearRuntimeInput(): void {
-    this.debugInput = undefined
     this.throwWasHeld = false
     this.input.clear()
-    this.recordingYaws = []
-    this.recordingPath = []
   }
 
   private installScene(): void {
@@ -363,8 +343,6 @@ export class GameApp {
         if (this.echo) {
       echoFrame = this.echoTape.nextReplayFrame()
       this.echo.motor.facingYaw = dequantizeYaw(echoFrame.aimYawQ)
-      // Echo 2.0: path-replay — echo follows recorded transform to prevent cumulative drift
-      this.applyEchoPathReplay(this.echo)
     }
 
     const contexts = this.actorContexts(playerFrame, echoFrame)
@@ -374,10 +352,23 @@ export class GameApp {
     player.motor.setSupportDelta(playerSupport.delta, playerSupport.supported)
     player.motor.prepare(this.motorInput(playerFrame, playerMovement.x, playerMovement.z))
     if (this.echo && echoFrame) {
-      const movement = dequantizeMovement(echoFrame)
       const echoSupport = world.supportMotion(this.echo.motor.position)
       this.echo.motor.setSupportDelta(echoSupport.delta, echoSupport.supported)
-      this.echo.motor.prepare(this.motorInput(echoFrame, movement.x, movement.z))
+      // Echo 2.0: drive the echo directly to the recorded sample via the motor's
+      // collision-aware replay method. We DO NOT pass the delta as a joystick input
+      // because prepare() normalizes it and caps velocity to walk-speed (4.25 m/s),
+      // which makes the echo lag behind the recorded timeline when the recording
+      // involves teleport-style events (chapter select, snap-to-ground) or large
+      // per-tick movements. setRecordedTranslation() still applies the controller's
+      // collision correction, so the echo cannot tunnel through walls.
+      const recordedPos = this.echoTape.pathAt(this.echoTape.playbackTick)
+      let target = recordedPos
+      if (!target) target = { x: this.echo.motor.position.x, y: this.echo.motor.position.y, z: this.echo.motor.position.z }
+      const frameInput = this.motorInput(echoFrame, 0, 0)
+      this.echo.motor.setRecordedTranslation(target, frameInput)
+      // Echo 2.0 path-replay: apply recorded position AFTER motor.prepare() so the
+      // recorded sample's setNextKinematicTranslation is the last one before physics.step.
+      this.applyEchoPathReplay(this.echo)
     }
     this.resolveActions(player, playerFrame, contexts[0] as ActorContext)
     if (this.echo && echoFrame && contexts[1]) this.resolveActions(this.echo, echoFrame, contexts[1])
@@ -386,14 +377,15 @@ export class GameApp {
     this.echo?.motor.syncAfterStep()
     world.afterPhysics(this.actorContexts(playerFrame, echoFrame))
     this.playWorldAudioEvents(world.takeAudioEvents())
+    // Echo 2.0: advance the replay index once per tick, after frame + path are consumed.
+    if (this.echo) this.echoTape.consumeReplayFrame()
     this.updateTutorialProgress(player, uiFrame)
 
     if (this.echoTape.isRecording) {
-      this.echoTape.record(playerFrame)
-      if (this.tick % 4 === 0) {
-        this.recordingPath.push(player.motor.position.clone())
-        this.recordingYaws.push(player.motor.facingYaw)
-      }
+      // Tick-aligned echo replay samples. The tape stores one path/yaw per
+      // recorded frame so playback index and sample index stay in lockstep.
+      const motorPos = player.motor.position
+      this.echoTape.record(playerFrame, { x: motorPos.x, y: motorPos.y, z: motorPos.z }, player.motor.facingYaw)
       if (this.echoTape.mode === 'ready') {
         void this.activateFinishedEcho()
         return
@@ -419,28 +411,7 @@ export class GameApp {
   }
 
   private consumeInput(): UiInputFrame {
-    const frame = this.input.consumeFrame()
-    if (!this.debugInput) return frame
-    const debug = this.debugInput
-    this.debugInput = undefined
-    const actions = ['jump', 'interact', 'attack', 'throw', 'dash', 'echo', 'pause', 'fullscreen'] as const
-    const held = { ...frame.held }
-    const pressed = { ...frame.pressed }
-    for (const action of actions) {
-      const value = debug[action]
-      if (value !== undefined) {
-        held[action] = value
-        pressed[action] = value
-      }
-    }
-    return {
-      ...frame,
-      moveX: debug.moveX ?? frame.moveX,
-      moveZ: debug.moveZ ?? frame.moveZ,
-      cameraTurn: debug.cameraTurn ?? frame.cameraTurn,
-      held,
-      pressed,
-    }
+    return this.input.consumeFrame()
   }
 
   private toEchoFrame(input: UiInputFrame, facingYaw: number): EchoInputFrame {
@@ -507,6 +478,8 @@ export class GameApp {
         if (result === 'lever') {
           const firstChapterLever = this.chapter === 1 && context.kind === 'player'
           this.hud.showFeedbackKey(firstChapterLever ? 'feedbackFirstLeverActive' : 'feedbackLeverActive', 'success', firstChapterLever ? 5_600 : 2_600)
+        } else if (result === 'core' && this.chapter === 3 && context.kind === 'player' && carryingBeforeInteract !== 'core') {
+          this.hud.showFeedbackKey('feedbackCoreCaught', 'success', 2_600)
         }
       }
     }
@@ -572,9 +545,7 @@ export class GameApp {
         world: world.captureSnapshot(),
       })
       this.spawnTemporalPulse(player.motor.position, 0x28e6d6)
-      this.recordingPath = [player.motor.position.clone()]
       this.removeEchoPath()
-      this.recordingYaws = []
       this.audio.cue('record')
       this.hud.showFeedbackKey('feedbackRecordStart', 'info')
       return false
@@ -588,7 +559,6 @@ export class GameApp {
     if (this.transitionPending || this.echoTape.mode !== 'ready') return
     const recording = this.echoTape.exportRecording()
     if (!recording) return
-    const path = this.recordingPath.map((point) => point.clone())
     if (recording.snapshot.chapter !== 0) this.stats.echoes += 1
     this.audio.cue('echo')
     this.audio.cue('echo')
@@ -598,9 +568,14 @@ export class GameApp {
     this.echoTape.replace(recording)
     if (playerMotorSnap && this.player) this.player.motor.restore(playerMotorSnap)
     this.echoTape.beginReplay()
-    this.createEchoPath(path)
+    this.createEchoPath(
+      this.echoTape.recordedPath.map((p) => new THREE.Vector3(p.x, p.y, p.z)),
+    )
     if (this.player) this.spawnTemporalPulse(this.player.motor.position, 0xc15bf2)
     this.hud.showFeedbackKey('feedbackRecordEnd', 'success')
+    if (recording.snapshot.chapter === 3 && this.player && this.player.motor.position.x >= 4) {
+      this.hud.showFeedbackKey('feedbackTransferLaneOpen', 'success', 2_600)
+    }
     if (recording.snapshot.chapter === 0) {
       this.tutorialSteps.add('echo')
       this.tutorialComplete = TUTORIAL_STEPS.every((step) => this.tutorialSteps.has(step))
@@ -819,7 +794,13 @@ export class GameApp {
     for (const event of events) {
       if (event.type === 'door') this.audio.cue(event.open ? 'doorOpen' : 'doorClose')
       else if (event.type === 'plate') this.audio.cue(event.pressed ? 'platePress' : 'plateRelease')
-      else if (event.type === 'receiver') this.audio.cue('receiver')
+      else if (event.type === 'shutter') {
+        this.audio.cue('doorOpen')
+        this.hud.showFeedbackKey('feedbackTransferLaneOpen', 'success', 2_600)
+      } else if (event.type === 'receiver') {
+        this.audio.cue('receiver')
+        this.hud.showFeedbackKey('feedbackCoreRedirected', 'success', 3_200)
+      }
       else {
         this.audio.cue(event.moving ? 'mechanismStart' : 'mechanismStop')
         this.audio.setMechanicalLoop(event.id, event.mechanism, event.moving)
@@ -921,15 +902,15 @@ export class GameApp {
     actor.animator.root.rotation.y = current + difference * (1 - Math.exp(-18 * Math.max(0, deltaSeconds)))
   }
 
-    private applyEchoPathReplay(echo: ActorRuntime): void {
-    if (this.echoTape.mode !== 'replaying' || this.recordingPath.length === 0) return
-    const idx = Math.min(this.echoTape.playbackTick, this.recordingPath.length - 1)
-    const point = this.recordingPath[idx]
-    if (!point) return
-    // Use kinematic body translation (the motor's controller uses setNextKinematicTranslation internally)
-    echo.motor.record.body.setNextKinematicTranslation({ x: point.x, y: point.y, z: point.z })
-    echo.motor.velocity.set(0, 0, 0)
-    if (idx < this.recordingYaws.length) echo.motor.facingYaw = this.recordingYaws[idx]!
+  private applyEchoPathReplay(echo: ActorRuntime): void {
+    // Echo 2.0 path-replay: the EchoTape owns the tick-aligned recording.
+    // Motion is collision-aware — the synthesized motor input above lets the
+    // KinematicCharacterController push the echo back when an obstacle blocks
+    // the recorded path. This function only mirrors the recorded facing yaw;
+    // it MUST NOT teleport the body (no setNextKinematicTranslation override).
+    if (this.echoTape.mode !== 'replaying' && this.echoTape.mode !== 'holding') return
+    const yaw = this.echoTape.yawAt(this.echoTape.playbackTick)
+    if (yaw !== null) echo.motor.facingYaw = yaw
   }
 
   private createEchoPath(points: THREE.Vector3[]): void {
@@ -1082,7 +1063,12 @@ export class GameApp {
       })
       this.render(0)
     }
-    if (import.meta.env.DEV) {
+    // The debug surface is either explicitly enabled for a preview/local E2E
+    // build, or available from the loopback-only Vite development server. It is
+    // never exposed by a production deployment merely through a query string.
+    const debugApiEnabled = import.meta.env.VITE_E2E_DEBUG_API === '1'
+      || (!import.meta.env.PROD && window.location.hostname === '127.0.0.1')
+    if (debugApiEnabled) {
       window.echoDepthsDebug = {
         selectChapter: async (chapter: ChapterNumber) => this.selectChapter(chapter),
         finishTutorial: async () => this.finishTutorial(),
@@ -1092,26 +1078,8 @@ export class GameApp {
           this.lastTime = performance.now()
           this.render(0)
         },
-        setInput: (input: DebugInput) => { this.debugInput = { ...input } },
-        advanceInput: (input: DebugInput, ticks: number) => {
-          const count = Math.max(0, Math.trunc(ticks))
-          for (let index = 0; index < count; index += 1) {
-            if (this.mode !== 'playing' || this.transitionPending) break
-            this.debugInput = { ...input }
-            this.fixedTick()
-          }
-          this.render(0)
-        },
-        releaseAllInputs: () => { this.debugInput = undefined; this.input.clear() },
         advanceTicks: (ticks: number) => window.advanceTime?.(Math.max(0, Math.trunc(ticks)) * FIXED_STEP_MS),
         restartChapter: async () => this.restartChapter(false),
-        solutionStep: (step: number) => {
-          if (!this.world || !this.player) return
-          const player: ActorContext = { id: 'player', kind: 'player', position: this.player.motor.position, facingYaw: this.player.motor.facingYaw, carryYaw: this.player.motor.facingYaw, interactHeld: false }
-          const echo = this.echo ? { id: 'echo', kind: 'echo' as const, position: this.echo.motor.position, facingYaw: this.echo.motor.facingYaw, carryYaw: this.echo.motor.facingYaw, interactHeld: false } : undefined
-          this.world.performDebugSolutionStep(step, player, echo)
-          if (this.world.complete && this.mode === 'playing') this.completeChapter()
-        },
         assetStatus: () => this.assets.status,
       }
     }
@@ -1126,14 +1094,29 @@ export class GameApp {
       language: this.language,
       chapter: this.chapter,
       camera: { position: this.vec(this.camera.camera.position) },
-      player: player ? { position: this.vec(player.motor.position), velocity: this.vec(player.motor.velocity), grounded: player.motor.grounded, animation: player.animator.state() } : null,
-      echo: this.echo ? { mode: this.echoTape.mode, tick: this.echoTape.playbackTick, durationTicks: this.echoTape.durationTicks, position: this.vec(this.echo.motor.position), animation: this.echo.animator.state() } : { mode: this.echoTape.mode, tick: 0, durationTicks: this.echoTape.durationTicks },
+      player: player ? {
+        position: this.vec(player.motor.position),
+        velocity: this.vec(player.motor.velocity),
+        grounded: player.motor.grounded,
+        yaw: Number(player.motor.facingYaw.toFixed(4)),
+        animation: player.animator.state(),
+      } : null,
+      echo: this.echo ? {
+        mode: this.echoTape.mode,
+        tick: this.echoTape.playbackTick,
+        durationTicks: this.echoTape.durationTicks,
+        position: this.vec(this.echo.motor.position),
+        yaw: Number(this.echo.motor.facingYaw.toFixed(4)),
+        animation: this.echo.animator.state(),
+      } : { mode: this.echoTape.mode, tick: 0, durationTicks: this.echoTape.durationTicks },
       timer: this.stats.elapsedMs,
       pressurePlates: world?.pressurePlates ?? {},
       levers: world?.levers ?? {},
       doors: world?.doors ?? {},
       elevators: world?.elevators ?? {},
       cores: world?.cores ?? {},
+      crates: world?.crates ?? {},
+      barriers: world?.barriers ?? {},
       enemies: world?.enemies ?? {},
       objectives: { required: world?.objectiveFacts ?? [], facts: world?.facts ?? [], complete: world?.complete ?? false },
       tutorial: this.chapter === 0 ? { completed: [...this.tutorialSteps], ready: this.tutorialComplete } : null,
@@ -1178,4 +1161,5 @@ export class GameApp {
     delete window.advanceTime
     delete window.echoDepthsDebug
   }
+
 }

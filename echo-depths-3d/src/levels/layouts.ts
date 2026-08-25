@@ -15,11 +15,13 @@ export type BoxDefinition = {
 
 export type DeviceDefinition = {
   id: string
-  kind: 'plate' | 'lever' | 'door' | 'elevator' | 'platform' | 'bridge' | 'crate' | 'core' | 'trap' | 'exit' | 'enemy' | 'receiver' | 'gate'
+  kind: 'plate' | 'lever' | 'door' | 'elevator' | 'platform' | 'bridge' | 'crate' | 'core' | 'trap' | 'exit' | 'enemy' | 'receiver' | 'gate' | 'shutter' | 'one-way-wall'
   position: Point3
   size?: Size3
   to?: Point3
   axis?: 'x' | 'z'
+  /** Optional trigger threshold for shutters: shutter opens when live Player.x >= this value. */
+  openAtX?: number
 }
 
 export type DecorDefinition = {
@@ -117,6 +119,10 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
     fog: 0x10131a,
     boxes: [
       floor('hall-lower', [-3, 0, 1.6], [6, 0.45, 4.5]),
+      // The authored lower plate is east of the original hall edge. This is a
+      // physical floor section for the cargo route; it does not bypass the
+      // elevator, weight plate, door, or upper exit rules.
+      floor('counterweight-plate-bridge', [1.2, 0, 1.65], [1.8, 0.45, 3.8]),
       floor('counterweight-dock', [5.6, 3.85, -0.5], [4.05, 0.25, 4]),
       wall('counter-north', [0, 3, -4.1], [10.5, 3, 0.35]),
       wall('counter-west', [-9.3, 3, 0], [0.35, 3, 4.5]),
@@ -157,10 +163,27 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       floor('atrium-lower', [-0.6, -0.25, 0], [4.9, 0.45, 4.3]),
       floor('atrium-east', [7.0, 0, -0.5], [2.8, 0.45, 3.7]),
       wall('atrium-north', [0, 3.2, -4.5], [10.5, 3.2, 0.35]),
+      // The divider has exactly two authored crossings: the player-only one-way
+      // route at z=-2 and the shuttered core-transfer lane around z=1.6. The
+      // solid middle section keeps the two routes physically distinct.
+      wall('atrium-divider-south', [3.75, 2.2, -3.65], [0.25, 2.2, 0.8]),
+      wall('atrium-divider-middle', [3.75, 2.2, -0.2], [0.25, 2.2, 0.85]),
+      wall('atrium-divider-north', [3.75, 2.2, 2.95], [0.25, 2.2, 0.45]),
+      // Low physical rail that catches the Echo's Core before the receiver.
+      // The Player can walk around its south end to make the final throw.
+      wall('atrium-catch-rail', [5.3, 0.45, 1.6], [0.18, 0.45, 0.95]),
     ],
     devices: [
       { id: 'memory-core', kind: 'core', position: [-3.0, 3.75, 1.6] },
       { id: 'temporal-gate', kind: 'gate', position: [0.0, 0.9, -2.0], size: [3.0, 2.2, 0.6] },
+      // Ch3 core transfer lane shutter. Closed by default; opens only when the live
+      // Player is currently east of x=4 (i.e. already past the route). The shutter
+      // body is a physical collider that blocks dynamic cores/crates, so the Echo
+      // throw cannot reach the receiver until the Player has actually crossed.
+      { id: 'transfer-shutter', kind: 'shutter', position: [3.5, 1.4, 1.6], size: [1.4, 1.4, 1.6], openAtX: 4.0 },
+      // Ch3 one-way physical wall. Always solid; lowers itself below the floor only
+      // when an actor is on its WEST side. No ActorContext position mutation.
+      { id: 'atrium-one-way', kind: 'one-way-wall', position: [3.0, 1.6, -2.0], size: [1.0, 1.6, 1.6] },
       { id: 'core-receiver', kind: 'receiver', position: [6.6, 0.88, 1.6] },
       { id: 'atrium-door', kind: 'door', position: [9.45, 2.15, -0.4], size: [0.32, 2.1, 1.2] },
       { id: 'exit', kind: 'exit', position: [10.2, 1.08, -0.4] },
@@ -187,7 +210,7 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       floor('flank-step-c', [2.6, 1.3, -3.0], [0.7, 0.28, 1]),
       wall('gallery-north', [0, 2.8, -4.6], [9.6, 2.8, 0.35]),
       wall('cover-a', [-2.3, 1.5, 0.5], [0.4, 1.5, 1.7]),
-      wall('cover-b', [2.1, 1.5, 1.2], [0.4, 1.5, 1.5]),
+      wall('cover-b', [3.65, 1.5, 1.45], [0.4, 1.5, 1.35]),
     ],
     devices: [
       { id: 'lure-bell', kind: 'lever', position: [-0.8, 0.72, 3.1] },
@@ -196,7 +219,7 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       { id: 'gallery-door', kind: 'door', position: [7.5, 2.4, -1.8], size: [0.32, 2.0, 1.2] },
       { id: 'exit', kind: 'exit', position: [8.35, 1.08, -1.8] },
     ],
-    pillars: [[-5.3, 0.5, -1.9], [-0.1, 0.5, 1.2], [4.2, 0.5, 0.2], [6.9, 0.5, 3.0]],
+    pillars: [[-5.3, 0.5, -1.9], [-4.7, 0.5, 2.25], [4.2, 0.5, 0.2], [6.9, 0.5, 3.0]],
     decor: [
       { id: 'gallery-doorway', source: 'environment', modelIndex: 5, position: [-8.2, 0.45, -2.5], scale: 0.33, solid: true },
       { id: 'cover-supplies', source: 'environment', modelIndex: 13, position: [-5.85, 0.45, -2.85], scale: 0.32, solid: true },
@@ -216,17 +239,21 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       floor('well-mid', [1.7, 2.5, -1.3], [3.1, 0.45, 3.1]),
       floor('well-upper', [6.8, 5.1, 0.3], [3.0, 0.45, 3.7]),
       floor('guardian-ring', [1.7, 2.65, 2.5], [2.7, 0.35, 1.55]),
+      // A readable high flank connects the moving-platform landing to the
+      // Guardian's rear quarter. It is close enough for the real strike cone,
+      // but only after the Guardian has turned toward the lower Echo route.
+      floor('guardian-flank', [3.0, 4.65, 1.35], [1.15, 0.25, 1.2], 'trim'),
       floor('escape-a', [4.5, 3.7, 3.5], [1.0, 0.25, 1.0]),
       floor('escape-b', [6.0, 4.4, 3.1], [1.0, 0.25, 1.0]),
       wall('well-north', [0, 4.0, -4.8], [10.5, 4, 0.35]),
       wall('well-cover-a', [-1.4, 1.5, 1.4], [0.4, 1.5, 1.4]),
-      wall('well-cover-b', [4.1, 4.0, -0.4], [0.4, 1.4, 1.3]),
+      wall('well-cover-b', [4.65, 4.0, 0.75], [0.35, 1.4, 0.9]),
     ],
     devices: [
       { id: 'paradox-core', kind: 'core', position: [-5.7, 1.1, 2.0] },
       { id: 'power-receiver', kind: 'receiver', position: [-7.0, 0.92, -0.8] },
       { id: 'well-elevator', kind: 'elevator', position: [-0.2, 0.35, -2.6], size: [1.25, 0.25, 1.25], to: [-0.2, 2.4, -2.6] },
-      { id: 'well-platform', kind: 'platform', position: [3.7, 2.8, -1.8], size: [1.05, 0.2, 1.05], to: [5.6, 4.85, -1.8] },
+      { id: 'well-platform', kind: 'platform', position: [3.05, 2.8, -1.8], size: [0.7, 0.2, 1.05], to: [3.05, 5.25, -1.8] },
       { id: 'guardian', kind: 'enemy', position: [1.7, 3.58, 2.5], size: [0.7, 0.9, 0.7] },
       { id: 'lower-seal', kind: 'plate', position: [-3.1, 0.52, 3.6], size: [1.05, 0.12, 1.05] },
       { id: 'upper-seal', kind: 'lever', position: [6.2, 5.82, -1.7] },

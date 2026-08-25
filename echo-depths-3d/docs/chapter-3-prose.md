@@ -1,90 +1,51 @@
-# Chapter 3 — THE SPLIT ATRIUM, 어떻게 깨는가 (Echo 2.0)
+# Chapter 3 — THE SPLIT ATRIUM (Echo 2.0 OBJECT TRANSFER)
 
-> 커밋 미정 (로컬 변경 후 push). Echo 2.0 기반 OBJECT TRANSFER 디자인.
-> 챕터 3 = "**과거의 내가 던진 같은 코어를 현재의 내가 이어받는다**"
+> **목표:** 과거의 내가 던진 동일한 Core를 동쪽에서 받아 수신기에 전달한다.
 
----
+Chapter 3은 복제 코어, 자동 수거, 순간이동 해법이 없는 OBJECT TRANSFER 챕터다.
+기록을 확정하면 Player는 기록 종료 지점에 그대로 남고, 월드 동적 상태만 기록 시작
+스냅샷으로 되감긴다. Echo는 같은 물리 월드 안에서 녹화된 입력과 경로를 재생한다.
 
-## 챕터 3의 새로운 메커니즘: OBJECT TRANSFER
+## 공간 규칙
 
-- **Ch 1**: POSITION — echo가 가만히 서 있음
-- **Ch 2**: INTERACTION — echo가 lever 잡음 (player는 cargo 운반)
-- **Ch 3**: **OBJECT TRANSFER** — echo가 core 줍고 player 쪽으로 던짐, player가 받음
+- **Memory Core / Echo anchor:** 서쪽 상부, `[-3.0, 3.75, 1.6]` 부근
+- **Player-only crossing:** `z = -2.0`의 단방향 벽. 서쪽 Player만 통과시키고, Echo나
+  Core는 이 벽을 열 수 없다.
+- **Core transfer lane:** `z = 1.6` 부근의 셔터 차선. 가운데 분리벽이 두 통로를
+  물리적으로 분리한다.
+- **Temporal Gate:** `z = -2.0`의 화물 차단기. Player는 통과할 수 있지만 Core를 들고
+  지나거나 Core를 던져 넘길 수 없다.
+- **Catch rail:** Echo 투척 Core가 수신기에 곧바로 들어가지 않고 동쪽 수거 지점에
+  멈추도록 하는 낮은 물리 레일이다.
 
----
+## 실제 진행
 
-## 챕터 3의 동선 (한 번의 R 녹화, 7~12초)
+1. 서쪽에서 `R`로 기록을 시작한다.
+2. Memory Core를 `E`로 집는다.
+3. 셔터 차선 중앙(`z ≈ 1.6`)에서 동쪽을 보고 `K`로 Core를 던진다. 이때 Player가
+   서쪽에 있으므로 셔터는 닫혀 있고, 이 투척은 녹화에만 남는다.
+4. 계단으로 내려가 `z = -2.0`의 Player-only crossing을 통해 동쪽으로 건넌다.
+5. `R`로 기록을 확정한다. Player의 위치와 방향은 동쪽에 유지되고, Core는 서쪽의
+   기록 시작 상태로 되감긴다.
+6. 동쪽 Player가 있으므로 셔터가 내려가며 수거 차선이 열린다. Echo는 녹화된 경로로
+   같은 Memory Core를 집어 차선을 통해 던지고, Core는 동쪽 catch rail 앞에 멈춘다.
+7. Player가 그 **동일한 Core**를 `E`로 집고, 레일 남쪽을 돌아 수신기 방향으로 `K`로
+   던진다.
+8. `receiver-filled`가 발생해 문이 열리면, 바닥 위 동쪽에서 출구 센서에 접근해 `E`로
+   챕터를 완료한다.
 
-### 1단계: 시작
-- Player: 상부 서쪽 [-6, 4.1, 5]
-- Memory Core: 상부 동쪽 [-3.0, 3.75, 1.6]
-- Echo Anchor: WEST (memory-core 옆) [-2.0, 3.75, 1.6]
-- Temporal Gate: 가운데 [0.0, 0.9, -2.0] — Player는 통과, Core는 통과 못 함
-- Core Receiver: 동쪽 [6.6, 0.88, 1.6]
-- Atrium Door + Exit: 동쪽 끝
+## 검증 불변식
 
-### 2단계: 녹화 (R 1번 → R 2번)
+- 기록 확정은 Player 위치/방향을 되감지 않는다.
+- Core, 속도, 장치 상태 등 월드 동역학은 기록 시작 시점으로 되감긴다.
+- `memory-core`는 한 개뿐이며 Echo와 Player가 번갈아 소유한다.
+- Echo 재생은 기록 좌표로 텔레포트하지 않고 CharacterMotor 충돌 경로로 이동한다.
+- 셔터는 **현재 Player**가 동쪽에 있을 때만 열리고, Echo는 단방향 벽을 열 수 없다.
+- 승리 조건은 `CoreInAtriumReceiver`와 `PlayerAtExit`뿐이다.
 
-R 1번 → **녹화 시작**
+## 막히는 경우
 
-1. **D** (동쪽) — memory-core로 이동 (≈ 1초)
-2. **E** — memory-core pickup (들림)
-3. **S** + **K** — 남쪽으로 throw (큰 opening 통해 EAST receiver 쪽으로)
-4. **S** (남쪽) — 계단 따라 atrium-lower로 내려감
-5. **D** (동쪽) — temporal gate 통과, atrium-east로
-6. R 2번 → **녹화 종료**
-
-### 3단계: Echo System 2.0 (R 2번 시 자동 발생)
-
-- Player: **EAST에 유지** (되감기 X)
-- Memory Core: **WEST에 rewind** (녹화 시작 시점으로)
-- Echo: **WEST spawn** (녹화 시작 위치, memory-core 옆)
-
-### 4단계: Echo Replay (자동)
-
-- Echo가 memory-core로 이동 (path-replay)
-- Echo가 **memory-core pickup** (R+E에 녹화된 대로)
-- Echo가 **throw** (player EAST receiver 쪽으로)
-- Core가 EAST catch basin에 떨어짐 (generous)
-- Echo는 그대로
-
-### 5단계: Player가 받음 (시너지)
-
-- Player는 이미 EAST
-- Player가 **E**로 core pickup (들림)
-- Player가 **K**로 core를 receiver 방향으로 throw
-- Core가 **core-receiver**에 안착 → **receiver-filled** + door 열림
-
-### 6단계: Exit
-
-- **E** (exit) → 챕터 3 클리어 (CHAPTER SEALED)
-
----
-
-## Facts (victory)
-
-- `CoreInAtriumReceiver` — core가 core-receiver에 안착
-- `PlayerAtExit` — player가 exit에 도달
-
-**Echo는 필수** (gate physics 구조):
-- Temporal gate가 core-carry 시 reject
-- Echo 없이 core를 EAST로 보낼 방법 없음 (직접 carry 시 gate 막힘)
-- Echo는 같은 real core를 줍고 던짐 (Object Transfer)
-
----
-
-## 자주 막히는 곳
-
-- **Core 들고 gate 통과 시도** → gate가 core drop (visual + audio feedback)
-- **Echo throw가 receiver 못 맞춤** → generous basin이라 거의 항상 받음
-- **Catch timing** → 없음. Echo throw 후 core가 basin에 떨어짐, player가 pickup
-- **너무 짧게 녹화** → 7초 이상 권장 (memory-core pickup + throw + stairs + cross)
-
----
-
-## Echo 2.0 Properties 사용
-
-- **거울**: Echo는 player input 그대로 따라함
-- **공간 분리**: Echo는 WEST, player는 EAST (다른 위치에서 동시 행동)
-- **시간 분리**: Echo는 녹화된 시간 후 등장 (snapshot 시점)
-- **Persistent object**: Echo가 던진 core는 **같은 real object** (spectral copy 아님)
+- Core를 든 채 temporal gate를 통과하려 하면 서쪽으로 떨어뜨려진다.
+- Player 전용 차선으로 Core를 보내려 하면 gate/단방향 물리가 막는다.
+- 셔터가 닫혀 있을 때 Echo가 아닌 Player 투척으로 동쪽을 우회할 수 없다.
+- Echo 투척 뒤에는 타이밍 자동 수거가 없다. 동쪽에서 실제로 Core에 접근해 `E`를 눌러야 한다.

@@ -1,15 +1,17 @@
 # ECHO DEPTHS Verification Record
 
-Snapshot: 2026-08-18, Asia/Seoul.
+Snapshot: 2026-08-25, Asia/Seoul.
 
 ## Current result
 
 | Layer | Command or method | Result |
 | --- | --- | --- |
 | Strict TypeScript | `npx tsc --noEmit` / build compiler | PASS |
-| Production bundle | `npm run build` | PASS — 38 modules; JS 3,633.84 kB, CSS 22.87 kB |
-| Unit, pure-rule, state, and physics regression tests | `npm test -- --run` | PASS — 16 files, 96 tests |
-| Playwright functional and layout coverage | `npm run test:e2e` | PASS — 15/15 in 3.6 minutes, including all Chapters 1–5 enabled before a clear |
+| Production bundle | `npm run build` | PASS — 38 modules; JS 3,645.22 kB, CSS 22.71 kB |
+| Unit, pure-rule, state, and physics regression tests | `npx vitest run` | PASS — 17 files, 126 tests |
+| Playwright functional and layout coverage | local `npx playwright test` with external base URL unset | PASS — 25/25 in 24.6 minutes, including all existing Chapter 1–3 positive/negative regressions and four real-input Chapter 4–5 desktop/mobile completions |
+| Chapter 4–5 success captures | focused desktop/mobile Playwright rerun with `ECHO_DEPTHS_SCREENSHOT_DIR` | PASS — 4/4 in 6.9 minutes; four PNG artifacts generated from successful physical routes |
+| 2026-08-25 external release | Git/Vercel inspection | No deployment or production promotion performed; `main`, `fix/echo2-ch3-structural`, existing production, assets, and siblings unchanged |
 | Local production-bundle smoke | `PLAYWRIGHT_BASE_URL=http://127.0.0.1:4541 npm run test:production` | PASS — 6/6 in 1.1 minutes |
 | PC movement and camera continuity | Unit camera/motor checks plus real browser mouse drag then `W` movement | PASS — continuous 30 Hz obstruction sampling, bounded vertical orbit, smooth release, decisive reversal, and live keyboard movement |
 | Chapter 2 desktop route | Playwright manual-step browser route | PASS — echo-held lift, board, cargo plate, and exit in 54.2 seconds |
@@ -68,7 +70,15 @@ npm run preview
 
 Preview base URL: `http://127.0.0.1:4538`.
 
-## Vitest evidence: 88 passing tests
+## 2026-08-25 temporal-mastery evidence
+
+- `src/world/DungeonWorld.test.ts` now proves real bell stimulus without direct target assignment, visible Echo acquisition, the full attention lifecycle, late-patrol LOS, snapshot restoration of all perception timers/positions, rear/high attack acceptance, frontal/low rejection, physical knockback-to-trap, blocked early exit, one-Core receiver delivery, Guardian cover/target switching, positional strike rejection, powered-platform support motion, live dual seals, final door, and exit.
+- `src/game/chapters.test.ts` requires minimal outcome facts: Chapter 4 hazard neutralization and Chapter 5 Core receiver, Guardian defeat, and final-door release. Internal throw/distraction/seal-history facts do not inflate victory requirements.
+- `tests/chapter4-5-temporal.spec.ts` completes Chapters 4 and 5 through ordinary desktop keyboard input. `tests/chapter4-5-mobile-walkthrough.spec.ts` repeats both complete solutions using touch joystick, touch camera, and touch action buttons only.
+- The full browser run also retains the Chapter 3 no-shortcut suite: one canonical Core, gate/shutter collisions, one-way direction, replacement Echo lifecycle, and full OBJECT TRANSFER. Its second-throw route uses the actual west edge of the half-width-3 temporal gate so the carried Core clears the physical collider before the negative attempt.
+- No test calls an authored solution step, mutates world facts, teleports an actor/Core, sets defeated/receiver/seal/complete state, or enables test-only physics. Manual stepping advances the production fixed-step path; browser motion and actions remain real keyboard or touch events.
+
+## Historical Vitest evidence: 88 passing tests
 
 | File | Passing tests | Coverage represented |
 | --- | ---: | --- |
@@ -169,7 +179,7 @@ Advances the same fixed-step loop used by real rendering without depending on wa
 
 ### Development-only `window.echoDepthsDebug`
 
-The development build exposes constrained operations for chapter selection, one-frame input injection, input release, manual fixed-tick stepping, exact tick advancement, chapter restart, authored world-fact solution steps, and asset-status reading. The production build does not expose this object.
+The development build exposes constrained operations for chapter selection, tutorial completion, manual fixed-tick stepping, exact tick advancement, chapter restart, and asset-status reading. It exposes no input injection, authored solution step, fact mutation, teleport, or outcome setter. The production build does not expose this object.
 
 ## Required Playwright story
 
@@ -182,8 +192,8 @@ Browser verification is only final when one coherent run covers:
 5. Chapter 1 lever plus echo plate;
 6. Chapter 2 echo lever, elevator height, and cargo plate;
 7. Chapter 3 echo core throw, catch, redirect, receiver, and bridge;
-8. Chapter 4 cover/lure and hazard-only watcher defeat;
-9. Chapter 5 core power, guardian echo distraction, high-side seal break, simultaneous devices, live timer, and exit;
+8. Chapter 4 real bell stimulus, cover, actual Echo visibility, rear/high strike, physical knockback-to-trap, released door, and exit;
+9. Chapter 5 one real Core carried/thrown by the first Echo, replacement Echo lower-seal occupancy, actual Guardian visibility/target switch, powered-platform traversal, rear/high seal break, live simultaneous devices, final-door release, timer, and exit;
 10. ending statistics, final rank, full replay reset, and chapter restart reset;
 11. fullscreen success or rejection without unhandled errors;
 12. portrait guidance at `390x844`, landscape multi-touch at `844x390`, and readable layouts at `1024x768` and `1440x900`;
