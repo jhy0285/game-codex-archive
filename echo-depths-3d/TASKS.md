@@ -224,3 +224,9 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 - [x] Add a separate middle `atrium-return-gate`, initially closed, which unlocks only from the actual `core-receiver` active state.
 - [x] Allow only the live Player through the open return gate; retain real Echo and Core collision in both gate states.
 - [x] Restore the gate deterministically from the receiver device state on recording rewind and restart; add closed/open color, light, field, and retracting-panel feedback.
+
+## 2026-08-25 — Chapter 3 Core-only transfer shutter correction
+
+- [x] Keep the east transfer shutter closed to physical Cores until the live Player reaches the east side.
+- [x] Add a fixed, actor-only north-lane seal: Player and Echo cannot use an open Core shutter as a crossing or return shortcut.
+- [x] Widen the visible shutter slats to the full transfer span and retain a cyan lock field/rails as the actor-only boundary.

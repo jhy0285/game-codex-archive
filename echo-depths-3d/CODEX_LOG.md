@@ -269,5 +269,11 @@ Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLA
 - The gate reads only `core-receiver.active`, not a recording/provenance fact. Closed/open visual states use red/cyan fields, lights, status rings, and panel retraction; Rapier continues to block Echo and Core while `CharacterMotor` admits only the live Player when active.
 - Snapshot restore recomputes the gate from the restored receiver state. Targeted physics tests and the production build pass.
 
+## 2026-08-25 — Chapter 3 transfer shutter actor seal
+
+- Diagnosed the east shutter leak: `CharacterMotor` ignored every `shutter` collider, so Player and Echo could traverse the north lane despite its closed Core collider.
+- Preserved the physical Core shutter and added a Chapter 3-only static actor barrier with an always-readable cyan field and rails. The retracting shutter now controls Core transfer only; Player/Echo remain blocked before and after opening.
+- Added a regression proving closed Core denial, open same-Core delivery, Player EAST→WEST denial, and Echo WEST→EAST denial. Targeted tests, strict production build, and local Chapter 3 browser/console verification pass.
+
 
 

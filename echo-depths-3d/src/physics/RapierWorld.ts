@@ -42,6 +42,10 @@ const ACTOR_COLLISION_GROUPS = GROUP_ACTOR | ((GROUP_WORLD | GROUP_DYNAMIC) << 1
 const DYNAMIC_COLLISION_GROUPS = GROUP_DYNAMIC | ((GROUP_WORLD | GROUP_ACTOR | GROUP_DYNAMIC) << 16)
 const CARRIED_DYNAMIC_COLLISION_GROUPS = GROUP_DYNAMIC | (GROUP_WORLD << 16)
 const CORE_BARRIER_COLLISION_GROUPS = GROUP_WORLD | (GROUP_DYNAMIC << 16)
+// A transfer shutter needs a permanent actor seal even when its physical Core
+// slab retracts. This lets the Core use the lane without turning it into a
+// Player/Echo return shortcut.
+const ACTOR_BARRIER_COLLISION_GROUPS = GROUP_WORLD | (GROUP_ACTOR << 16)
 const CLOSED_ONE_WAY_COLLISION_GROUPS = GROUP_WORLD | ((GROUP_ACTOR | GROUP_DYNAMIC) << 16)
 
 export type BodyRecord = {
@@ -175,6 +179,16 @@ export class RapierWorld {
     )
     collider.setCollisionGroups(CORE_BARRIER_COLLISION_GROUPS)
     return this.register({ tag: { id, kind: 'shutter' }, body, collider })
+  }
+
+  /**
+   * Fixed, actor-only transfer-lane seal. The Core shutter can lower without
+   * letting Player or Echo bodies cross the north lane.
+   */
+  createShutterActorBarrier(id: string, center: Vec3, half: Vec3): BodyRecord {
+    const record = this.createStaticBox(id, 'shutter', center, half)
+    record.collider.setCollisionGroups(ACTOR_BARRIER_COLLISION_GROUPS)
+    return record
   }
 
   /**

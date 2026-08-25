@@ -1181,6 +1181,35 @@ describe('DungeonWorld authored runtime contracts', () => {
     } finally { world.dispose(); physics.dispose() }
   })
 
+  it('Ch3 N3 — the Core shutter never becomes a Player or Echo crossing', async () => {
+    const { physics, scene, world } = await createWorld(3)
+    const playerRecord = physics.createActor('shutter-player', 'player', { x: 3.1, y: 1.265, z: 2.45 })
+    const echoRecord = physics.createActor('shutter-echo', 'echo', { x: 0, y: 1.265, z: 2.45 })
+    const playerMotor = new CharacterMotor(physics, playerRecord)
+    const echoMotor = new CharacterMotor(physics, echoRecord)
+    try {
+      expect(scene.getObjectByName('TransferShutterActorSeal')).toBeDefined()
+      const player = actor('shutter-player', 'player', [3.1, 1.265, 2.45])
+      const echo = actor('shutter-echo', 'echo', [0, 1.265, 2.45])
+      let openedForCore = false
+      for (let tick = 1; tick <= 130; tick += 1) {
+        world.beforePhysics(tick, [player, echo])
+        playerMotor.prepare({ moveX: -1, moveZ: 0, jumpPressed: false, dashPressed: false })
+        echoMotor.prepare({ moveX: 1, moveZ: 0, jumpPressed: false, dashPressed: false })
+        physics.step()
+        playerMotor.syncAfterStep(); player.position.copy(playerMotor.position)
+        echoMotor.syncAfterStep(); echo.position.copy(echoMotor.position)
+        world.afterPhysics([player, echo])
+        openedForCore ||= world.debugState().barriers['transfer-shutter']?.open === true
+      }
+      expect(openedForCore, 'Player east still opens the Core shutter').toBe(true)
+      expect(playerMotor.position.x, 'open Core shutter must not allow EAST→WEST Player return').toBeGreaterThan(1.82)
+      expect(echoMotor.position.x, 'open Core shutter must not allow Echo WEST→EAST crossing').toBeLessThan(1.08)
+    } finally {
+      playerMotor.dispose(); echoMotor.dispose(); world.dispose(); physics.dispose()
+    }
+  })
+
   it('Ch3 O — one-way portal is full-span and shows a pass face west of it and a lock face east of it', async () => {
     const { physics, scene, world } = await createWorld(3)
     try {

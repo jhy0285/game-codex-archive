@@ -834,6 +834,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const glow = this.material(accent, 0.42, 0.42, accent)
     let root: THREE.Object3D
     let body: BodyRecord | undefined
+    let staticSeal: THREE.Object3D | undefined
     if (definition.kind === 'plate') {
       root = new THREE.Group()
       const scannerWidth = Math.max(1.05, size[0] * 1.5)
@@ -970,22 +971,52 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       // dynamic puzzle objects while Player/Echo capsules pass through.
       body = this.physics.createCoreBarrier(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
     } else if (definition.kind === 'shutter') {
-      // Physical shutter for Ch3 core transfer lane. Closed by default (blocks
-      // dynamic cores/crates). Opens when the live Player is in EAST (so the
-      // recorded-timeline shutter state never leaks across rebuilds).
+      // Physical shutter for Ch3's Core transfer lane. The retracting shutter
+      // itself blocks the Core while closed; a separate actor-only seal stays
+      // in the lane so Player/Echo can never use this as a return shortcut.
       root = new THREE.Group()
       const slatMat = this.material(0xc15bf2, 0.34, 0.6, 0x6b3a92)
       for (let i = 0; i < 4; i += 1) {
-        const slat = this.boxMesh([size[0] * 0.42, size[1] * 0.18, 0.05], slatMat.clone())
+        const slat = this.boxMesh([size[0] * 0.76, size[1] * 0.18, size[2] * 0.88], slatMat.clone())
         slat.name = 'TransferShutterSlat'
         slat.position.set(0, -size[1] * 0.5 + (i + 0.5) * (size[1] * 0.25), 0)
         root.add(slat)
       }
       const frameMat = this.material(0x2a1a3a, 0.5, 0.5, 0x4a2a5a)
-      const top = this.boxMesh([size[0] * 0.46, 0.04, 0.04], frameMat); top.name = 'TransferShutterFrame'
+      const top = this.boxMesh([size[0] * 0.9, 0.1, size[2] * 0.98], frameMat); top.name = 'TransferShutterFrame'
       top.position.y = size[1] * 0.5 + 0.02
       root.add(top)
       body = this.physics.createShutter(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
+      if (this.chapter === 3) {
+        this.physics.createShutterActorBarrier(`${definition.id}-actor-seal`, this.vec(position), {
+          x: size[0] / 2,
+          y: size[1] / 2,
+          z: size[2] / 2,
+        })
+        staticSeal = new THREE.Group()
+        staticSeal.name = `${definition.id}-actor-seal`
+        staticSeal.position.copy(position)
+        const sealMat = new THREE.MeshBasicMaterial({
+          color: 0x68eaff,
+          transparent: true,
+          opacity: 0.28,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        })
+        this.materials.push(sealMat)
+        const sealField = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(size[2] * 0.88, size[1] * 0.78)), sealMat)
+        sealField.name = 'TransferShutterActorSeal'
+        sealField.rotation.y = Math.PI / 2
+        sealField.position.x = -size[0] * 0.53
+        sealField.renderOrder = 4
+        staticSeal.add(sealField)
+        for (const y of [-size[1] * 0.24, 0, size[1] * 0.24]) {
+          const lockRail = this.boxMesh([size[0] * 0.16, 0.045, size[2] * 0.82], this.cloneMaterial(slatMat))
+          lockRail.name = 'TransferShutterActorSealRail'
+          lockRail.position.set(-size[0] * 0.58, y, 0)
+          staticSeal.add(lockRail)
+        }
+      }
     } else if (definition.kind === 'one-way-wall') {
       root = new THREE.Group()
       root.name = 'OneWayPassagePortal'
@@ -1421,6 +1452,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         }
       }
     })
+    if (staticSeal) this.root.add(staticSeal)
     this.root.add(root)
     const record: DeviceRecord = {
       definition,

@@ -158,5 +158,9 @@ The right-side Chapter 3 one-way object was visually reading as a small, ambiguo
 
 The Chapter 3 return route is now a distinct middle gate, not the red reverse face of `atrium-one-way`. It is closed until the physical `memory-core` has activated `core-receiver`; then its cyan field, light, and retracted panels indicate that only the live Player may cross. Echo and Core collision remains physical even while the Player-only route is visually open. The gate derives each frame and on snapshot restore from the receiver's active device state, so recording rewind/restart cannot retain a stale unlock. Targeted receiver/Player/Echo/Core/same-Core-transfer tests and the strict production build passed.
 
+## 2026-08-25 — Chapter 3 transfer shutter correction
+
+The east/north transfer shutter is now explicitly Core-only. Its full-span mechanical shutter blocks the physical Core until the Player is east, then retracts for the Echo's same-Core delivery. A separate cyan actor seal remains raised at all times, so neither Player nor Echo can traverse the north lane or bypass the receiver-gated return door. The rule is Chapter 3-specific and does not change Chapter 5 shutter behavior. Targeted Core/Player/Echo physics tests, production build, and a local Chapter 3 browser capture passed without console errors.
+
 
 

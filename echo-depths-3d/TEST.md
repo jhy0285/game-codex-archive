@@ -269,3 +269,9 @@ The automated evidence does not establish physical-phone ergonomics, unaided fir
 
 - `npm test -- --run src/world/DungeonWorld.test.ts -t "Ch3 R|Ch3 N2|Ch3 E"`: PASS, 3 selected tests. It verifies receiver-inactive EAST → WEST Player denial, receiver-active Player passage, open-gate Echo/Core denial, receiver-state rewind restoration, and the existing same-Core Echo transfer.
 - `npm run build`: PASS. TypeScript and the Vite production bundle completed; the pre-existing large Three.js bundle warning is non-fatal.
+
+## 2026-08-25 — Chapter 3 transfer shutter targeted evidence
+
+- `npm test -- --run src/world/DungeonWorld.test.ts -t "Ch3 M|Ch3 N2|Ch3 N3"`: PASS, 3 selected tests. It verifies closed-shutter Core denial, the same physical Core crossing after the east-side opening, and Player/Echo denial on the open Core-only lane.
+- `npm run build`: PASS. TypeScript and the Vite production bundle completed; the pre-existing large Three.js bundle warning is non-fatal.
+- Local Chapter 3 browser capture: PASS. The shutter shows full-span slats plus a persistent cyan actor seal; browser error collection was empty.

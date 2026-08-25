@@ -136,7 +136,7 @@ export class CharacterMotor {
           && this.record.tag.kind === 'player'
           && tag.playerReturnPassOpen === true) return false
         if (tag?.carried || tag?.nonBlocking) return false
-        if (tag?.kind === 'gate' || tag?.kind === 'shutter') return false
+        if (tag?.kind === 'gate') return false
         if (tag?.kind === 'plate' || tag?.kind === 'lever' || tag?.kind === 'trap' || tag?.kind === 'exit') return false
         return tag?.kind !== 'player' && tag?.kind !== 'echo'
       },
@@ -225,7 +225,7 @@ export class CharacterMotor {
           && this.record.tag.kind === 'player'
           && tag.playerReturnPassOpen === true) return false
         if (tag?.carried || tag?.nonBlocking) return false
-        if (tag?.kind === 'gate' || tag?.kind === 'shutter') return false
+        if (tag?.kind === 'gate') return false
         if (tag?.kind === 'plate' || tag?.kind === 'lever' || tag?.kind === 'trap' || tag?.kind === 'exit') return false
         return tag?.kind !== 'player' && tag?.kind !== 'echo'
       },
