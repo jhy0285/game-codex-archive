@@ -258,3 +258,9 @@ The current feature branch is based directly on `origin/main` `410366f88ff3b935d
 - Visual evidence: 17 PNGs cover Chapter 3 start/shutter/transfer/receiver, Chapter 4 start/cover/high flank/trap plus mobile start/final state, and Chapter 5 start/transfer/receiver/upper flank/final door plus mobile start/final door. Representative frames were directly inspected for visible actors, landmarks, routes, HUD, and non-overlapping landscape touch controls.
 
 The automated evidence does not establish physical-phone ergonomics, unaided first-time puzzle comprehension, subjective camera comfort, difficulty, pacing, or fun. Those remain human playtest items.
+
+## 2026-08-25 — One-way portal visual correction
+
+- `npm test -- --run`: PASS, 18 files / 131 tests. The new regression checks the full portal mesh dimensions plus bright west-side pass arrows and bright east-side lock bars without altering the directional collision contract.
+- `npm run build`: PASS. The existing large Three.js bundle warning remains non-fatal.
+- Local Chapter 3 visual review: PASS. The quarter-view camera shows the enlarged translucent portal and its three top-facing directional arrows; browser error collection was empty.

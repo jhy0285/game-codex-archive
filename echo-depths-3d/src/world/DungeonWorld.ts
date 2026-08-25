@@ -179,8 +179,6 @@ export class DungeonWorld {
   private readonly dynamics = new Map<string, DynamicRecord>()
   /** Live open/closed state per spatial Core-transfer shutter. */
   private readonly shutters = new Map<string, boolean>()
-  /** A player can open a one-way crossing only from its west approach. */
-  private readonly oneWayOpening = new Map<string, boolean>()
   private readonly materials: THREE.Material[] = []
   private readonly geometries: THREE.BufferGeometry[] = []
   private readonly effects: EffectRecord[] = []
@@ -983,67 +981,121 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       body = this.physics.createShutter(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
     } else if (definition.kind === 'one-way-wall') {
       root = new THREE.Group()
-      root.name = 'OneWayPassage'
-      // Match the physical collider exactly: this is a full-height plane
-      // across the passage, not an oversized opaque box. Its west face is a
-      // luminous flow field while its dark east face communicates no return.
+      root.name = 'OneWayPassagePortal'
+      // The collider is deliberately as substantial as the visible portal. A
+      // small, thin slab made the rule look like a broken prop instead of an
+      // authored crossing in the quarter-view camera.
       const height = size[1]
       const span = size[2]
-      const depth = Math.min(size[0], 0.24)
-      const slabMat = this.material(0x20142f, 0.46, 0.72, 0x56348c)
-      const frameMat = this.material(0x7f59bd, 0.28, 0.76, 0xc15bf2)
-      const fieldMat = new THREE.MeshBasicMaterial({
-        color: 0xa870ff,
+      const depth = size[0]
+      // The solid Rapier barrier must not render as a solid purple monolith.
+      // Its volume stays as a faint silhouette behind the directional surfaces.
+      const slabMat = this.material(0x171424, 0.38, 0.78, 0x44266b, 0.12)
+      const frameMat = this.material(0x8e6af0, 0.2, 0.82, 0xc15bf2)
+      const passMat = this.material(0x7be9ff, 0.2, 0.58, 0x7be9ff)
+      const lockMat = this.material(0xff5c79, 0.28, 0.62, 0xff5c79)
+      const westFieldMat = new THREE.MeshBasicMaterial({
+        color: 0x5ee4ff,
         transparent: true,
-        opacity: 0.22,
+        opacity: 0.18,
         depthWrite: false,
         side: THREE.DoubleSide,
       })
-      this.materials.push(fieldMat)
+      const eastFieldMat = new THREE.MeshBasicMaterial({
+        color: 0x7f244a,
+        transparent: true,
+        opacity: 0.52,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      })
+      this.materials.push(westFieldMat, eastFieldMat)
       const slab = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(depth, height, span)), slabMat)
       slab.name = 'OneWayWall'
-      const northFrame = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(depth + 0.08, height + 0.16, 0.09)), frameMat)
+      const northFrame = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(depth + 0.14, height + 0.22, 0.12)), frameMat)
       northFrame.name = 'OneWayWallNorthFrame'
       northFrame.position.z = -span * 0.5
       const southFrame = new THREE.Mesh(
-        this.geometry(new THREE.BoxGeometry(depth + 0.08, height + 0.16, 0.09)),
+        this.geometry(new THREE.BoxGeometry(depth + 0.14, height + 0.22, 0.12)),
         this.cloneMaterial(frameMat),
       )
       southFrame.name = 'OneWayWallSouthFrame'
       southFrame.position.z = span * 0.5
       const crown = new THREE.Mesh(
-        this.geometry(new THREE.BoxGeometry(depth + 0.08, 0.1, span + 0.16)),
+        this.geometry(new THREE.BoxGeometry(depth + 0.14, 0.14, span + 0.22)),
         this.cloneMaterial(frameMat),
       )
       crown.name = 'OneWayWallCrown'
       crown.position.y = height * 0.5
-      const field = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.8, height * 0.76)), fieldMat)
-      field.name = 'OneWayWallFlowField'
-      field.rotation.y = Math.PI / 2
-      field.position.x = -depth * 0.5 - 0.006
-      field.renderOrder = 2
-      const markerMaterial = this.material(accent, 0.25, 0.65, accent)
-      const markerGeometry = this.geometry(new THREE.BoxGeometry(0.045, 0.07, span * 0.54))
-      const markers = new THREE.Group()
-      markers.name = 'OneWayWallStripe'
-      for (const y of [-height * 0.25, 0, height * 0.25]) {
-        const marker = new THREE.Mesh(markerGeometry, this.cloneMaterial(markerMaterial))
-        marker.position.set(-depth * 0.62, y, 0)
-        marker.renderOrder = 3
-        markers.add(marker)
+      const westField = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.84, height * 0.84)), westFieldMat)
+      westField.name = 'OneWayWallWestField'
+      westField.rotation.y = Math.PI / 2
+      westField.position.x = -depth * 0.5 - 0.012
+      westField.renderOrder = 2
+      const eastField = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.84, height * 0.84)), eastFieldMat)
+      eastField.name = 'OneWayWallEastField'
+      eastField.rotation.y = -Math.PI / 2
+      eastField.position.x = depth * 0.5 + 0.012
+      eastField.renderOrder = 2
+
+      // A top-facing row of bright arrows remains visible from the quarter-view
+      // camera even when that camera is looking at the portal's locked face.
+      const arrowGeometry = this.geometry(new THREE.ConeGeometry(0.22, 0.54, 4))
+      const arrowShaftGeometry = this.geometry(new THREE.BoxGeometry(0.34, 0.06, 0.11))
+      const arrows = new THREE.Group()
+      arrows.name = 'OneWayWallPassArrows'
+      for (const z of [-span * 0.27, 0, span * 0.27]) {
+        const shaft = new THREE.Mesh(arrowShaftGeometry, this.cloneMaterial(passMat))
+        shaft.name = 'OneWayWallPassShaft'
+        shaft.position.set(-0.22, height * 0.5 + 0.16, z)
+        arrows.add(shaft)
+        const arrow = new THREE.Mesh(arrowGeometry, this.cloneMaterial(passMat))
+        arrow.name = 'OneWayWallPassArrow'
+        arrow.rotation.z = -Math.PI / 2
+        arrow.position.set(0.14, height * 0.5 + 0.16, z)
+        arrow.renderOrder = 4
+        arrows.add(arrow)
       }
-      const beaconGeometry = this.geometry(new THREE.OctahedronGeometry(0.11, 0))
+      arrows.userData.role = 'player-west-to-east-only'
+
+      const lockBars = new THREE.Group()
+      lockBars.name = 'OneWayWallLockBars'
+      const lockBarGeometry = this.geometry(new THREE.BoxGeometry(0.055, 0.08, span * 0.7))
+      for (const y of [-height * 0.23, 0, height * 0.23]) {
+        const lockBar = new THREE.Mesh(lockBarGeometry, this.cloneMaterial(lockMat))
+        lockBar.name = 'OneWayWallLockBar'
+        lockBar.position.set(depth * 0.58, y, 0)
+        lockBar.renderOrder = 4
+        lockBars.add(lockBar)
+      }
+      const lockRing = new THREE.Mesh(
+        this.geometry(new THREE.TorusGeometry(0.34, 0.045, 8, 20)),
+        this.cloneMaterial(lockMat),
+      )
+      lockRing.name = 'OneWayWallLockSigil'
+      lockRing.rotation.y = Math.PI / 2
+      lockRing.position.x = depth * 0.58
+      lockBars.add(lockRing)
+      const lockCross = new THREE.Mesh(
+        this.geometry(new THREE.BoxGeometry(0.05, 0.48, 0.055)),
+        this.cloneMaterial(lockMat),
+      )
+      lockCross.name = 'OneWayWallLockCross'
+      lockCross.rotation.x = Math.PI / 4
+      lockCross.position.x = depth * 0.59
+      lockBars.add(lockCross)
+
+      const beaconGeometry = this.geometry(new THREE.OctahedronGeometry(0.15, 0))
       const beacons = new THREE.Group()
       beacons.name = 'OneWayWallBeacons'
       for (const z of [-span * 0.38, span * 0.38]) {
         const beacon = new THREE.Mesh(beaconGeometry, this.cloneMaterial(frameMat))
-        beacon.position.set(-depth * 0.72, height * 0.37, z)
+        beacon.position.set(0, height * 0.39, z)
         beacons.add(beacon)
       }
-      const light = new THREE.PointLight(0x9b6cff, 1.7, 3.8)
+      const light = new THREE.PointLight(0x7be9ff, 2.4, 5.2)
       light.name = 'OneWayWallLight'
-      light.position.x = -0.2
-      root.add(slab, northFrame, southFrame, crown, field, markers, beacons, light)
+      light.position.x = -depth * 0.45
+      root.add(slab, northFrame, southFrame, crown, westField, eastField, arrows, lockBars, beacons, light)
       for (const part of [slab, northFrame, southFrame, crown]) {
         part.castShadow = true
         part.receiveShadow = true
@@ -1678,12 +1730,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   private updateOneWayWalls(actors: readonly ActorContext[]): void {
     for (const [, device] of this.devices) {
       if (device.definition.kind !== 'one-way-wall' || !device.body) continue
-      // The collider remains raised at all times. CharacterMotor ignores it
-      // only for a live Player moving WEST→EAST; Echo and physical Core bodies
-      // always collide, and an east-side Player cannot travel back through it.
+      // This is never an opening door. CharacterMotor ignores its collider only
+      // for a live Player moving WEST→EAST. Echo and physical Core bodies always
+      // collide, and a Player on the east side cannot return through it.
       const player = actors.find((actor) => actor.kind === 'player')
-      const playerApproachingFromWest = player !== undefined && player.position.x < device.basePosition.x
-      this.oneWayOpening.set(device.definition.id, playerApproachingFromWest)
+      const playerOnWestSide = player !== undefined && player.position.x < device.basePosition.x - 0.05
+      const playerOnEastSide = player !== undefined && player.position.x > device.basePosition.x + 0.05
       this.physics.setOneWayWallOpen(device.body.collider, false)
       device.body.tag.nonBlocking = false
       const target = this.vec(device.basePosition)
@@ -1692,7 +1744,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         device.body.body.setNextKinematicTranslation(target)
         if (device.root) device.root.position.set(target.x, target.y, target.z)
       }
-      this.setEmissiveIntensity(device.root.getObjectByName('OneWayWallStripe'), playerApproachingFromWest ? 2.2 : 0.7)
+      this.setOneWayWallPresentation(device.root, playerOnWestSide, playerOnEastSide)
     }
   }
   private updateEnemy(actors: readonly ActorContext[]): void {
@@ -2151,6 +2203,42 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (!blocked) {
       enemy.root.position.add(displacement)
     }
+  }
+
+  /** Make the one-way rule legible from either side without changing physics. */
+  private setOneWayWallPresentation(root: THREE.Object3D, playerOnWestSide: boolean, playerOnEastSide: boolean): void {
+    this.setPresentationMaterial(root.getObjectByName('OneWayWallPassArrows'), 0x7be9ff, playerOnWestSide ? 2.8 : 0.35)
+    this.setPresentationMaterial(root.getObjectByName('OneWayWallLockBars'), 0xff5c79, playerOnEastSide ? 3.1 : 0.38)
+    this.setPresentationMaterial(root.getObjectByName('OneWayWallBeacons'), playerOnEastSide ? 0xff5c79 : 0x7be9ff, playerOnEastSide ? 2.5 : 1.7)
+    const westField = root.getObjectByName('OneWayWallWestField')
+    const eastField = root.getObjectByName('OneWayWallEastField')
+    if (westField instanceof THREE.Mesh && westField.material instanceof THREE.MeshBasicMaterial) {
+      westField.material.color.setHex(0x5ee4ff)
+      westField.material.opacity = playerOnWestSide ? 0.08 : 0.2
+    }
+    if (eastField instanceof THREE.Mesh && eastField.material instanceof THREE.MeshBasicMaterial) {
+      eastField.material.color.setHex(playerOnEastSide ? 0xff5c79 : 0x7f244a)
+      eastField.material.opacity = playerOnEastSide ? 0.68 : 0.36
+    }
+    const light = root.getObjectByName('OneWayWallLight')
+    if (light instanceof THREE.PointLight) {
+      light.color.setHex(playerOnEastSide ? 0xff5c79 : 0x7be9ff)
+      light.intensity = playerOnEastSide ? 2.8 : playerOnWestSide ? 2.5 : 1.25
+    }
+  }
+
+  private setPresentationMaterial(object: THREE.Object3D | undefined, color: number, intensity: number): void {
+    object?.traverse((part) => {
+      if (!(part instanceof THREE.Mesh) && !(part instanceof THREE.InstancedMesh)) return
+      const materials = Array.isArray(part.material) ? part.material : [part.material]
+      for (const material of materials) {
+        if (material instanceof THREE.MeshStandardMaterial) {
+          material.color.setHex(color)
+          material.emissive.setHex(color)
+          material.emissiveIntensity = intensity
+        }
+      }
+    })
   }
 
   private spawnWave(position: THREE.Vector3, color: number): void {

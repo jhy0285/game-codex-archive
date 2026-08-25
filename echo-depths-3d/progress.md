@@ -150,5 +150,9 @@ The user requested two things: (1) reframe the chapter 1 clear condition so that
 - English/Korean objectives remain broad enough to preserve discovery. Outcome requirements are minimal and physical: Watcher trapped; Core received, Guardian defeated, final door released.
 - Local final gates pass: build, Vitest 126/126, Playwright 25/25, and capture rerun 4/4. GitHub push/PR state is recorded after remote delivery; Vercel remains intentionally untouched.
 
+## 2026-08-25 — One-way portal readability follow-up
+
+The right-side Chapter 3 one-way object was visually reading as a small, ambiguous purple block even though its collision contract was already correct. Chapters 3 and 5 now use enlarged translucent portal frames: cyan arrows on top identify the only pass direction (live Player WEST → EAST), while red bars and a lock sigil identify the EAST-side no-return face. Echoes and physical Cores remain blocked on both directions. The HUD hints now state that rule explicitly in Korean and English. Local verification passed 18 Vitest files / 131 tests, strict Vite build, Chapter 3 visual capture, and empty browser error collection.
+
 
 

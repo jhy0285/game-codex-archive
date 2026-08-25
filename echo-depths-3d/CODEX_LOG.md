@@ -257,5 +257,11 @@ Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLA
 - Final local evidence: Vitest 130/130; strict build PASS; render/framing 2/2 in 25.5 seconds; focused Chapter 3–5 completion 6/6 in 8.3 minutes; production-bundle smoke 6/6 in 47.6 seconds; full Playwright 20/20 in 12.6 minutes. Seventeen current screenshots were captured and representative frames inspected.
 - No asset, sibling project, `main`, Vercel production deployment, domain, or alias was changed.
 
+## 2026-08-25 — One-way portal visual correction
+
+- Replaced the Chapter 3/5 one-way wall's small opaque visual slab with a full-height portal treatment. The real Rapier collider and CharacterMotor's Player WEST → EAST exception are unchanged.
+- West-side traversal is now marked by cyan top-facing arrows; the opposite face carries red lock bars and a no-return sigil. The local Player side controls emphasis only, never the physical access rule.
+- Enlarged the portal dimensions, clarified Korean/English hints, and added visual-state/dimension regressions. Vitest 131/131, Vite build, and local Chapter 3 browser capture passed.
+
 
 

@@ -211,3 +211,9 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 - [x] Synchronize Korean/English objectives and hints; add layout, camera, motor, Rapier/world, structural-negative, desktop, mobile, render, and production-bundle regressions.
 - [x] Capture and inspect 17 current Chapter 3–5 desktop/mobile PNGs; pass Vitest 130/130, strict build, render smoke 2/2, focused completion 6/6, and production-bundle smoke 6/6.
 - [x] Record the final full Playwright result and confirm that local verification did not mutate `main` or production; perform the feature-branch/PR handoff separately.
+
+## 2026-08-25 — Chapter 3/5 one-way portal readability
+
+- [x] Keep the fixed Player-only WEST → EAST collision rule; it is not a shutter and never opens for Echo or Core.
+- [x] Resize the two one-way barriers to full portal proportions and replace the opaque purple slab read with a transparent directional field, top-facing cyan pass arrows, and a red east-side no-return seal.
+- [x] Clarify the same rule in Korean and English Chapter 3/5 hints; add layout and world regressions for portal dimensions and west/east presentation state.

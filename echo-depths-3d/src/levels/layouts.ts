@@ -183,7 +183,9 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       { id: 'transfer-shutter', kind: 'shutter', position: [1.45, 1.35, 2.45], size: [0.7, 2.7, 2.4], openAtX: 2.7 },
       // The live Player may cross this full-height barrier only west → east.
       // Its height also closes the former jump/dash return shortcut.
-      { id: 'atrium-one-way', kind: 'one-way-wall', position: [1.45, 1.35, -2.45], size: [0.7, 2.7, 2.4] },
+      // A deliberately oversized portal: its frame needs to read as the whole
+      // south crossing, rather than as a small purple pillar beside it.
+      { id: 'atrium-one-way', kind: 'one-way-wall', position: [1.45, 1.8, -2.45], size: [0.8, 3.6, 2.85] },
       { id: 'core-receiver', kind: 'receiver', position: [8.0, 0.88, 0.25] },
       { id: 'atrium-door', kind: 'door', position: [9.45, 2.15, -0.65], size: [0.32, 2.1, 1.2] },
       { id: 'exit', kind: 'exit', position: [9.4, 1.08, -2.2] },
@@ -266,7 +268,7 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       { id: 'paradox-core', kind: 'core', position: [-6.2, 1.1, 2.55] },
       { id: 'well-player-gate', kind: 'gate', position: [0.1, 1.35, -2.55], size: [1.25, 2.7, 2.2] },
       { id: 'well-transfer-shutter', kind: 'shutter', position: [1.45, 1.35, 2.55], size: [0.7, 2.7, 2.2], openAtX: 2.7 },
-      { id: 'well-one-way', kind: 'one-way-wall', position: [1.45, 1.35, -2.55], size: [0.7, 2.7, 2.2] },
+      { id: 'well-one-way', kind: 'one-way-wall', position: [1.45, 1.8, -2.55], size: [0.8, 3.6, 2.65] },
       { id: 'power-receiver', kind: 'receiver', position: [7.2, 0.88, 0.2] },
       { id: 'well-platform', kind: 'platform', position: [4.15, 0.5, -2.65], size: [0.8, 0.2, 0.85], to: [4.15, 3.25, -2.65] },
       { id: 'guardian', kind: 'enemy', position: [0.8, 2.28, 0.85], size: [0.7, 0.9, 0.7], to: [-1.4, 2.28, 0.0] },

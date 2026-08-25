@@ -258,7 +258,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       enemy: ['SentryBase', 'SentryShell', 'SentryEye', 'SentryHalo', 'SentryFins', 'SightCone'],
       gate: ['TemporalGatePost', 'TemporalGateBeam', 'TemporalGateBase'],
       shutter: ['TransferShutterSlat', 'TransferShutterFrame'],
-      'one-way-wall': ['OneWayWall', 'OneWayWallStripe'],
+      'one-way-wall': ['OneWayWall', 'OneWayWallWestField', 'OneWayWallEastField', 'OneWayWallPassArrows', 'OneWayWallLockBars'],
     } as const
 
     for (const chapter of [0, 1, 2, 3, 4, 5] as const) {
@@ -1180,7 +1180,35 @@ describe('DungeonWorld authored runtime contracts', () => {
     } finally { world.dispose(); physics.dispose() }
   })
 
-  it('Ch3 O — one-way physical wall lets Player cross WEST→EAST but blocks EAST→WEST', async () => {
+  it('Ch3 O — one-way portal is full-span and shows a pass face west of it and a lock face east of it', async () => {
+    const { physics, scene, world } = await createWorld(3)
+    try {
+      const definition = CHAPTER_LAYOUTS[3].devices.find((device) => device.id === 'atrium-one-way')
+      const portal = scene.getObjectByName('atrium-one-way')
+      const slab = portal?.getObjectByName('OneWayWall')
+      const passArrow = portal?.getObjectByName('OneWayWallPassArrow')
+      const lockBar = portal?.getObjectByName('OneWayWallLockBar')
+      if (!definition?.size || !(slab instanceof THREE.Mesh)
+        || !(passArrow instanceof THREE.Mesh) || !(lockBar instanceof THREE.Mesh)
+        || !(passArrow.material instanceof THREE.MeshStandardMaterial)
+        || !(lockBar.material instanceof THREE.MeshStandardMaterial)) {
+        throw new Error('Chapter 3 one-way portal presentation is missing')
+      }
+      expect((slab.geometry as THREE.BoxGeometry).parameters.width).toBeCloseTo(definition.size[0], 5)
+      expect((slab.geometry as THREE.BoxGeometry).parameters.height).toBeCloseTo(definition.size[1], 5)
+      expect((slab.geometry as THREE.BoxGeometry).parameters.depth).toBeCloseTo(definition.size[2], 5)
+
+      world.afterPhysics([actor('player', 'player', [0, 1.08, -2.45])])
+      expect(passArrow.material.emissiveIntensity).toBeGreaterThan(2.5)
+      expect(lockBar.material.emissiveIntensity).toBeLessThan(0.5)
+
+      world.afterPhysics([actor('player', 'player', [3, 1.08, -2.45])])
+      expect(passArrow.material.emissiveIntensity).toBeLessThan(0.5)
+      expect(lockBar.material.emissiveIntensity).toBeGreaterThan(3)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 P — one-way physical wall lets Player cross WEST→EAST but blocks EAST→WEST', async () => {
     const { physics, world } = await createWorld(3)
     const westRecord = physics.createActor('west-player', 'player', { x: 0, y: 1.265, z: -2.45 })
     const westMotor = new CharacterMotor(physics, westRecord)
