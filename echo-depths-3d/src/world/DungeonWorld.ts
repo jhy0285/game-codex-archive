@@ -898,24 +898,68 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       body = this.physics.createSensor(definition.id, 'lever', this.vec(position), { x: 0.7, y: 0.8, z: 0.7 })
     } else if (definition.kind === 'gate') {
       root = new THREE.Group()
-      // Two glowing posts + scanner beam + base
-      const postGeo = this.geometry(new THREE.BoxGeometry(0.18, size[1] * 2, 0.18))
-      const postMat = this.material(0x5a3a78, 0.5, 0.7, 0x8d62ff)
-      const leftPost = new THREE.Mesh(postGeo, postMat); leftPost.name = 'TemporalGatePost'
-      leftPost.position.set(-size[0] / 2, 0, 0)
-      leftPost.castShadow = true
-      const rightPost = new THREE.Mesh(postGeo, postMat); rightPost.name = 'TemporalGatePost'
-      rightPost.position.set(size[0] / 2, 0, 0)
-      rightPost.castShadow = true
-      const beamGeo = this.geometry(new THREE.BoxGeometry(size[0] * 2, 0.06, 0.06))
-      const beamMat = this.material(0x8d62ff, 0.3, 0.4, 0xc15bf2)
-      const beam = new THREE.Mesh(beamGeo, beamMat); beam.name = 'TemporalGateBeam'
-      beam.position.set(0, size[1] * 0.7, 0)
-      beam.castShadow = true
-      const baseMat = this.material(0x2a1a3a, 0.6, 0.5, 0x4a2a5a)
-      const base = this.boxMesh([size[0], 0.06, size[2] * 0.5], baseMat); base.name = 'TemporalGateBase'
-      base.position.y = -size[1]
-      root.add(leftPost, rightPost, beam, base)
+      root.name = 'TemporalGate'
+      // The barrier blocks movement along X, so its visible opening must span
+      // Z. The old gate was built across X and twice as tall as its collider,
+      // which made it read as a clipped purple block instead of a passage.
+      const height = size[1]
+      const span = size[2]
+      const depth = 0.18
+      const postMat = this.material(0x24152f, 0.38, 0.76, 0x7f4de8)
+      const trimMat = this.material(0x9067df, 0.24, 0.74, 0xc15bf2)
+      const baseMat = this.material(0x181325, 0.62, 0.62, 0x3c245c)
+      const membraneMat = new THREE.MeshBasicMaterial({
+        color: 0x9c6cff,
+        transparent: true,
+        opacity: 0.18,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      })
+      this.materials.push(membraneMat)
+      const postGeometry = this.geometry(new THREE.BoxGeometry(depth, height, 0.18))
+      const topGeometry = this.geometry(new THREE.BoxGeometry(depth, 0.18, span))
+      const railGeometry = this.geometry(new THREE.BoxGeometry(0.055, 0.055, span * 0.74))
+      const baseGeometry = this.geometry(new THREE.BoxGeometry(depth + 0.14, 0.12, span + 0.28))
+      const leftPost = new THREE.Mesh(postGeometry, postMat)
+      leftPost.name = 'TemporalGatePostNorth'
+      leftPost.position.set(0, 0, -span * 0.5 + 0.09)
+      const rightPost = new THREE.Mesh(postGeometry, this.cloneMaterial(postMat))
+      rightPost.name = 'TemporalGatePostSouth'
+      rightPost.position.set(0, 0, span * 0.5 - 0.09)
+      const crown = new THREE.Mesh(topGeometry, trimMat)
+      crown.name = 'TemporalGateCrown'
+      crown.position.set(0, height * 0.5 - 0.09, 0)
+      const base = new THREE.Mesh(baseGeometry, baseMat)
+      base.name = 'TemporalGateBase'
+      base.position.set(0, -height * 0.5 + 0.06, 0)
+      const membrane = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.78, height * 0.76)), membraneMat)
+      membrane.name = 'TemporalGateMembrane'
+      membrane.rotation.y = Math.PI / 2
+      membrane.renderOrder = 2
+      const rails = new THREE.Group()
+      rails.name = 'TemporalGateScanRails'
+      for (const y of [-height * 0.24, 0, height * 0.24]) {
+        const rail = new THREE.Mesh(railGeometry, this.cloneMaterial(trimMat))
+        rail.position.set(-depth * 0.62, y, 0)
+        rail.renderOrder = 3
+        rails.add(rail)
+      }
+      const halo = new THREE.Mesh(
+        this.geometry(new THREE.TorusGeometry(0.54, 0.032, 8, 28)),
+        this.cloneMaterial(trimMat),
+      )
+      halo.name = 'TemporalGateHalo'
+      halo.rotation.y = Math.PI / 2
+      halo.scale.set(1, height * 0.3, span * 0.45)
+      halo.renderOrder = 3
+      const light = new THREE.PointLight(0xc15bf2, 2.3, 4.8)
+      light.name = 'TemporalGateLight'
+      root.add(leftPost, rightPost, crown, base, membrane, rails, halo, light)
+      for (const part of [leftPost, rightPost, crown, base]) {
+        part.castShadow = true
+        part.receiveShadow = true
+        this.addEdgeGlow(part, accent)
+      }
       // The gate is a real collider. Rapier collision groups make it solid to
       // dynamic puzzle objects while Player/Echo capsules pass through.
       body = this.physics.createCoreBarrier(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
@@ -937,20 +981,73 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       root.add(top)
       body = this.physics.createShutter(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
     } else if (definition.kind === 'one-way-wall') {
-      // Ch3 one-way physical wall. Collider is always present (real collision);
-      // the body translates DOWN by `openOffsetY` when an actor approaches from
-      // the WEST side, and UP back to closed position otherwise. No actor
-      // position mutation — the motor collides naturally with the body.
       root = new THREE.Group()
-      const wallMat = this.material(0x4a3a78, 0.5, 0.7, 0x8d62ff)
-      const wall = this.boxMesh(size, wallMat)
-      wall.name = 'OneWayWall'
-      wall.castShadow = true
-      const stripeMat = this.material(accent, 0.3, 0.55, accent)
-      const stripe = this.boxMesh([size[0] * 0.6, 0.08, size[2] * 0.05], stripeMat)
-      stripe.name = 'OneWayWallStripe'
-      stripe.position.y = size[1] * 0.6
-      root.add(wall, stripe)
+      root.name = 'OneWayPassage'
+      // Match the physical collider exactly: this is a full-height plane
+      // across the passage, not an oversized opaque box. Its west face is a
+      // luminous flow field while its dark east face communicates no return.
+      const height = size[1]
+      const span = size[2]
+      const depth = Math.min(size[0], 0.24)
+      const slabMat = this.material(0x20142f, 0.46, 0.72, 0x56348c)
+      const frameMat = this.material(0x7f59bd, 0.28, 0.76, 0xc15bf2)
+      const fieldMat = new THREE.MeshBasicMaterial({
+        color: 0xa870ff,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      })
+      this.materials.push(fieldMat)
+      const slab = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(depth, height, span)), slabMat)
+      slab.name = 'OneWayWall'
+      const northFrame = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(depth + 0.08, height + 0.16, 0.09)), frameMat)
+      northFrame.name = 'OneWayWallNorthFrame'
+      northFrame.position.z = -span * 0.5
+      const southFrame = new THREE.Mesh(
+        this.geometry(new THREE.BoxGeometry(depth + 0.08, height + 0.16, 0.09)),
+        this.cloneMaterial(frameMat),
+      )
+      southFrame.name = 'OneWayWallSouthFrame'
+      southFrame.position.z = span * 0.5
+      const crown = new THREE.Mesh(
+        this.geometry(new THREE.BoxGeometry(depth + 0.08, 0.1, span + 0.16)),
+        this.cloneMaterial(frameMat),
+      )
+      crown.name = 'OneWayWallCrown'
+      crown.position.y = height * 0.5
+      const field = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.8, height * 0.76)), fieldMat)
+      field.name = 'OneWayWallFlowField'
+      field.rotation.y = Math.PI / 2
+      field.position.x = -depth * 0.5 - 0.006
+      field.renderOrder = 2
+      const markerMaterial = this.material(accent, 0.25, 0.65, accent)
+      const markerGeometry = this.geometry(new THREE.BoxGeometry(0.045, 0.07, span * 0.54))
+      const markers = new THREE.Group()
+      markers.name = 'OneWayWallFlowMarkers'
+      for (const y of [-height * 0.25, 0, height * 0.25]) {
+        const marker = new THREE.Mesh(markerGeometry, this.cloneMaterial(markerMaterial))
+        marker.position.set(-depth * 0.62, y, 0)
+        marker.renderOrder = 3
+        markers.add(marker)
+      }
+      const beaconGeometry = this.geometry(new THREE.OctahedronGeometry(0.11, 0))
+      const beacons = new THREE.Group()
+      beacons.name = 'OneWayWallBeacons'
+      for (const z of [-span * 0.38, span * 0.38]) {
+        const beacon = new THREE.Mesh(beaconGeometry, this.cloneMaterial(frameMat))
+        beacon.position.set(-depth * 0.72, height * 0.37, z)
+        beacons.add(beacon)
+      }
+      const light = new THREE.PointLight(0x9b6cff, 1.7, 3.8)
+      light.name = 'OneWayWallLight'
+      light.position.x = -0.2
+      root.add(slab, northFrame, southFrame, crown, field, markers, beacons, light)
+      for (const part of [slab, northFrame, southFrame, crown]) {
+        part.castShadow = true
+        part.receiveShadow = true
+        this.addEdgeGlow(part, accent)
+      }
       body = this.physics.createOneWayWall(definition.id, this.vec(position), {
         x: size[0] / 2,
         y: size[1] / 2,
@@ -1569,7 +1666,11 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const spatialFact = `${device.definition.id}:player-east`
       if (isOpen) this.facts.add(spatialFact)
       else this.facts.delete(spatialFact)
-      if (wasOpen === false && isOpen) this.emitAudio({ type: 'shutter', id: device.definition.id, open: true })
+      // A rewind can place the live Player directly on the east side. Treat an
+      // uninitialized-but-open shutter as a real opening so the HUD feedback
+      // is tied to its physical state rather than a hard-coded player X value.
+      if (isOpen && wasOpen !== true) this.emitAudio({ type: 'shutter', id: device.definition.id, open: true })
+      else if (!isOpen && wasOpen === true) this.emitAudio({ type: 'shutter', id: device.definition.id, open: false })
     }
   }
 
