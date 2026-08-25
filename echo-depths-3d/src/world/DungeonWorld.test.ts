@@ -1206,7 +1206,7 @@ describe('DungeonWorld authored runtime contracts', () => {
         world.afterPhysics([eastPlayer])
       }
       expect(eastMotor.position.x).toBeGreaterThan(2.0)
-      expect(wall.body.translation().y).toBeCloseTo(1.55, 3)
+      expect(wall.body.translation().y).toBeCloseTo(CHAPTER_LAYOUTS[3].devices.find((device) => device.id === 'atrium-one-way')!.position[1], 3)
     } finally {
       westMotor.dispose(); eastMotor.dispose(); world.dispose(); physics.dispose()
     }
