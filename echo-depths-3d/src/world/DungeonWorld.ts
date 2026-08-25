@@ -921,7 +921,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const railGeometry = this.geometry(new THREE.BoxGeometry(0.055, 0.055, span * 0.74))
       const baseGeometry = this.geometry(new THREE.BoxGeometry(depth + 0.14, 0.12, span + 0.28))
       const leftPost = new THREE.Mesh(postGeometry, postMat)
-      leftPost.name = 'TemporalGatePostNorth'
+      leftPost.name = 'TemporalGatePost'
       leftPost.position.set(0, 0, -span * 0.5 + 0.09)
       const rightPost = new THREE.Mesh(postGeometry, this.cloneMaterial(postMat))
       rightPost.name = 'TemporalGatePostSouth'
@@ -938,8 +938,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       membrane.renderOrder = 2
       const rails = new THREE.Group()
       rails.name = 'TemporalGateScanRails'
-      for (const y of [-height * 0.24, 0, height * 0.24]) {
+      for (const [index, y] of [-height * 0.24, 0, height * 0.24].entries()) {
         const rail = new THREE.Mesh(railGeometry, this.cloneMaterial(trimMat))
+        rail.name = index === 1 ? 'TemporalGateBeam' : 'TemporalGateScanRail'
         rail.position.set(-depth * 0.62, y, 0)
         rail.renderOrder = 3
         rails.add(rail)
@@ -1024,7 +1025,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const markerMaterial = this.material(accent, 0.25, 0.65, accent)
       const markerGeometry = this.geometry(new THREE.BoxGeometry(0.045, 0.07, span * 0.54))
       const markers = new THREE.Group()
-      markers.name = 'OneWayWallFlowMarkers'
+      markers.name = 'OneWayWallStripe'
       for (const y of [-height * 0.25, 0, height * 0.25]) {
         const marker = new THREE.Mesh(markerGeometry, this.cloneMaterial(markerMaterial))
         marker.position.set(-depth * 0.62, y, 0)
