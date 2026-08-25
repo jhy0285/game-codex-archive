@@ -810,8 +810,8 @@ export class GameApp {
       if (event.type === 'door') this.audio.cue(event.open ? 'doorOpen' : 'doorClose')
       else if (event.type === 'plate') this.audio.cue(event.pressed ? 'platePress' : 'plateRelease')
       else if (event.type === 'shutter') {
-        this.audio.cue('doorOpen')
-        this.hud.showFeedbackKey('feedbackTransferLaneOpen', 'success', 2_600)
+        this.audio.cue(event.open ? 'doorOpen' : 'doorClose')
+        if (event.open) this.hud.showFeedbackKey('feedbackTransferLaneOpen', 'success', 2_600)
       } else if (event.type === 'receiver') {
         this.audio.cue('receiver')
         this.hud.showFeedbackKey('feedbackCoreRedirected', 'success', 3_200)
