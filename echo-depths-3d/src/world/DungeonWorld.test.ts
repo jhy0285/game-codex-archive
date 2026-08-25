@@ -259,6 +259,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       gate: ['TemporalGatePost', 'TemporalGateBeam', 'TemporalGateBase'],
       shutter: ['TransferShutterSlat', 'TransferShutterFrame'],
       'one-way-wall': ['OneWayWall', 'OneWayWallWestField', 'OneWayWallEastField', 'OneWayWallPassArrows', 'OneWayWallLockBars'],
+      'return-gate': ['ReturnGateNorthFrame', 'ReturnGateDoorPanels', 'ReturnGateClosedField', 'ReturnGateStatusRings'],
     } as const
 
     for (const chapter of [0, 1, 2, 3, 4, 5] as const) {
@@ -1260,6 +1261,76 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(wall.tag.playerPassDirectionX).toBe(1)
       expect(wall.tag.nonBlocking).toBe(false)
     } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 R — the separate return gate opens only from the actual receiver and only passes Player', async () => {
+    const { physics, scene, world } = await createWorld(3)
+    const playerRecord = physics.createActor('return-player', 'player', { x: 3.1, y: 1.265, z: 0 })
+    const playerMotor = new CharacterMotor(physics, playerRecord)
+    const echoRecord = physics.createActor('return-echo', 'echo', { x: 3.1, y: 1.265, z: 0 })
+    const echoMotor = new CharacterMotor(physics, echoRecord)
+    try {
+      const gate = physics.record('atrium-return-gate')
+      const core = physics.record('memory-core')
+      const receiver = CHAPTER_LAYOUTS[3].devices.find((device) => device.id === 'core-receiver')
+      const gateVisual = scene.getObjectByName('atrium-return-gate')
+      if (!gate || !core || !receiver || !gateVisual?.getObjectByName('ReturnGateDoorPanels')) {
+        throw new Error('Chapter 3 return gate setup is missing')
+      }
+      const closedSnapshot = world.captureSnapshot()
+      // A provenance-like fact cannot unlock the gate: the receiver's actual
+      // active state is the sole authority.
+      world.facts.add('echo-used')
+      world.beforePhysics(1, [])
+      expect(gate.tag.playerReturnPassOpen).toBe(false)
+
+      const player = actor('return-player', 'player', [3.1, 1.265, 0])
+      for (let tick = 2; tick <= 95; tick += 1) {
+        world.beforePhysics(tick, [player])
+        playerMotor.prepare({ moveX: -1, moveZ: 0, jumpPressed: false, dashPressed: false })
+        physics.step(); playerMotor.syncAfterStep(); player.position.copy(playerMotor.position)
+        world.afterPhysics([player])
+      }
+      expect(playerMotor.position.x, 'receiver inactive: EAST→WEST return must stay blocked').toBeGreaterThan(1.82)
+
+      // Fill the real authored receiver. No provenance condition is provided.
+      core.body.setTranslation({ x: receiver.position[0], y: receiver.position[1], z: receiver.position[2] }, true)
+      core.body.setLinvel({ x: 0, y: -1, z: 0 }, true)
+      physics.step(); world.afterPhysics([player])
+      expect(world.debugState().facts).toContain('receiver-filled')
+      expect(gate.tag.playerReturnPassOpen).toBe(true)
+      expect(world.debugState().barriers['atrium-return-gate']?.open).toBe(true)
+      const openSnapshot = world.captureSnapshot()
+
+      for (let tick = 96; tick <= 230; tick += 1) {
+        world.beforePhysics(tick, [player])
+        playerMotor.prepare({ moveX: -1, moveZ: 0, jumpPressed: false, dashPressed: false })
+        physics.step(); playerMotor.syncAfterStep(); player.position.copy(playerMotor.position)
+        world.afterPhysics([player])
+      }
+      expect(playerMotor.position.x, 'receiver active: Player may use the return gate').toBeLessThan(-0.15)
+
+      const echo = actor('return-echo', 'echo', [3.1, 1.265, 0])
+      for (let tick = 231; tick <= 325; tick += 1) {
+        world.beforePhysics(tick, [player, echo])
+        echoMotor.prepare({ moveX: -1, moveZ: 0, jumpPressed: false, dashPressed: false })
+        physics.step(); echoMotor.syncAfterStep(); echo.position.copy(echoMotor.position)
+        world.afterPhysics([player, echo])
+      }
+      expect(echoMotor.position.x, 'open return gate must still block Echo').toBeGreaterThan(1.82)
+
+      const probeCore = physics.createDynamicBox('return-gate-core-probe', 'core', { x: 2.9, y: 1.15, z: 0 }, { x: 0.18, y: 0.18, z: 0.18 })
+      probeCore.body.setLinvel({ x: -6, y: 0, z: 0 }, true)
+      for (let step = 0; step < 75; step += 1) physics.step()
+      expect(probeCore.body.translation().x, 'open return gate must still block Core').toBeGreaterThan(1.75)
+
+      world.restoreSnapshot(closedSnapshot, false)
+      expect(gate.tag.playerReturnPassOpen, 'rewind restores the inactive receiver gate state').toBe(false)
+      world.restoreSnapshot(openSnapshot, false)
+      expect(gate.tag.playerReturnPassOpen, 'rewind restores the active receiver gate state').toBe(true)
+    } finally {
+      playerMotor.dispose(); echoMotor.dispose(); world.dispose(); physics.dispose()
+    }
   })
 
   it('Ch3 P — actor can still cross gate WEST→EAST', async () => {

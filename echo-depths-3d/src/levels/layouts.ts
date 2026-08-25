@@ -17,7 +17,7 @@ export type BoxDefinition = {
 
 export type DeviceDefinition = {
   id: string
-  kind: 'plate' | 'lever' | 'door' | 'elevator' | 'platform' | 'bridge' | 'crate' | 'core' | 'trap' | 'exit' | 'enemy' | 'receiver' | 'gate' | 'shutter' | 'one-way-wall'
+  kind: 'plate' | 'lever' | 'door' | 'elevator' | 'platform' | 'bridge' | 'crate' | 'core' | 'trap' | 'exit' | 'enemy' | 'receiver' | 'gate' | 'shutter' | 'one-way-wall' | 'return-gate'
   position: Point3
   size?: Size3
   to?: Point3
@@ -163,6 +163,9 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       floor('atrium-west', [-5.0, 0, 0], [4.0, 0.45, 4.2], 'safe'),
       floor('atrium-player-crossing', [0.1, 0, -2.45], [1.8, 0.45, 1.1], 'safe'),
       floor('atrium-transfer-ledge', [0.1, 0, 2.45], [1.8, 0.45, 1.1], 'echo'),
+      // A separate middle return corridor. Its gate only unlocks after the
+      // physical Core has actually activated the east receiver.
+      floor('atrium-return-crossing', [0.2, 0, 0], [2.9, 0.45, 1.55], 'safe'),
       floor('atrium-east', [5.8, 0, 0], [4.2, 0.45, 4.2], 'echo'),
       floor('atrium-catch-basin', [4.8, 0.12, 2.45], [2.25, 0.12, 1.35], 'echo'),
       wall('atrium-transfer-rail-south', [1.0, 0.55, 1.1], [1.4, 0.55, 0.14]),
@@ -171,7 +174,6 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       wall('atrium-south', [0.4, 2.4, 4.45], [9.8, 2.4, 0.3]),
       wall('atrium-west-wall', [-9.4, 2.4, 0], [0.3, 2.4, 4.2]),
       wall('atrium-east-wall', [10.2, 2.4, 0], [0.3, 2.4, 4.2]),
-      wall('atrium-divider-center', [1.45, 2.0, 0], [0.3, 2.0, 1.25]),
       wall('atrium-player-rail', [-0.1, 0.65, -1.2], [1.45, 0.65, 0.14]),
       wall('atrium-player-outer-rail', [0.1, 0.65, -3.7], [3.1, 0.65, 0.14]),
       wall('atrium-basin-north-rail', [4.8, 0.72, 3.75], [2.25, 0.6, 0.14]),
@@ -186,6 +188,9 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       // A deliberately oversized portal: its frame needs to read as the whole
       // south crossing, rather than as a small purple pillar beside it.
       { id: 'atrium-one-way', kind: 'one-way-wall', position: [1.45, 1.8, -2.45], size: [0.8, 3.6, 2.85] },
+      // This is intentionally separate from atrium-one-way. It remains closed
+      // until the actual receiver is active, then admits only the live Player.
+      { id: 'atrium-return-gate', kind: 'return-gate', position: [1.45, 1.35, 0], size: [0.74, 2.7, 1.55] },
       { id: 'core-receiver', kind: 'receiver', position: [8.0, 0.88, 0.25] },
       { id: 'atrium-door', kind: 'door', position: [9.45, 2.15, -0.65], size: [0.32, 2.1, 1.2] },
       { id: 'exit', kind: 'exit', position: [9.4, 1.08, -2.2] },

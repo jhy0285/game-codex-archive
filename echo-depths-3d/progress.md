@@ -154,5 +154,9 @@ The user requested two things: (1) reframe the chapter 1 clear condition so that
 
 The right-side Chapter 3 one-way object was visually reading as a small, ambiguous purple block even though its collision contract was already correct. Chapters 3 and 5 now use enlarged translucent portal frames: cyan arrows on top identify the only pass direction (live Player WEST → EAST), while red bars and a lock sigil identify the EAST-side no-return face. Echoes and physical Cores remain blocked on both directions. The HUD hints now state that rule explicitly in Korean and English. Local verification passed 18 Vitest files / 131 tests, strict Vite build, Chapter 3 visual capture, and empty browser error collection.
 
+## 2026-08-25 — Chapter 3 receiver-gated return door
+
+The Chapter 3 return route is now a distinct middle gate, not the red reverse face of `atrium-one-way`. It is closed until the physical `memory-core` has activated `core-receiver`; then its cyan field, light, and retracted panels indicate that only the live Player may cross. Echo and Core collision remains physical even while the Player-only route is visually open. The gate derives each frame and on snapshot restore from the receiver's active device state, so recording rewind/restart cannot retain a stale unlock. Targeted receiver/Player/Echo/Core/same-Core-transfer tests and the strict production build passed.
+
 
 

@@ -264,3 +264,8 @@ The automated evidence does not establish physical-phone ergonomics, unaided fir
 - `npm test -- --run`: PASS, 18 files / 131 tests. The new regression checks the full portal mesh dimensions plus bright west-side pass arrows and bright east-side lock bars without altering the directional collision contract.
 - `npm run build`: PASS. The existing large Three.js bundle warning remains non-fatal.
 - Local Chapter 3 visual review: PASS. The quarter-view camera shows the enlarged translucent portal and its three top-facing directional arrows; browser error collection was empty.
+
+## 2026-08-25 — Chapter 3 return-gate targeted evidence
+
+- `npm test -- --run src/world/DungeonWorld.test.ts -t "Ch3 R|Ch3 N2|Ch3 E"`: PASS, 3 selected tests. It verifies receiver-inactive EAST → WEST Player denial, receiver-active Player passage, open-gate Echo/Core denial, receiver-state rewind restoration, and the existing same-Core Echo transfer.
+- `npm run build`: PASS. TypeScript and the Vite production bundle completed; the pre-existing large Three.js bundle warning is non-fatal.

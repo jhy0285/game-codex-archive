@@ -263,5 +263,11 @@ Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLA
 - West-side traversal is now marked by cyan top-facing arrows; the opposite face carries red lock bars and a no-return sigil. The local Player side controls emphasis only, never the physical access rule.
 - Enlarged the portal dimensions, clarified Korean/English hints, and added visual-state/dimension regressions. Vitest 131/131, Vite build, and local Chapter 3 browser capture passed.
 
+## 2026-08-25 — Receiver-gated Chapter 3 return gate
+
+- Added `atrium-return-gate` as a separate middle corridor device; it does not alter the existing `atrium-one-way` collider, arrows, or red lock face.
+- The gate reads only `core-receiver.active`, not a recording/provenance fact. Closed/open visual states use red/cyan fields, lights, status rings, and panel retraction; Rapier continues to block Echo and Core while `CharacterMotor` admits only the live Player when active.
+- Snapshot restore recomputes the gate from the restored receiver state. Targeted physics tests and the production build pass.
+
 
 

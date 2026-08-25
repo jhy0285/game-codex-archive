@@ -21,6 +21,7 @@ export type PhysicsEntityKind =
   | 'gate'
   | 'shutter'
   | 'one-way-wall'
+  | 'return-gate'
 
 export type PhysicsTag = {
   id: string
@@ -28,6 +29,7 @@ export type PhysicsTag = {
   carried?: boolean
   nonBlocking?: boolean
   playerPassDirectionX?: 1 | -1
+  playerReturnPassOpen?: boolean
 }
 
 // Rapier collision groups are encoded as `(membership | (filter << 16))`.
@@ -190,6 +192,18 @@ export class RapierWorld {
     )
     collider.setCollisionGroups(CLOSED_ONE_WAY_COLLISION_GROUPS)
     return this.register({ tag: { id, kind: 'one-way-wall', playerPassDirectionX: 1 }, body, collider })
+  }
+
+  /**
+   * Separate Chapter 3 return gate. Its collider always blocks Echo and puzzle
+   * objects; CharacterMotor only ignores it for the live Player once the world
+   * derives `playerReturnPassOpen` from the receiver's active state.
+   */
+  createReturnGate(id: string, center: Vec3, half: Vec3): BodyRecord {
+    const record = this.createStaticBox(id, 'return-gate', center, half)
+    record.collider.setCollisionGroups(CLOSED_ONE_WAY_COLLISION_GROUPS)
+    record.tag.playerReturnPassOpen = false
+    return record
   }
 
   setOneWayWallOpen(collider: RAPIER.Collider, open: boolean): void {

@@ -217,3 +217,10 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 - [x] Keep the fixed Player-only WEST → EAST collision rule; it is not a shutter and never opens for Echo or Core.
 - [x] Resize the two one-way barriers to full portal proportions and replace the opaque purple slab read with a transparent directional field, top-facing cyan pass arrows, and a red east-side no-return seal.
 - [x] Clarify the same rule in Korean and English Chapter 3/5 hints; add layout and world regressions for portal dimensions and west/east presentation state.
+
+## 2026-08-25 — Chapter 3 receiver-gated return door
+
+- [x] Keep `atrium-one-way` and its red east-side no-return face unchanged.
+- [x] Add a separate middle `atrium-return-gate`, initially closed, which unlocks only from the actual `core-receiver` active state.
+- [x] Allow only the live Player through the open return gate; retain real Echo and Core collision in both gate states.
+- [x] Restore the gate deterministically from the receiver device state on recording rewind and restart; add closed/open color, light, field, and retracting-panel feedback.

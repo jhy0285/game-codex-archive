@@ -233,6 +233,7 @@ export class DungeonWorld {
     this.updatePlatforms(tick, actors)
     this.updateCarriedObjects(actors)
     this.updateDoors()
+    this.updateReturnGates()
     if (this.chapter === 5 && this.escapeTicks > 0) {
       this.escapeTicks -= 1
       if (this.escapeTicks === 0 && !this.complete) {
@@ -254,6 +255,7 @@ export class DungeonWorld {
     this.syncDynamics()
     this.updatePlates(actors)
     this.updateCoreReceiver(actors)
+    this.updateReturnGates()
     this.updateEnemy(actors)
     this.updateTrapHazards()
     this.updateTemporalGates()
@@ -528,9 +530,11 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
           ? { ...shared, target }
           : shared
       }
-      if (device.definition.kind === 'gate' || device.definition.kind === 'shutter' || device.definition.kind === 'one-way-wall') {
+      if (device.definition.kind === 'gate' || device.definition.kind === 'shutter' || device.definition.kind === 'one-way-wall' || device.definition.kind === 'return-gate') {
         const position = device.body?.body.translation() ?? device.root.position
-        const open = device.definition.kind === 'shutter' ? this.shutters.get(device.definition.id) : undefined
+        const open = device.definition.kind === 'shutter'
+          ? this.shutters.get(device.definition.id)
+          : device.definition.kind === 'return-gate' ? device.active : undefined
         barriers[device.definition.id] = open === undefined
           ? { position: { x: position.x, y: position.y, z: position.z } }
           : { position: { x: position.x, y: position.y, z: position.z }, open }
@@ -729,6 +733,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       dynamic.carryPosition.set(saved.position.x, saved.position.y, saved.position.z)
       dynamic.carryTarget.copy(dynamic.carryPosition)
     }
+    // The return gate has no independent saved puzzle condition. It always
+    // derives from the restored receiver's live active state.
+    this.updateReturnGates(true)
   }
 
   releaseActor(actor: ActorKind): void {
@@ -1102,6 +1109,84 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         this.addEdgeGlow(part, accent)
       }
       body = this.physics.createOneWayWall(definition.id, this.vec(position), {
+        x: size[0] / 2,
+        y: size[1] / 2,
+        z: size[2] / 2,
+      })
+    } else if (definition.kind === 'return-gate') {
+      root = new THREE.Group()
+      root.name = 'PlayerReturnGate'
+      const height = size[1]
+      const span = size[2]
+      const depth = size[0]
+      const frameMat = this.material(0x222936, 0.48, 0.72, 0xff5c79)
+      const panelMat = this.material(0x4d1d32, 0.34, 0.62, 0xff5c79)
+      const trimMat = this.material(0x742445, 0.28, 0.56, 0xff5c79)
+      const closedFieldMat = new THREE.MeshBasicMaterial({
+        color: 0xff5c79,
+        transparent: true,
+        opacity: 0.56,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      })
+      const openFieldMat = new THREE.MeshBasicMaterial({
+        color: 0x63ffd5,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      })
+      this.materials.push(closedFieldMat, openFieldMat)
+      const northFrame = this.boxMesh([depth + 0.1, height, 0.1], frameMat)
+      northFrame.name = 'ReturnGateNorthFrame'
+      northFrame.position.z = -span * 0.5
+      const southFrame = this.boxMesh([depth + 0.1, height, 0.1], this.cloneMaterial(frameMat))
+      southFrame.name = 'ReturnGateSouthFrame'
+      southFrame.position.z = span * 0.5
+      const crown = this.boxMesh([depth + 0.1, 0.14, span + 0.16], this.cloneMaterial(trimMat))
+      crown.name = 'ReturnGateCrown'
+      crown.position.y = height * 0.5 - 0.07
+      const base = this.boxMesh([depth + 0.12, 0.12, span + 0.16], this.cloneMaterial(trimMat))
+      base.name = 'ReturnGateBase'
+      base.position.y = -height * 0.5 + 0.06
+      const panels = new THREE.Group()
+      panels.name = 'ReturnGateDoorPanels'
+      for (const direction of [-1, 1]) {
+        const panel = this.boxMesh([depth * 0.8, height * 0.78, span * 0.39], this.cloneMaterial(panelMat))
+        panel.name = 'ReturnGateDoorPanel'
+        panel.position.z = direction * span * 0.22
+        panel.userData.closedZ = direction * span * 0.22
+        panel.userData.openZ = direction * span * 0.64
+        panels.add(panel)
+      }
+      const closedField = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.76, height * 0.7)), closedFieldMat)
+      closedField.name = 'ReturnGateClosedField'
+      closedField.rotation.y = Math.PI / 2
+      closedField.position.x = -depth * 0.52
+      closedField.renderOrder = 3
+      const openField = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.7, height * 0.68)), openFieldMat)
+      openField.name = 'ReturnGateOpenField'
+      openField.rotation.y = Math.PI / 2
+      openField.position.x = -depth * 0.54
+      openField.renderOrder = 4
+      const rings = new THREE.Group()
+      rings.name = 'ReturnGateStatusRings'
+      for (const y of [-height * 0.22, 0, height * 0.22]) {
+        const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(0.16, 0.025, 8, 16)), this.cloneMaterial(trimMat))
+        ring.rotation.y = Math.PI / 2
+        ring.position.set(-depth * 0.6, y, 0)
+        rings.add(ring)
+      }
+      const light = new THREE.PointLight(0xff5c79, 2.3, 5.2)
+      light.name = 'ReturnGateLight'
+      light.position.x = -depth * 0.72
+      root.add(northFrame, southFrame, crown, base, panels, closedField, openField, rings, light)
+      for (const part of [northFrame, southFrame, crown, base]) {
+        part.castShadow = true
+        part.receiveShadow = true
+        this.addEdgeGlow(part, accent)
+      }
+      body = this.physics.createReturnGate(definition.id, this.vec(position), {
         x: size[0] / 2,
         y: size[1] / 2,
         z: size[2] / 2,
@@ -1747,6 +1832,25 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.setOneWayWallPresentation(device.root, playerOnWestSide, playerOnEastSide)
     }
   }
+
+  /**
+   * Chapter 3's middle passage is deliberately independent of the southern
+   * one-way wall. Its only authority is the actual receiver device: once the
+   * Core is seated, the live Player may pass, while Echo and Core collision
+   * remains enabled even though the visible panels retract.
+   */
+  private updateReturnGates(silent = false): void {
+    const receiver = this.devices.get('core-receiver')
+    const open = receiver?.active === true
+    for (const device of this.devices.values()) {
+      if (device.definition.kind !== 'return-gate' || !device.body) continue
+      const wasOpen = device.active
+      device.active = open
+      device.body.tag.playerReturnPassOpen = open
+      this.setReturnGatePresentation(device.root, open)
+      if (!silent && wasOpen !== open) this.emitAudio({ type: 'door', id: device.definition.id, open })
+    }
+  }
   private updateEnemy(actors: readonly ActorContext[]): void {
     const id = this.chapter === 5 ? 'guardian' : 'watcher'
     const enemy = this.devices.get(id)
@@ -2224,6 +2328,32 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (light instanceof THREE.PointLight) {
       light.color.setHex(playerOnEastSide ? 0xff5c79 : 0x7be9ff)
       light.intensity = playerOnEastSide ? 2.8 : playerOnWestSide ? 2.5 : 1.25
+    }
+  }
+
+  /** Visual-only open/closed feedback for the Player-only return gate. */
+  private setReturnGatePresentation(root: THREE.Object3D, open: boolean): void {
+    const panels = root.getObjectByName('ReturnGateDoorPanels')
+    panels?.children.forEach((panel) => {
+      const target = Number(open ? panel.userData.openZ : panel.userData.closedZ)
+      if (Number.isFinite(target)) panel.position.z = THREE.MathUtils.lerp(panel.position.z, target, 0.22)
+    })
+    this.setPresentationMaterial(root.getObjectByName('ReturnGateDoorPanels'), open ? 0x63ffd5 : 0xff5c79, open ? 2.4 : 1.35)
+    this.setPresentationMaterial(root.getObjectByName('ReturnGateStatusRings'), open ? 0x63ffd5 : 0xff5c79, open ? 3.1 : 1.2)
+    const closedField = root.getObjectByName('ReturnGateClosedField')
+    if (closedField instanceof THREE.Mesh && closedField.material instanceof THREE.MeshBasicMaterial) {
+      closedField.material.color.setHex(0xff5c79)
+      closedField.material.opacity = THREE.MathUtils.lerp(closedField.material.opacity, open ? 0.04 : 0.56, 0.22)
+    }
+    const openField = root.getObjectByName('ReturnGateOpenField')
+    if (openField instanceof THREE.Mesh && openField.material instanceof THREE.MeshBasicMaterial) {
+      openField.material.color.setHex(0x63ffd5)
+      openField.material.opacity = THREE.MathUtils.lerp(openField.material.opacity, open ? 0.34 : 0, 0.22)
+    }
+    const light = root.getObjectByName('ReturnGateLight')
+    if (light instanceof THREE.PointLight) {
+      light.color.setHex(open ? 0x63ffd5 : 0xff5c79)
+      light.intensity = open ? 3.3 : 2.1
     }
   }
 
