@@ -19,6 +19,7 @@ describe('Chapter 3-5 authored level architecture', () => {
     expect(floorIds.some((id) => id.includes('descent-step'))).toBe(false)
     expect(Math.max(...layout.boxes.filter((box) => !box.wall).map(top))).toBeLessThan(0.5)
     expect(devices.get('atrium-one-way')?.position[2]).toBeLessThan(0)
+    expect(devices.get('atrium-one-way')?.size?.[1]).toBeGreaterThanOrEqual(2.7)
     expect(devices.get('transfer-shutter')?.position[2]).toBeGreaterThan(0)
     expect(devices.get('transfer-shutter')?.openAtX).toBeGreaterThan(devices.get('atrium-one-way')!.position[0])
     expect(devices.get('memory-core')?.position[0]).toBeLessThan(0)
