@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { AssetLibrary } from '../render/AssetLibrary'
+import { createAnimatedActor, type CharacterAnimator, type CharacterState } from '../render/CharacterAnimator'
 import type { BodyRecord, PhysicsEntityKind, RapierWorld, Vec3 } from '../physics/RapierWorld'
 import { RAPIER } from '../physics/RapierWorld'
 import { CHAPTER_LAYOUTS, type StageNumber, type DeviceDefinition } from '../levels/layouts'
@@ -199,6 +200,13 @@ export class DungeonWorld {
   private enemyRecoveryTicks = 0
   private enemyStimulusTicks = 0
   private readonly enemyStimulusPosition = new THREE.Vector3()
+  private enemyAnimator: CharacterAnimator | undefined
+  private watcherVisionSector: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | undefined
+  private watcherVisionBoundary: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial> | undefined
+  private watcherTargetBeam: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial> | undefined
+  private watcherStatusRing: THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial> | undefined
+  private watcherSensorEye: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial> | undefined
+  private watcherVisionFov = -1
   private receiverFilled = false
   private currentTick = 0
   private platformPhaseOffset = 0
@@ -225,6 +233,7 @@ export class DungeonWorld {
     if (enemy && attentionLandmark) {
       this.faceEnemy(enemy, attentionLandmark.root.position.clone().sub(enemy.root.position).setY(0))
     }
+    if (enemy) this.updateEnemyPresentation(enemy, this.enemyTargetVisible ? this.enemyLastKnown : undefined)
   }
 
   beforePhysics(tick: number, actors: readonly ActorContext[]): void {
@@ -257,6 +266,7 @@ export class DungeonWorld {
     this.updateCoreReceiver(actors)
     this.updateReturnGates()
     this.updateEnemy(actors)
+    this.enemyAnimator?.update(1 / 60)
     this.updateTrapHazards()
     this.updateTemporalGates()
     this.updateShutters(actors)
@@ -736,6 +746,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     // The return gate has no independent saved puzzle condition. It always
     // derives from the restored receiver's live active state.
     this.updateReturnGates(true)
+    const enemy = this.devices.get(this.chapter === 5 ? 'guardian' : 'watcher')
+    if (enemy) this.updateEnemyPresentation(enemy, this.enemyTargetVisible ? this.enemyLastKnown : undefined)
   }
 
   releaseActor(actor: ActorKind): void {
@@ -764,6 +776,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   }
 
   dispose(): void {
+    this.enemyAnimator?.dispose()
+    this.enemyAnimator = undefined
     for (const effect of this.effects) this.disposeEffect(effect)
     this.effects.length = 0
     this.scene.remove(this.root)
@@ -1401,39 +1415,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       body = this.physics.createSensor(definition.id, 'plate', this.vec(position), { x: 0.9, y: 1.4, z: 0.9 })
     } else {
       root = new THREE.Group()
-      const base = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(this.chapter === 5 ? 0.7 : 0.52, this.chapter === 5 ? 0.8 : 0.62, 0.22, 10)), this.material(0x221c29, 0.54, 0.65))
-      base.name = 'SentryBase'
-      base.position.y = 0.15
-      const shell = new THREE.Mesh(this.geometry(new THREE.DodecahedronGeometry(this.chapter === 5 ? 0.78 : 0.56, 1)), this.material(0x5f2635, 0.58, 0.32, accent))
-      shell.name = 'SentryShell'
-      shell.position.y = 0.63
-      const eye = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(0.12, 12, 8)), glow)
-      eye.name = 'SentryEye'
-      eye.position.set(0, 0.72, this.chapter === 5 ? 0.72 : 0.53)
-      const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(this.chapter === 5 ? 0.82 : 0.6, 0.035, 8, 20)), this.material(accent, 0.28, 0.7, accent))
-      ring.name = 'SentryHalo'
-      ring.rotation.x = Math.PI / 2
-      ring.position.y = 0.65
-      const finGeometry = this.geometry(new THREE.BoxGeometry(0.11, 0.36, 0.3))
-      const fins = new THREE.InstancedMesh(finGeometry, this.material(0x25323b, 0.5, 0.72), 2)
-      fins.name = 'SentryFins'
-      const finMatrix = new THREE.Matrix4()
-      finMatrix.makeTranslation(-0.62, 0.62, 0)
-      fins.setMatrixAt(0, finMatrix)
-      finMatrix.makeTranslation(0.62, 0.62, 0)
-      fins.setMatrixAt(1, finMatrix)
-      fins.instanceMatrix.needsUpdate = true
-      root.add(base, shell, eye, ring, fins)
       body = this.physics.createKinematicBox(definition.id, 'enemy', this.vec(position), { x: size[0], y: size[1], z: size[2] })
-      const cone = new THREE.Mesh(
-        this.geometry(new THREE.ConeGeometry(2.6, 5.5, 24, 1, true, -Math.PI / 4, Math.PI / 2)),
-        this.material(0xe95757, 0.5, 0, 0xe95757, 0.13),
-      )
-      cone.name = 'SightCone'
-      cone.rotation.x = Math.PI / 2
-      cone.rotation.z = -Math.PI / 2
-      cone.position.set(0, 0.35, 2.2)
-      root.add(cone)
+      if (this.chapter === 4) this.buildWatcherCharacter(root)
+      else this.buildGuardianSentry(root, accent, glow)
     }
     root.name = definition.id
     root.position.copy(position)
@@ -1441,8 +1425,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       && (definition.kind === 'elevator' || definition.kind === 'platform' || definition.kind === 'bridge')
     root.traverse((object) => {
       if (object instanceof THREE.Mesh) {
-        object.castShadow = true
-        object.receiveShadow = true
+        const presentationOverlay = object.userData.presentationOverlay === true
+        object.castShadow = !presentationOverlay
+        object.receiveShadow = !presentationOverlay
         if (cameraOccludingDevice
           && (object.name === 'IndustrialPlatformDeck' || object.name === 'IndustrialPlatformInset')) {
           object.material = Array.isArray(object.material)
@@ -1865,6 +1850,150 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
   }
 
+  private buildWatcherCharacter(root: THREE.Object3D): void {
+    const animator = this.assets.createWatcherCharacter?.() ?? createAnimatedActor({
+      cloth: 0x16483e,
+      armor: 0x27333d,
+      glow: 0xff5c79,
+      skin: 0xeadcc5,
+    })
+    this.enemyAnimator = animator
+    animator.root.name = 'WatcherCharacter'
+    animator.root.scale.setScalar(1.04)
+    root.add(animator.root)
+
+    const eyeMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8cecff,
+      emissive: 0x49d9ff,
+      emissiveIntensity: 2.6,
+      roughness: 0.22,
+      metalness: 0.28,
+    })
+    this.materials.push(eyeMaterial)
+    const sensorEye = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(0.075, 14, 10)), eyeMaterial)
+    sensorEye.name = 'WatcherSensorEye'
+    sensorEye.position.set(0, 0.72, 0.5)
+    sensorEye.userData.presentationOverlay = true
+    this.watcherSensorEye = sensorEye
+
+    const statusMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8cecff,
+      emissive: 0x49d9ff,
+      emissiveIntensity: 1.9,
+      transparent: true,
+      opacity: 0.86,
+      roughness: 0.2,
+      metalness: 0.34,
+      depthWrite: false,
+    })
+    this.materials.push(statusMaterial)
+    const statusRing = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(0.31, 0.035, 8, 28)), statusMaterial)
+    statusRing.name = 'WatcherStatusRing'
+    statusRing.position.y = 1.34
+    statusRing.rotation.x = Math.PI / 2
+    statusRing.userData.presentationOverlay = true
+    this.watcherStatusRing = statusRing
+
+    const sectorMaterial = new THREE.MeshBasicMaterial({
+      color: 0x49d9ff,
+      transparent: true,
+      opacity: 0.12,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+    this.materials.push(sectorMaterial)
+    const sector = new THREE.Mesh(this.createWatcherSectorGeometry(), sectorMaterial)
+    sector.name = 'WatcherVisionSector'
+    sector.position.y = -0.88
+    sector.renderOrder = 2
+    sector.userData.presentationOverlay = true
+    this.watcherVisionSector = sector
+
+    const boundaryMaterial = new THREE.LineBasicMaterial({
+      color: 0x8cecff,
+      transparent: true,
+      opacity: 0.78,
+      depthWrite: false,
+    })
+    this.materials.push(boundaryMaterial)
+    const boundary = new THREE.LineSegments(this.createWatcherBoundaryGeometry(), boundaryMaterial)
+    boundary.name = 'WatcherVisionBoundary'
+    boundary.position.y = -0.865
+    boundary.renderOrder = 3
+    boundary.userData.presentationOverlay = true
+    this.watcherVisionBoundary = boundary
+
+    const beamMaterial = new THREE.LineBasicMaterial({
+      color: 0xff5c79,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+    })
+    this.materials.push(beamMaterial)
+    const beamGeometry = this.geometry(new THREE.BufferGeometry())
+    beamGeometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(6), 3))
+    const targetBeam = new THREE.Line(beamGeometry, beamMaterial)
+    targetBeam.name = 'WatcherTargetBeam'
+    targetBeam.visible = false
+    targetBeam.frustumCulled = false
+    targetBeam.userData.presentationOverlay = true
+    this.watcherTargetBeam = targetBeam
+
+    root.add(sector, boundary, targetBeam, sensorEye, statusRing)
+    this.updateWatcherVisionGeometry(this.enemyFovRadians())
+  }
+
+  private buildGuardianSentry(root: THREE.Object3D, accent: number, glow: THREE.Material): void {
+    const base = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(0.7, 0.8, 0.22, 10)), this.material(0x221c29, 0.54, 0.65))
+    base.name = 'SentryBase'
+    base.position.y = 0.15
+    const shell = new THREE.Mesh(this.geometry(new THREE.DodecahedronGeometry(0.78, 1)), this.material(0x5f2635, 0.58, 0.32, accent))
+    shell.name = 'SentryShell'
+    shell.position.y = 0.63
+    const eye = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(0.12, 12, 8)), glow)
+    eye.name = 'SentryEye'
+    eye.position.set(0, 0.72, 0.72)
+    const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(0.82, 0.035, 8, 20)), this.material(accent, 0.28, 0.7, accent))
+    ring.name = 'SentryHalo'
+    ring.rotation.x = Math.PI / 2
+    ring.position.y = 0.65
+    const finGeometry = this.geometry(new THREE.BoxGeometry(0.11, 0.36, 0.3))
+    const fins = new THREE.InstancedMesh(finGeometry, this.material(0x25323b, 0.5, 0.72), 2)
+    fins.name = 'SentryFins'
+    const finMatrix = new THREE.Matrix4()
+    finMatrix.makeTranslation(-0.62, 0.62, 0)
+    fins.setMatrixAt(0, finMatrix)
+    finMatrix.makeTranslation(0.62, 0.62, 0)
+    fins.setMatrixAt(1, finMatrix)
+    fins.instanceMatrix.needsUpdate = true
+    const cone = new THREE.Mesh(
+      this.geometry(new THREE.ConeGeometry(2.6, 5.5, 24, 1, true, -Math.PI / 4, Math.PI / 2)),
+      this.material(0xe95757, 0.5, 0, 0xe95757, 0.13),
+    )
+    cone.name = 'SightCone'
+    cone.rotation.x = Math.PI / 2
+    cone.rotation.z = -Math.PI / 2
+    cone.position.set(0, 0.35, 2.2)
+    root.add(base, shell, eye, ring, fins, cone)
+  }
+
+  private createWatcherSectorGeometry(): THREE.BufferGeometry {
+    const segments = 32
+    const geometry = this.geometry(new THREE.BufferGeometry())
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array((segments + 2) * 3), 3))
+    const indices: number[] = []
+    for (let index = 0; index < segments; index += 1) indices.push(0, index + 1, index + 2)
+    geometry.setIndex(indices)
+    return geometry
+  }
+
+  private createWatcherBoundaryGeometry(): THREE.BufferGeometry {
+    const segments = 32
+    const geometry = this.geometry(new THREE.BufferGeometry())
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array((segments + 2) * 2 * 3), 3))
+    return geometry
+  }
+
   /**
    * Chapter 3's middle passage is deliberately independent of the southern
    * one-way wall. Its only authority is the actual receiver device: once the
@@ -1887,7 +2016,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const id = this.chapter === 5 ? 'guardian' : 'watcher'
     const enemy = this.devices.get(id)
     if (!enemy?.body || this.enemyDefeated) {
-      if (enemy && this.enemyDefeated) enemy.root.rotation.z = THREE.MathUtils.lerp(enemy.root.rotation.z, Math.PI / 2, 0.08)
+      if (enemy && this.enemyDefeated) {
+        enemy.root.rotation.z = THREE.MathUtils.lerp(enemy.root.rotation.z, Math.PI / 2, 0.08)
+        this.updateEnemyPresentation(enemy)
+      }
       return
     }
     const echo = actors.find((actor) => actor.kind === 'echo')
@@ -2003,6 +2135,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       z: enemy.root.quaternion.z,
       w: enemy.root.quaternion.w,
     })
+    this.updateEnemyPresentation(enemy, visibleTarget?.position)
   }
 
   private updateTrapHazards(): void {
@@ -2299,13 +2432,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const target = to.clone().add(new THREE.Vector3(0, 0.62, 0))
     const direction = target.clone().sub(eye)
     const distance = direction.length()
-    const fovRadians = this.enemyState === 'patrol'
-      ? Math.PI * 0.62
-      : this.enemyState === 'recovery'
-        ? Math.PI * 0.72
-        : Math.PI * 0.94
+    const fovRadians = this.enemyFovRadians()
     if (!canSeeTarget({
-      position: this.vec(eye), forward: this.vec(this.enemyForward), range: this.chapter === 5 ? 8.5 : 7.2,
+      position: this.vec(eye), forward: this.vec(this.enemyForward), range: this.enemyViewRange(),
       fovRadians, maxVerticalDelta: 5,
     }, { position: this.vec(target), radius: 0.32 })) return false
     const hit = this.physics.castRay(
@@ -2316,6 +2445,117 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       SOLID_SIGHT_KINDS,
     )
     return !hit
+  }
+
+  private enemyFovRadians(): number {
+    return this.enemyState === 'patrol'
+      ? Math.PI * 0.62
+      : this.enemyState === 'recovery'
+        ? Math.PI * 0.72
+        : Math.PI * 0.94
+  }
+
+  private enemyViewRange(): number {
+    return this.chapter === 5 ? 8.5 : 7.2
+  }
+
+  private updateWatcherVisionGeometry(fovRadians: number): void {
+    const sector = this.watcherVisionSector
+    const boundary = this.watcherVisionBoundary
+    if (!sector || !boundary || Math.abs(this.watcherVisionFov - fovRadians) < 0.0001) return
+    this.watcherVisionFov = fovRadians
+    const range = this.enemyViewRange()
+    const segments = 32
+    const sectorAttribute = sector.geometry.getAttribute('position') as THREE.BufferAttribute
+    const sectorPositions = sectorAttribute.array as Float32Array
+    sectorPositions.set([0, 0, 0], 0)
+    const points: THREE.Vector3[] = []
+    for (let index = 0; index <= segments; index += 1) {
+      const angle = -fovRadians / 2 + (fovRadians * index) / segments
+      const point = new THREE.Vector3(Math.sin(angle) * range, 0, Math.cos(angle) * range)
+      points.push(point)
+      sectorPositions.set([point.x, point.y, point.z], (index + 1) * 3)
+    }
+    sectorAttribute.needsUpdate = true
+    sector.geometry.computeBoundingSphere()
+
+    const boundaryAttribute = boundary.geometry.getAttribute('position') as THREE.BufferAttribute
+    const boundaryPositions = boundaryAttribute.array as Float32Array
+    let cursor = 0
+    const writePoint = (point: THREE.Vector3): void => {
+      boundaryPositions.set([point.x, point.y, point.z], cursor)
+      cursor += 3
+    }
+    const center = new THREE.Vector3()
+    writePoint(center)
+    writePoint(points[0] ?? center)
+    writePoint(center)
+    writePoint(points.at(-1) ?? center)
+    for (let index = 0; index < segments; index += 1) {
+      writePoint(points[index] ?? center)
+      writePoint(points[index + 1] ?? center)
+    }
+    boundaryAttribute.needsUpdate = true
+    boundary.geometry.computeBoundingSphere()
+  }
+
+  private updateEnemyPresentation(enemy: DeviceRecord, visibleTarget?: THREE.Vector3): void {
+    if (this.chapter !== 4) return
+    const defeated = this.enemyDefeated || this.enemyState === 'trapped'
+    const acquired = this.enemyTargetVisible && Boolean(visibleTarget)
+    const searching = ['alert', 'investigate'].includes(this.enemyState)
+    const color = acquired ? 0xff4f6d : searching ? 0xffbd4a : 0x49d9ff
+    const pulse = 1 + Math.sin(this.currentTick * 0.22) * (acquired ? 0.13 : 0.045)
+
+    this.updateWatcherVisionGeometry(this.enemyFovRadians())
+    if (this.watcherVisionSector) {
+      this.watcherVisionSector.visible = !defeated
+      this.watcherVisionSector.material.color.setHex(color)
+      this.watcherVisionSector.material.opacity = acquired
+        ? 0.18 + this.enemyDetection * 0.12
+        : searching ? 0.15 : 0.1
+    }
+    if (this.watcherVisionBoundary) {
+      this.watcherVisionBoundary.visible = !defeated
+      this.watcherVisionBoundary.material.color.setHex(color)
+      this.watcherVisionBoundary.material.opacity = acquired ? 0.98 : searching ? 0.88 : 0.7
+    }
+    if (this.watcherStatusRing) {
+      this.watcherStatusRing.visible = !defeated
+      this.watcherStatusRing.material.color.setHex(color)
+      this.watcherStatusRing.material.emissive.setHex(color)
+      this.watcherStatusRing.material.emissiveIntensity = acquired ? 3.2 : searching ? 2.4 : 1.7
+      this.watcherStatusRing.scale.setScalar(pulse)
+      this.watcherStatusRing.rotation.z = this.currentTick * 0.012
+    }
+    if (this.watcherSensorEye) {
+      this.watcherSensorEye.visible = !defeated
+      this.watcherSensorEye.material.color.setHex(color)
+      this.watcherSensorEye.material.emissive.setHex(color)
+      this.watcherSensorEye.material.emissiveIntensity = acquired ? 4.5 : searching ? 3.2 : 2.4
+      this.watcherSensorEye.scale.setScalar(pulse)
+    }
+    if (this.watcherTargetBeam) {
+      this.watcherTargetBeam.visible = acquired
+      if (acquired && visibleTarget) {
+        enemy.root.updateMatrixWorld(true)
+        const localTarget = enemy.root.worldToLocal(visibleTarget.clone())
+        const position = this.watcherTargetBeam.geometry.getAttribute('position') as THREE.BufferAttribute
+        position.setXYZ(0, 0, 0.72, 0.5)
+        position.setXYZ(1, localTarget.x, localTarget.y, localTarget.z)
+        position.needsUpdate = true
+        this.watcherTargetBeam.geometry.computeBoundingSphere()
+      }
+    }
+
+    let animation: CharacterState = 'Idle'
+    if (defeated) animation = 'Defeat'
+    else if (this.enemyState === 'knocked') animation = 'Hit'
+    else if (this.enemyState === 'chase') animation = 'Run'
+    else if (['patrol', 'investigate', 'recovery'].includes(this.enemyState)) animation = 'Walk'
+    if (this.enemyAnimator && (this.enemyAnimator.state() !== animation || animation === 'Walk' || animation === 'Run')) {
+      this.enemyAnimator.play(animation, animation === 'Run' ? 4.6 : 1.8)
+    }
   }
 
   private faceEnemy(enemy: DeviceRecord, direction: THREE.Vector3): void {

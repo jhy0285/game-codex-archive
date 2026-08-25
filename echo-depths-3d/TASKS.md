@@ -230,3 +230,11 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 - [x] Keep the east transfer shutter closed to physical Cores until the live Player reaches the east side.
 - [x] Add a fixed, actor-only north-lane seal: Player and Echo cannot use an open Core shutter as a crossing or return shortcut.
 - [x] Widen the visible shutter slats to the full transfer span and retain a cyan lock field/rails as the actor-only boundary.
+
+## 2026-08-26 — Chapter 4 Watcher character and surveillance readability
+
+- [x] Replace only the Chapter 4 procedural sentry with the official KayKit Adventurers 2.0 `Rogue_Hooded.glb`; keep the Chapter 5 Guardian unchanged.
+- [x] Reuse the existing Rig_Medium animation mapping for Watcher idle, walk, run, hit, and defeat presentation.
+- [x] Draw the Watcher's real 7.2-unit FOV as a ground sector and boundary, with cyan patrol, amber search, and red acquired-target states.
+- [x] Show a pulsing sensor/ring and a red target beam only when the existing FOV, Rapier LOS, and target-selection logic has actually acquired Player or Echo.
+- [x] Pass targeted unit tests, strict production build, the real Chapter 4 completion story, and desktop/mobile browser inspection before production deployment.

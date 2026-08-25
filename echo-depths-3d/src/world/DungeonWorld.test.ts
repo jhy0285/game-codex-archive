@@ -274,7 +274,10 @@ describe('DungeonWorld authored runtime contracts', () => {
           const device = scene.getObjectByName(definition.id)
           expect(device).toBeInstanceOf(THREE.Group)
           expect(physics.record(definition.id)).toBeDefined()
-          for (const part of expectedParts[definition.kind]) {
+          const parts = chapter === 4 && definition.kind === 'enemy'
+            ? ['WatcherCharacter', 'WatcherSensorEye', 'WatcherStatusRing', 'WatcherVisionSector', 'WatcherVisionBoundary', 'WatcherTargetBeam']
+            : expectedParts[definition.kind]
+          for (const part of parts) {
             expect(device?.getObjectByName(part), `${definition.id} is missing ${part}`).toBeDefined()
           }
         }
@@ -1160,6 +1163,40 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(openY + 1.35, 'open shutter top stays below the lower floor').toBeLessThan(0.45)
       expect(openY, 'open shutter moves from its immutable closed position').toBeLessThan(closedY - 1.8)
     } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('draws the Watcher range from the live FOV and marks a real acquired target', async () => {
+    const { physics, scene, world } = await createWorld(4)
+    try {
+      const watcher = scene.getObjectByName('watcher')
+      const sector = watcher?.getObjectByName('WatcherVisionSector') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
+      const boundary = watcher?.getObjectByName('WatcherVisionBoundary') as THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>
+      const beam = watcher?.getObjectByName('WatcherTargetBeam') as THREE.Line
+      expect(sector).toBeInstanceOf(THREE.Mesh)
+      expect(boundary).toBeInstanceOf(THREE.LineSegments)
+      expect(beam.visible).toBe(false)
+
+      const positions = sector.geometry.getAttribute('position') as THREE.BufferAttribute
+      const points = Array.from({ length: positions.count - 1 }, (_, index) => new THREE.Vector3(
+        positions.getX(index + 1),
+        positions.getY(index + 1),
+        positions.getZ(index + 1),
+      ))
+      expect(Math.max(...points.map((point) => point.length()))).toBeCloseTo(7.2, 4)
+      const leftAngle = Math.atan2(points[0]?.x ?? 0, points[0]?.z ?? 1)
+      const rightAngle = Math.atan2(points.at(-1)?.x ?? 0, points.at(-1)?.z ?? 1)
+      expect(rightAngle - leftAngle).toBeCloseTo(Math.PI * 0.62, 4)
+
+      const echo = actor('echo', 'echo', [-1.9, 1.08, 3.0])
+      stepWorld(world, physics, 1, [echo])
+      expect(world.debugState().enemies.watcher).toMatchObject({ targetVisible: true, target: 'echo' })
+      expect(sector.material.color.getHex()).toBe(0xff4f6d)
+      expect(boundary.material.color.getHex()).toBe(0xff4f6d)
+      expect(beam.visible).toBe(true)
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
   })
 
   it('Ch3 N2 — the same physical Core flies through an open shutter into the east basin', async () => {

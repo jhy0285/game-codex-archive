@@ -10,6 +10,7 @@ type ProgressHandler = (loaded: number, total: number, label: string) => void
 
 type KayKitManifest = {
   character?: string
+  watcherCharacter?: string
   animations?: string[]
   environment: string[]
   resources?: string[]
@@ -37,6 +38,7 @@ export class AssetLibrary {
       this.manifest = (await response.json()) as KayKitManifest
       const urls = [
         ...(this.manifest.character ? [this.manifest.character] : []),
+        ...(this.manifest.watcherCharacter ? [this.manifest.watcherCharacter] : []),
         ...(this.manifest.animations ?? []),
         ...this.manifest.environment,
         ...(this.manifest.resources ?? []),
@@ -56,7 +58,25 @@ export class AssetLibrary {
   }
 
   createCharacter(echo = false): CharacterAnimator {
-    const characterUrl = this.manifest.character
+    const actor = this.createKayKitCharacter(this.manifest.character, echo)
+    if (actor) {
+      this.status = 'kaykit'
+      return actor
+    }
+    return this.createProceduralCharacter(echo)
+  }
+
+  createWatcherCharacter(): CharacterAnimator {
+    return this.createKayKitCharacter(this.manifest.watcherCharacter, false)
+      ?? createAnimatedActor({
+        cloth: 0x16483e,
+        armor: 0x27333d,
+        glow: 0xff5c79,
+        skin: 0xeadcc5,
+      })
+  }
+
+  private createKayKitCharacter(characterUrl: string | undefined, echo: boolean): CharacterAnimator | undefined {
     const gltf = characterUrl ? this.loaded.get(characterUrl) : undefined
     if (gltf) {
       try {
@@ -64,7 +84,7 @@ export class AssetLibrary {
           ...gltf.animations,
           ...(this.manifest.animations ?? []).flatMap((url) => this.loaded.get(url)?.animations ?? []),
         ])
-        if (clips.length !== REQUIRED_CHARACTER_STATES.length) return this.createProceduralCharacter(echo)
+        if (clips.length !== REQUIRED_CHARACTER_STATES.length) return undefined
         const root = clone(gltf.scene) as THREE.Group
         root.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return
@@ -83,13 +103,12 @@ export class AssetLibrary {
             }
           }
         })
-        this.status = 'kaykit'
         return new CharacterAnimator(root, clips)
       } catch {
-        return this.createProceduralCharacter(echo)
+        return undefined
       }
     }
-    return this.createProceduralCharacter(echo)
+    return undefined
   }
 
   private createProceduralCharacter(echo: boolean): CharacterAnimator {

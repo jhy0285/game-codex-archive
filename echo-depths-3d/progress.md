@@ -162,5 +162,9 @@ The Chapter 3 return route is now a distinct middle gate, not the red reverse fa
 
 The east/north transfer shutter is now explicitly Core-only. Its full-span mechanical shutter blocks the physical Core until the Player is east, then retracts for the Echo's same-Core delivery. A separate cyan actor seal remains raised at all times, so neither Player nor Echo can traverse the north lane or bypass the receiver-gated return door. The rule is Chapter 3-specific and does not change Chapter 5 shutter behavior. Targeted Core/Player/Echo physics tests, production build, and a local Chapter 3 browser capture passed without console errors.
 
+## 2026-08-26 — Chapter 4 Watcher character pass
+
+The Chapter 4 Watcher is now the hooded Rogue from the same official KayKit Adventurers 2.0 series already used by the Player. It uses the existing Rig_Medium animations and is visually distinct from both the Player and the unchanged Chapter 5 Guardian. Its surveillance display is no longer a decorative approximation: the ground sector is generated from the same live range and FOV helpers used by target detection, with cyan patrol, amber search, red acquisition, a pulsing sensor/status ring, and a target beam gated by actual FOV plus Rapier line of sight. Local targeted tests, production build, real Chapter 4 completion, desktop rendering, portrait guidance, mobile landscape rendering, and browser error collection pass.
+
 
 

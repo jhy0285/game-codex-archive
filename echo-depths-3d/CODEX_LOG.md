@@ -275,5 +275,13 @@ Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLA
 - Preserved the physical Core shutter and added a Chapter 3-only static actor barrier with an always-readable cyan field and rails. The retracting shutter now controls Core transfer only; Player/Echo remain blocked before and after opening.
 - Added a regression proving closed Core denial, open same-Core delivery, Player EAST→WEST denial, and Echo WEST→EAST denial. Targeted tests, strict production build, and local Chapter 3 browser/console verification pass.
 
+## 2026-08-26 — KayKit Chapter 4 Watcher
+
+- Reacquired the official `KayKit_Adventurers_2.0_FREE.zip` through Kay Lousberg's itch.io anonymous download flow and verified its existing recorded archive identity: 13,024,345 bytes, SHA-256 `abe48f4763fba0896bab486ee9e6d08ca6b5b3884b9601f235c8847ae94dc479`.
+- Added the unmodified `Rogue_Hooded.glb` selection (381,432 bytes, SHA-256 `e8f3233c6db190506fbef3ad855683e6cb8bd7350de637d923e14a08aef088dc`) and updated manifest, provenance totals, and asset credits.
+- Replaced Chapter 4's primitive drone with the hooded Rogue character and shared KayKit animations. Chapter 5's armored procedural Guardian remains unchanged.
+- Replaced the approximate floating cone with an exact ground sector driven by the same live FOV/range helpers used by detection. Patrol, search, acquired target, and defeat states now update fill, boundary, sensor, ring, beam, and animation without changing physics or puzzle facts.
+- Targeted Vitest 55/55, strict build, real Chapter 4 completion 1/1, and desktop/mobile local visual/error review pass.
+
 
 

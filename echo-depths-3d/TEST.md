@@ -275,3 +275,11 @@ The automated evidence does not establish physical-phone ergonomics, unaided fir
 - `npm test -- --run src/world/DungeonWorld.test.ts -t "Ch3 M|Ch3 N2|Ch3 N3"`: PASS, 3 selected tests. It verifies closed-shutter Core denial, the same physical Core crossing after the east-side opening, and Player/Echo denial on the open Core-only lane.
 - `npm run build`: PASS. TypeScript and the Vite production bundle completed; the pre-existing large Three.js bundle warning is non-fatal.
 - Local Chapter 3 browser capture: PASS. The shutter shows full-span slats plus a persistent cyan actor seal; browser error collection was empty.
+
+## 2026-08-26 — Chapter 4 Watcher presentation evidence
+
+- `npm test -- --run src/render/AssetLibrary.test.ts src/world/DungeonWorld.test.ts`: PASS, 2 files / 55 tests. Coverage checks the distinct Watcher manifest asset, full Watcher object assembly, exact 7.2-unit patrol range, exact `0.62π` live patrol FOV, red acquired-target state, and target-beam visibility.
+- `npm run build`: PASS. TypeScript and the Vite production bundle completed; the existing large Three.js bundle warning remains non-fatal.
+- `PLAYWRIGHT_BASE_URL='' npm run test:e2e -- tests/chapter4-5-temporal.spec.ts --grep "Chapter 4 completes" --workers=1`: PASS, 1/1 in 1.0 minute. The real bell, cover, walkable ramp, high rear strike, trap, door, and exit route remains complete.
+- Local production-bundle visual review: PASS at desktop and `844x390`; the KayKit hooded Watcher, animated patrol, ground range sector, sensor marker, HUD, and touch controls render visibly. Portrait `390x844` correctly shows rotate guidance. `agent-browser errors` and `agent-browser console` were empty.
+- The first Playwright invocation intentionally recorded as infrastructure-only failure because the inherited `PLAYWRIGHT_BASE_URL` pointed to a production build with no development debug API. Clearing that variable started the configured development server and the same Chapter 4 story passed.

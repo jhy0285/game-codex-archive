@@ -1,5 +1,6 @@
 {
   "character": "/assets/kaykit/characters/Knight.glb",
+  "watcherCharacter": "/assets/kaykit/characters/Rogue_Hooded.glb",
   "animations": [
     "/assets/kaykit/animations/Rig_Medium_General.glb",
     "/assets/kaykit/animations/Rig_Medium_MovementBasic.glb",
