@@ -486,7 +486,16 @@ export class GameApp {
         if (result === 'lever') {
           const firstChapterLever = this.chapter === 1 && context.kind === 'player'
           this.hud.showFeedbackKey(firstChapterLever ? 'feedbackFirstLeverActive' : 'feedbackLeverActive', 'success', firstChapterLever ? 5_600 : 2_600)
-        } else if (result === 'core' && this.chapter === 3 && context.kind === 'player' && carryingBeforeInteract !== 'core') {
+        } else if (
+          result === 'core'
+          && this.chapter === 3
+          && context.kind === 'player'
+          && carryingBeforeInteract !== 'core'
+          // This copy is only true after the Echo has delivered the Core to
+          // the east catch basin; it must not fire for the initial pickup.
+          && this.echo !== undefined
+          && context.position.x >= 2.7
+        ) {
           this.hud.showFeedbackKey('feedbackCoreCaught', 'success', 2_600)
         }
       }
@@ -581,9 +590,6 @@ export class GameApp {
     )
     if (this.player) this.spawnTemporalPulse(this.player.motor.position, 0xc15bf2)
     this.hud.showFeedbackKey('feedbackRecordEnd', 'success')
-    if (recording.snapshot.chapter === 3 && this.player && this.player.motor.position.x >= 4) {
-      this.hud.showFeedbackKey('feedbackTransferLaneOpen', 'success', 2_600)
-    }
     if (recording.snapshot.chapter === 0) {
       this.tutorialSteps.add('echo')
       this.tutorialComplete = TUTORIAL_STEPS.every((step) => this.tutorialSteps.has(step))
