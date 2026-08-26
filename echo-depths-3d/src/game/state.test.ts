@@ -107,8 +107,8 @@ describe('localization-independent state reset', () => {
 
   it('fails a timed escape exactly when the fixed-tick countdown reaches zero', () => {
     let state = startEscapeTimer(createInitialChapterState('paradox-well'))
-    expect(state.escapeTicksRemaining).toBe(35 * 60)
-    state = advanceChapterClock(state, 35 * 60 - 1)
+    expect(state.escapeTicksRemaining).toBe(15 * 60)
+    state = advanceChapterClock(state, 15 * 60 - 1)
     expect(state.phase).toBe('active')
     expect(state.escapeTicksRemaining).toBe(1)
     state = advanceChapterClock(state)

@@ -15,8 +15,8 @@ This ledger separates implementation present in the source tree from verificatio
 | Deterministic echo | Present | Full motor/world record-start snapshot plus 60 Hz quantized input/action and transform/facing tape, collision-aware kinematic replay, shared world action resolver, ownership transfer to one replacement echo, terminal held use |
 | Dynamic interactions | Present | Crate and Core carry/drop/throw with camera-heading placement, ballistic preview, physical gates/shutters, direction-aware player passage, pressure plates, levers, collision-driven receivers, doors, fixed-sensor/kinematic overlap configuration, and prompt-matched interaction range |
 | Vertical machinery | Present | Chapter 2 counterweight elevator, Chapter 4 walkable ramp, and Chapter 5's single receiver-powered boarding platform; no redundant final elevator or required precision-jump chain |
-| Enemy puzzles | Present | Deterministic patrol/alert/investigate/chase/recovery, live Player/Echo FOV and Rapier LOS through cover, world-space bell stimulus, visible-target switching, rear/high strike validation, physical knockback-only trap defeat, Guardian positional seal rule |
-| Orientation and five chapters | Present | Skippable Stage 00 PC tutorial, five campaign layouts, chapter transitions, final 35-second escape, stats, rank, replay, chapter selection |
+| Enemy puzzles | Present | Deterministic patrol/alert/investigate/chase/recovery, live Player/Echo FOV and Rapier LOS through cover, world-space bell stimulus, visible-target switching, rear/high strike validation, physical knockback-only trap defeat, receiver-powered Guardian and stable lower-Echo lure hold |
+| Orientation and five chapters | Present | Skippable Stage 00 PC tutorial, five campaign layouts, chapter-authored Echo limits, chapter transitions, final 15-second escape, stats, rank, replay, chapter selection |
 | Character presentation | Present | Official KayKit character and five clip libraries loaded through GLTFLoader, 13 AnimationMixer states with crossfades, locomotion speed scaling, and smoothed visual yaw |
 | Asset fallback | Present | Code-built animated character is selected when model loading or full clip mapping fails; runtime reports asset status |
 | Localization | Present | Korean and English runtime catalogs and localized chapter/UI/failure/ending/orientation copy |
@@ -37,7 +37,7 @@ This ledger separates implementation present in the source tree from verificatio
 | Playwright functional suite | Passed | 8/8 scenarios passed in 4.3 minutes, including a real desktop `E` interaction at the visible prompt |
 | Local visual browser inspection | Passed representative review | Settings, echo, Chapters 1–5, ending, portrait, and landscape captures show no black frame, missing actor/model, clipped primary UI, or unreadable copy |
 | Console, page, request failure review | Passed locally | Automatic browser collectors reported no unhandled page, console, or request failures |
-| Chapter 5 integrated timeline | Corrected and covered | One recording transfers one canonical Core and ends on the lower seal; the present Player delivers that same Core, rides the only platform, exploits actual Guardian LOS/rear exposure, and holds the upper seal concurrently to release the final door |
+| Chapter 5 integrated timeline | Corrected and covered | One 20-second recording transfers one canonical Core and ends on the lower seal; the present Player delivers that same Core, powers the dormant Guardian, rides the only platform, exploits the stable central Echo lure/rear exposure, and holds the upper seal concurrently to release the final door |
 | Chapter 4–5 temporal-mastery unit/physics gate | Passed locally | 17 Vitest files, 126/126; covers actual LOS/cover, attention lifecycle, snapshot restoration, strike rejection, physical trap entry, one Core, support motion, receiver, and live seals |
 | Chapter 4–5 desktop/mobile browser gate | Passed locally | Full Playwright 25/25 in 24.6 minutes; focused success-capture rerun 4/4 in 6.9 minutes; keyboard-only desktop and touch-only mobile solutions |
 | Candidate-deployment browser check | Passed | 5/5 in 59.7 seconds against the verified candidate |
@@ -193,10 +193,10 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 
 - [x] Replace direct bell/plate targeting with actual Watcher and Guardian FOV, Rapier LOS, cover, visible-target selection, last-known/stimulus investigation, chase, recovery, and deterministic patrol.
 - [x] Require Player-only rear/high attacks; reject frontal or low strikes; apply real knockback; defeat the Watcher only when a knocked body intersects the physical trap; keep exits blocked until real outcomes exist.
-- [x] Preserve one canonical `paradox-core`; use a first Echo recording for physical carry/throw/receiver delivery and a replacement recording for live lower-seal occupancy.
+- [x] Preserve one canonical `paradox-core`; use one continuous Echo recording for physical carry/throw transfer and live lower-seal occupancy, then let the present Player seat that same Core in the receiver.
 - [x] Make the powered vertical platform physically carry the Player to the Guardian flank and require actual Echo visibility before the rear/high Guardian seal strike.
-- [x] Require simultaneous live Echo lower-seal occupancy and Player upper-seal hold before latching final-door release and starting the 35-second escape.
-- [x] Preserve the 15-second, 60 Hz Echo 2.0 contract and restore all mutable perception state in rewind snapshots; add no AI planning, teleport, auto-interaction, solution step, fact injection, or production debug surface.
+- [x] Require simultaneous live Echo lower-seal occupancy and Player upper-seal hold before latching final-door release and starting the 15-second escape.
+- [x] Wire the authored 12/15/18/18/20-second, 60 Hz Echo 2.0 limits into runtime and restore all mutable perception state in rewind snapshots; add no AI planning, teleport, auto-interaction, solution step, fact injection, or production debug surface.
 - [x] Pass `npm ci` with 0 vulnerabilities, strict Vite build, Vitest 126/126, full Playwright 25/25, and focused desktop/mobile success-capture 4/4.
 - [x] Limit source work to `echo-depths-3d/` on `feat/ch4-ch5-temporal-mastery`, based on `fix/echo2-ch3-structural`; leave `main`, the base repair branch, production deployment, assets, and siblings unchanged.
 
@@ -233,7 +233,7 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 
 ## 2026-08-26 — Chapter 4 Watcher character and surveillance readability
 
-- [x] Replace only the Chapter 4 procedural sentry with the official KayKit Adventurers 2.0 `Rogue_Hooded.glb`; keep the Chapter 5 Guardian unchanged.
+- [x] Use the official KayKit Adventurers 2.0 `Rogue_Hooded.glb` for Chapter 4 and reuse the shipped official `Knight.glb` rig for the Chapter 5 Guardian with runtime tint, shield, rear seal, exact sight sector, and state animation; add no new asset binary.
 - [x] Reuse the existing Rig_Medium animation mapping for Watcher idle, walk, run, hit, and defeat presentation.
 - [x] Draw the Watcher's real 7.2-unit FOV as a ground sector and boundary, with cyan patrol, amber search, and red acquired-target states.
 - [x] Show a pulsing sensor/ring and a red target beam only when the existing FOV, Rapier LOS, and target-selection logic has actually acquired Player or Echo.

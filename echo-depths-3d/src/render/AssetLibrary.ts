@@ -76,7 +76,21 @@ export class AssetLibrary {
       })
   }
 
-  private createKayKitCharacter(characterUrl: string | undefined, echo: boolean): CharacterAnimator | undefined {
+  createGuardianCharacter(): CharacterAnimator {
+    return this.createKayKitCharacter(this.manifest.character, false, 'guardian')
+      ?? createAnimatedActor({
+        cloth: 0x24183c,
+        armor: 0x6e5aa8,
+        glow: 0xc881ff,
+        skin: 0xd7c9b5,
+      })
+  }
+
+  private createKayKitCharacter(
+    characterUrl: string | undefined,
+    echo: boolean,
+    style: 'default' | 'guardian' = 'default',
+  ): CharacterAnimator | undefined {
     const gltf = characterUrl ? this.loaded.get(characterUrl) : undefined
     if (gltf) {
       try {
@@ -100,6 +114,16 @@ export class AssetLibrary {
               next.opacity = 0.48
               next.depthWrite = false
               if ('emissive' in next && next.emissive instanceof THREE.Color) next.emissive.set(0x28e7dc)
+            }
+          } else if (style === 'guardian') {
+            for (const next of cloned) {
+              if ('color' in next && next.color instanceof THREE.Color) {
+                next.color.lerp(new THREE.Color(0x7459ad), 0.38)
+              }
+              if ('emissive' in next && next.emissive instanceof THREE.Color) next.emissive.set(0x2f174d)
+              if ('emissiveIntensity' in next && typeof next.emissiveIntensity === 'number') {
+                next.emissiveIntensity = 0.32
+              }
             }
           }
         })

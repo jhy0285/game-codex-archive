@@ -274,12 +274,23 @@ describe('DungeonWorld authored runtime contracts', () => {
           const device = scene.getObjectByName(definition.id)
           expect(device).toBeInstanceOf(THREE.Group)
           expect(physics.record(definition.id)).toBeDefined()
-          const parts = chapter === 4 && definition.kind === 'enemy'
-            ? ['WatcherCharacter', 'WatcherSensorEye', 'WatcherStatusRing', 'WatcherVisionSector', 'WatcherVisionBoundary', 'WatcherTargetBeam']
+          const parts = definition.kind === 'enemy'
+            ? chapter === 4
+              ? ['WatcherCharacter', 'WatcherSensorEye', 'WatcherStatusRing', 'WatcherVisionSector', 'WatcherVisionBoundary', 'WatcherTargetBeam']
+              : ['GuardianCharacter', 'GuardianSensorEye', 'GuardianStatusRing', 'GuardianVisionSector', 'GuardianVisionBoundary', 'GuardianTargetBeam', 'GuardianFrontShield', 'GuardianRearSeal']
             : expectedParts[definition.kind]
           for (const part of parts) {
             expect(device?.getObjectByName(part), `${definition.id} is missing ${part}`).toBeDefined()
           }
+        }
+        if (chapter === 5) {
+          for (const guide of [
+            'ParadoxEchoRoute', 'ParadoxPlayerRoute', 'ReceiverPlatformCable',
+            'GuardianLowerSealTether', 'GuardianArenaRing', 'FinalEscapeGuide',
+          ]) {
+            expect(scene.getObjectByName(guide), `Chapter 5 is missing ${guide}`).toBeDefined()
+          }
+          expect(scene.getObjectByName('FinalEscapeGuide')?.children).toHaveLength(6)
         }
       } finally {
         world.dispose()
@@ -768,6 +779,8 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(world.debugState().enemies.guardian).toMatchObject({ target: 'echo', targetVisible: true })
       const guardianPosition = world.debugState().enemies.guardian?.position
       if (!guardianPosition) throw new Error('Guardian position is missing')
+      expect(guardianPosition.x).toBeCloseTo(0.8, 1)
+      expect(guardianPosition.z).toBeCloseTo(0.85, 1)
       expect(world.attack(player, new THREE.Vector3(
         guardianPosition.x - player.position.x,
         0,
@@ -801,7 +814,12 @@ describe('DungeonWorld authored runtime contracts', () => {
     const { physics, world } = await createWorld(5)
     try {
       const lowerSeal = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'lower-seal')?.position
-      if (!lowerSeal) throw new Error('lower seal missing')
+      const receiver = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'power-receiver')?.position
+      const core = physics.record('paradox-core')
+      if (!lowerSeal || !receiver || !core) throw new Error('Chapter 5 activation devices are missing')
+      core.body.setTranslation({ x: receiver[0], y: receiver[1], z: receiver[2] }, true)
+      physics.step()
+      world.afterPhysics([])
       const echo = actor('echo', 'echo', [lowerSeal[0], 1.08, lowerSeal[2]])
       for (let tick = 1; tick < 180 && world.debugState().enemies.guardian?.target !== 'echo'; tick += 1) {
         stepWorld(world, physics, tick, [echo])
@@ -1259,6 +1277,76 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(sector.material.color.getHex()).toBe(0xff4f6d)
       expect(boundary.material.color.getHex()).toBe(0xff4f6d)
       expect(beam.visible).toBe(true)
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('draws the Guardian range from the same live FOV and exposes its rear seal only for the lower Echo', async () => {
+    const { physics, scene, world } = await createWorld(5)
+    try {
+      const guardian = scene.getObjectByName('guardian')
+      const sector = guardian?.getObjectByName('GuardianVisionSector') as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
+      const boundary = guardian?.getObjectByName('GuardianVisionBoundary') as THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>
+      const beam = guardian?.getObjectByName('GuardianTargetBeam') as THREE.Line
+      const shield = guardian?.getObjectByName('GuardianFrontShield') as THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial>
+      const rearSeal = guardian?.getObjectByName('GuardianRearSeal') as THREE.Mesh<THREE.CircleGeometry, THREE.MeshStandardMaterial>
+      expect(sector.visible).toBe(false)
+      expect(boundary.visible).toBe(false)
+      expect(beam.visible).toBe(false)
+
+      const receiver = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'power-receiver')?.position
+      const lowerSeal = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'lower-seal')?.position
+      const core = physics.record('paradox-core')
+      if (!receiver || !lowerSeal || !core) throw new Error('Chapter 5 activation devices are missing')
+      core.body.setTranslation({ x: receiver[0], y: receiver[1], z: receiver[2] }, true)
+      physics.createActor('guardian-echo', 'echo', { x: lowerSeal[0], y: 1.08, z: lowerSeal[2] })
+      const echo = actor('guardian-echo', 'echo', [lowerSeal[0], 1.08, lowerSeal[2]])
+      for (let tick = 1; tick <= 60; tick += 1) stepWorld(world, physics, tick, [echo])
+
+      const positions = sector.geometry.getAttribute('position') as THREE.BufferAttribute
+      const points = Array.from({ length: positions.count - 1 }, (_, index) => new THREE.Vector3(
+        positions.getX(index + 1), positions.getY(index + 1), positions.getZ(index + 1),
+      ))
+      expect(Math.max(...points.map((point) => point.length()))).toBeCloseTo(8.5, 4)
+      const leftAngle = Math.atan2(points[0]?.x ?? 0, points[0]?.z ?? 1)
+      const rightAngle = Math.atan2(points.at(-1)?.x ?? 0, points.at(-1)?.z ?? 1)
+      expect(rightAngle - leftAngle).toBeCloseTo(Math.PI * 0.94, 4)
+      expect(world.debugState().enemies.guardian).toMatchObject({ state: 'lure-hold', target: 'echo', targetVisible: true })
+      expect(sector.visible).toBe(true)
+      expect(sector.material.color.getHex()).toBe(0xd66bff)
+      expect(beam.visible).toBe(true)
+      expect(shield.material.opacity).toBeLessThan(0.3)
+      expect(rearSeal.material.emissiveIntensity).toBeGreaterThan(4)
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('keeps the Guardian dormant before Core power and requires real vertical contact after activation', async () => {
+    const { physics, world } = await createWorld(5)
+    try {
+      const belowDais = actor('player', 'player', [0.9, 1.08, 1.15])
+      for (let tick = 1; tick <= 180; tick += 1) stepWorld(world, physics, tick, [belowDais])
+      expect(world.debugState().enemies.guardian).toMatchObject({ state: 'dormant', targetVisible: false })
+      expect(world.failed).toBe(false)
+
+      const receiver = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'power-receiver')?.position
+      const core = physics.record('paradox-core')
+      if (!receiver || !core) throw new Error('Chapter 5 Core receiver is missing')
+      core.body.setTranslation({ x: receiver[0], y: receiver[1], z: receiver[2] }, true)
+      physics.step()
+      world.afterPhysics([belowDais])
+      for (let tick = 181; tick <= 300; tick += 1) stepWorld(world, physics, tick, [belowDais])
+      expect(world.debugState().enemies.guardian?.target).toBe('player')
+      expect(world.failed).toBe(false)
+
+      belowDais.position.y = 2.28
+      for (let tick = 301; tick <= 360 && !world.failed; tick += 1) stepWorld(world, physics, tick, [belowDais])
+      expect(world.failed).toBe(true)
+      expect(world.failureReason).toBe('guardian')
     } finally {
       world.dispose()
       physics.dispose()

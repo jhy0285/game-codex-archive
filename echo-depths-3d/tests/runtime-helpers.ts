@@ -7,7 +7,7 @@ export type RuntimeState = {
   chapter: number
   language?: string
   player: { position: Vec3; velocity?: Vec3; yaw?: number; grounded?: boolean } | null
-  echo: { mode: string; tick: number; durationTicks: number; position?: Vec3; yaw?: number }
+  echo: { mode: string; tick: number; durationTicks: number; maxTicks: number; position?: Vec3; yaw?: number }
   facts?: string[]
   objectives: { required: string[]; facts: string[]; complete: boolean }
   pressurePlates?: Record<string, { active: boolean; actor?: string }>

@@ -294,5 +294,13 @@ The trap gained a pulsing red target ring, translucent beacon, and local light. 
 
 Source commit `65bcbfe25a17e29dd0c6c5bc974f30731b18c4ef` was pushed to `origin/feat/ch3-ch5-level-design-rebuild`. The verified static bundle was deployed as isolated Vercel production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT` and aliased to `https://echo-depths-playtest.vercel.app`. The public alias serves the new bundle, Chapter 4 renders on desktop, the production smoke set passes after using the workstation system CA for the asset request, console/page errors are empty, and the development debug API is absent.
 
+## 2026-08-26 — Chapter 5 final-difficulty and Guardian fairness pass
+
+- Replaced the procedural Chapter 5 sentry with a runtime-tinted clone of the existing official KayKit Knight rig. Added an animated front shield, rear weak seal, sensor/status ring, target beam, and ground sight sector generated from the same live range/FOV used by detection. No asset binary or provenance hash changed.
+- Made `power-receiver` the Guardian's real activation authority. Before the same physical Core is seated, the Guardian remains dormant and cannot detect, chase, or defeat the Player. After activation, a visible Echo physically holding `lower-seal` has priority and the Guardian faces it from the central dais instead of chasing it out of attack range.
+- Added vertical overlap to Guardian contact so floors separate danger correctly. Preserved the Player-only high/rear strike, actual LOS, same-Core transfer, single moving platform, live dual seal, and rewind snapshot behavior.
+- Wired the authored Chapter 1–5 Echo capacities (12/15/18/18/20 seconds) into `GameApp`, reduced the final escape to 15 seconds, prevented timer restart, and added non-colliding dual-route/cable/tether/exit-beacon guidance.
+- Local acceptance: Vitest 18 files / 142 tests PASS; strict production build PASS; real Chapter 5 desktop completion PASS 1/1 in 3.0 minutes; real touch-only Chapter 5 completion PASS 1/1 (test body 5.2 minutes). A first desktop rerun revealed that newly added collision rails blocked the side-entry exit path; those rails were removed and the same story passed. The inherited machine-level `PLAYWRIGHT_BASE_URL` also initially pointed at production without debug API; explicitly removing it selected the intended local server.
+
 
 

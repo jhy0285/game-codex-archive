@@ -300,7 +300,7 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     objectiveKey: 'chapter.paradox.objective',
     hintKey: 'chapter.paradox.hint',
     echoMaxTicks: 20 * 60,
-    escapeTimeTicks: 35 * 60,
+    escapeTimeTicks: 15 * 60,
     playerSpawn: v(-7.4, 1.08, 2.7),
     exitCenter: v(8.25, 3.78, 2.65),
     mechanics: [

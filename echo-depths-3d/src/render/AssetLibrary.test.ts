@@ -92,4 +92,22 @@ describe('AssetLibrary active character status', () => {
     watcher.dispose()
     assets.dispose()
   })
+
+  it('reuses the official Knight rig as the armored Chapter 5 Guardian', () => {
+    const assets = new AssetLibrary()
+    const clipNames = [
+      'idle_a', 'walking_a', 'running_a', 'jump_start', 'jump_idle', 'jump_land',
+      'holding_a', 'throw', 'interact', 'melee_1h_attack_slice_horizontal',
+      'dodge_forward', 'hit_a', 'death_a',
+    ]
+    installCharacterAsset(assets, clipNames.map((name) => new THREE.AnimationClip(name, 1, [])))
+
+    const guardian = assets.createGuardianCharacter()
+
+    expect(guardian.root).toBeInstanceOf(THREE.Group)
+    expect(guardian.state()).toBe('Idle')
+
+    guardian.dispose()
+    assets.dispose()
+  })
 })

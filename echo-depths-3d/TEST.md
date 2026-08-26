@@ -7,9 +7,13 @@ Snapshot: 2026-08-25, Asia/Seoul.
 | Layer | Command or method | Result |
 | --- | --- | --- |
 | Strict TypeScript | `npx tsc --noEmit` / build compiler | PASS |
-| Production bundle | `npm run build` | PASS — 38 modules; JS 3,645.22 kB, CSS 22.71 kB |
-| Unit, pure-rule, state, and physics regression tests | `npx vitest run` | PASS — 17 files, 126 tests |
-| Playwright functional and layout coverage | local `npx playwright test` with external base URL unset | PASS — 25/25 in 24.6 minutes, including all existing Chapter 1–3 positive/negative regressions and four real-input Chapter 4–5 desktop/mobile completions |
+| Production bundle | `npm run build` | PASS — 38 modules; JS 3,674.91 kB, CSS 22.71 kB; existing large-chunk warning remains non-fatal |
+| Unit, pure-rule, state, and physics regression tests | `npm test -- --run` | PASS — 18 files, 142 tests |
+| Focused Chapter 5 desktop completion | `playwright test tests/chapter4-5-temporal.spec.ts -g "Chapter 5 completes"` with inherited production base URL removed | PASS — 1/1 in 3.0 minutes; one tape, one Core, receiver power, stable Guardian lure, high rear strike, live seals, 15-second escape, exit |
+| Focused Chapter 5 touch completion | `playwright test tests/chapter4-5-mobile-walkthrough.spec.ts -g "Chapter 5 completes"` with inherited production base URL removed | PASS — 1/1; touch-only Core/Echo/platform/Guardian/seal/exit route. Test body completed in 5.2 minutes; Windows reporter/PTY returned late |
+| Additional render smoke | `tests/chapter3-5-render-smoke.spec.ts` | Desktop Chapters 3–5 advanced into the mobile case without browser errors; the extra mobile result could not be independently finalized because the local Windows runner stopped returning filesystem/reporter output. The stronger touch-only full completion above remains the mobile acceptance result |
+
+Chapter 5-specific unit coverage now proves receiver-gated Guardian dormancy, exact 8.5-unit/`0.94π` displayed-and-detected active FOV, lower-Echo lure hold at the central dais, front shield/rear seal state, horizontal plus vertical contact overlap, qualified high/rear strike, latched timer start without restart, chapter-authored Echo capacity, route-guide assembly, and the existing one-Core full solution.
 | Chapter 4–5 success captures | focused desktop/mobile Playwright rerun with `ECHO_DEPTHS_SCREENSHOT_DIR` | PASS — 4/4 in 6.9 minutes; four PNG artifacts generated from successful physical routes |
 | 2026-08-25 external release | Git/Vercel inspection | No deployment or production promotion performed; `main`, `fix/echo2-ch3-structural`, existing production, assets, and siblings unchanged |
 | Local production-bundle smoke | `PLAYWRIGHT_BASE_URL=http://127.0.0.1:4541 npm run test:production` | PASS — 6/6 in 1.1 minutes |

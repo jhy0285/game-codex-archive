@@ -4,7 +4,7 @@ import { createAnimatedActor, type CharacterAnimator, type CharacterState } from
 import type { BodyRecord, PhysicsEntityKind, RapierWorld, Vec3 } from '../physics/RapierWorld'
 import { RAPIER } from '../physics/RapierWorld'
 import { CHAPTER_LAYOUTS, type StageNumber, type DeviceDefinition } from '../levels/layouts'
-import { canSeeTarget, computeKnockback, evaluatePressurePlate, isWithinCatchVolume, redirectVelocity } from '../game'
+import { CHAPTERS, canSeeTarget, computeKnockback, evaluatePressurePlate, isWithinCatchVolume, redirectVelocity } from '../game'
 import type { PlateOccupant } from '../game'
 
 export type ActorKind = 'player' | 'echo'
@@ -166,6 +166,9 @@ const WATCHER_CONTACT_VERTICAL_DELTA = 1.15
 const WATCHER_TRAP_STANDOFF = 0.95
 const WATCHER_REAR_DOT_MAX = -0.25
 const GUARDIAN_REAR_DOT_MAX = -0.45
+const GUARDIAN_CONTACT_DISTANCE = 1.12
+const GUARDIAN_CONTACT_VERTICAL_DELTA = 0.82
+const GUARDIAN_CHASE_SPEED = 0.026
 
 export const canActorRequestExit = (actor: ActorKind): boolean => actor === 'player'
 
@@ -215,6 +218,11 @@ export class DungeonWorld {
   private watcherStatusRing: THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial> | undefined
   private watcherSensorEye: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial> | undefined
   private watcherVisionFov = -1
+  private guardianFrontShield: THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial> | undefined
+  private guardianRearSeal: THREE.Mesh<THREE.CircleGeometry, THREE.MeshStandardMaterial> | undefined
+  private guardianRearSealRing: THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial> | undefined
+  private guardianLowerTether: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial> | undefined
+  private finalEscapeGuide: THREE.Group | undefined
   private receiverFilled = false
   private currentTick = 0
   private platformPhaseOffset = 0
@@ -236,6 +244,7 @@ export class DungeonWorld {
     this.root.add(this.playerInteractionOutline, this.echoInteractionOutline)
     this.scene.add(this.root)
     this.build()
+    if (chapter === 5) this.enemyState = 'dormant'
     const enemy = this.devices.get(chapter === 5 ? 'guardian' : 'watcher')
     const attentionLandmark = this.devices.get(chapter === 5 ? 'lower-seal' : 'lure-bell')
     if (enemy && attentionLandmark) {
@@ -850,6 +859,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
 
     for (const definition of layout.devices) this.buildDevice(definition, layout.accent)
+    if (this.chapter === 5) this.buildParadoxGuidance()
     this.addDecor(layout.accent)
   }
 
@@ -1444,7 +1454,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       root = new THREE.Group()
       body = this.physics.createKinematicBox(definition.id, 'enemy', this.vec(position), { x: size[0], y: size[1], z: size[2] })
       if (this.chapter === 4) this.buildWatcherCharacter(root)
-      else this.buildGuardianSentry(root, accent, glow)
+      else this.buildGuardianCharacter(root)
     }
     root.name = definition.id
     root.position.copy(position)
@@ -1973,38 +1983,228 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     this.updateWatcherVisionGeometry(this.enemyFovRadians())
   }
 
-  private buildGuardianSentry(root: THREE.Object3D, accent: number, glow: THREE.Material): void {
-    const base = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(0.7, 0.8, 0.22, 10)), this.material(0x221c29, 0.54, 0.65))
-    base.name = 'SentryBase'
-    base.position.y = 0.15
-    const shell = new THREE.Mesh(this.geometry(new THREE.DodecahedronGeometry(0.78, 1)), this.material(0x5f2635, 0.58, 0.32, accent))
-    shell.name = 'SentryShell'
-    shell.position.y = 0.63
-    const eye = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(0.12, 12, 8)), glow)
-    eye.name = 'SentryEye'
-    eye.position.set(0, 0.72, 0.72)
-    const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(0.82, 0.035, 8, 20)), this.material(accent, 0.28, 0.7, accent))
-    ring.name = 'SentryHalo'
-    ring.rotation.x = Math.PI / 2
-    ring.position.y = 0.65
-    const finGeometry = this.geometry(new THREE.BoxGeometry(0.11, 0.36, 0.3))
-    const fins = new THREE.InstancedMesh(finGeometry, this.material(0x25323b, 0.5, 0.72), 2)
-    fins.name = 'SentryFins'
-    const finMatrix = new THREE.Matrix4()
-    finMatrix.makeTranslation(-0.62, 0.62, 0)
-    fins.setMatrixAt(0, finMatrix)
-    finMatrix.makeTranslation(0.62, 0.62, 0)
-    fins.setMatrixAt(1, finMatrix)
-    fins.instanceMatrix.needsUpdate = true
-    const cone = new THREE.Mesh(
-      this.geometry(new THREE.ConeGeometry(2.6, 5.5, 24, 1, true, -Math.PI / 4, Math.PI / 2)),
-      this.material(0xe95757, 0.5, 0, 0xe95757, 0.13),
+  private buildGuardianCharacter(root: THREE.Object3D): void {
+    const animator = this.assets.createGuardianCharacter?.() ?? createAnimatedActor({
+      cloth: 0x24183c,
+      armor: 0x6e5aa8,
+      glow: 0xc881ff,
+      skin: 0xd7c9b5,
+    })
+    this.enemyAnimator = animator
+    animator.root.name = 'GuardianCharacter'
+    animator.root.scale.setScalar(1.16)
+    root.add(animator.root)
+
+    const eyeMaterial = new THREE.MeshStandardMaterial({
+      color: 0xc98cff,
+      emissive: 0x9e52ec,
+      emissiveIntensity: 2.4,
+      roughness: 0.2,
+      metalness: 0.35,
+    })
+    this.materials.push(eyeMaterial)
+    const sensorEye = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(0.085, 14, 10)), eyeMaterial)
+    sensorEye.name = 'GuardianSensorEye'
+    sensorEye.position.set(0, 0.78, 0.54)
+    sensorEye.userData.presentationOverlay = true
+    this.watcherSensorEye = sensorEye
+
+    const statusMaterial = new THREE.MeshStandardMaterial({
+      color: 0xa96fff,
+      emissive: 0x7439c2,
+      emissiveIntensity: 1.8,
+      transparent: true,
+      opacity: 0.9,
+      roughness: 0.2,
+      metalness: 0.42,
+      depthWrite: false,
+    })
+    this.materials.push(statusMaterial)
+    const statusRing = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(0.37, 0.042, 8, 30)), statusMaterial)
+    statusRing.name = 'GuardianStatusRing'
+    statusRing.position.y = 1.48
+    statusRing.rotation.x = Math.PI / 2
+    statusRing.userData.presentationOverlay = true
+    this.watcherStatusRing = statusRing
+
+    const shieldMaterial = new THREE.MeshStandardMaterial({
+      color: 0xff5e7a,
+      emissive: 0xb21f49,
+      emissiveIntensity: 2.4,
+      transparent: true,
+      opacity: 0.82,
+      roughness: 0.22,
+      metalness: 0.62,
+      depthWrite: false,
+    })
+    this.materials.push(shieldMaterial)
+    const frontShield = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(0.54, 0.065, 8, 32)), shieldMaterial)
+    frontShield.name = 'GuardianFrontShield'
+    frontShield.position.set(0, 0.82, 0.5)
+    frontShield.userData.presentationOverlay = true
+    this.guardianFrontShield = frontShield
+
+    const sealMaterial = new THREE.MeshStandardMaterial({
+      color: 0xc881ff,
+      emissive: 0x8e3fd9,
+      emissiveIntensity: 2.5,
+      transparent: true,
+      opacity: 0.92,
+      roughness: 0.18,
+      metalness: 0.22,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+    this.materials.push(sealMaterial)
+    const rearSeal = new THREE.Mesh(this.geometry(new THREE.CircleGeometry(0.22, 6)), sealMaterial)
+    rearSeal.name = 'GuardianRearSeal'
+    rearSeal.position.set(0, 0.86, -0.48)
+    rearSeal.rotation.y = Math.PI
+    rearSeal.userData.presentationOverlay = true
+    this.guardianRearSeal = rearSeal
+    const rearSealRingMaterial = sealMaterial.clone()
+    this.materials.push(rearSealRingMaterial)
+    const rearSealRing = new THREE.Mesh(
+      this.geometry(new THREE.TorusGeometry(0.29, 0.04, 8, 24)),
+      rearSealRingMaterial,
     )
-    cone.name = 'SightCone'
-    cone.rotation.x = Math.PI / 2
-    cone.rotation.z = -Math.PI / 2
-    cone.position.set(0, 0.35, 2.2)
-    root.add(base, shell, eye, ring, fins, cone)
+    rearSealRing.name = 'GuardianRearSealRing'
+    rearSealRing.position.copy(rearSeal.position)
+    rearSealRing.rotation.y = Math.PI
+    rearSealRing.userData.presentationOverlay = true
+    this.guardianRearSealRing = rearSealRing
+
+    const sectorMaterial = new THREE.MeshBasicMaterial({
+      color: 0x8e6dff,
+      transparent: true,
+      opacity: 0.08,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+    this.materials.push(sectorMaterial)
+    const sector = new THREE.Mesh(this.createWatcherSectorGeometry(), sectorMaterial)
+    sector.name = 'GuardianVisionSector'
+    sector.position.y = -0.83
+    sector.renderOrder = 2
+    sector.userData.presentationOverlay = true
+    this.watcherVisionSector = sector
+
+    const boundaryMaterial = new THREE.LineBasicMaterial({
+      color: 0xb995ff,
+      transparent: true,
+      opacity: 0.75,
+      depthWrite: false,
+    })
+    this.materials.push(boundaryMaterial)
+    const boundary = new THREE.LineSegments(this.createWatcherBoundaryGeometry(), boundaryMaterial)
+    boundary.name = 'GuardianVisionBoundary'
+    boundary.position.y = -0.815
+    boundary.renderOrder = 3
+    boundary.userData.presentationOverlay = true
+    this.watcherVisionBoundary = boundary
+
+    const beamMaterial = new THREE.LineBasicMaterial({
+      color: 0xd66bff,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+    })
+    this.materials.push(beamMaterial)
+    const beamGeometry = this.geometry(new THREE.BufferGeometry())
+    beamGeometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(6), 3))
+    const targetBeam = new THREE.Line(beamGeometry, beamMaterial)
+    targetBeam.name = 'GuardianTargetBeam'
+    targetBeam.visible = false
+    targetBeam.frustumCulled = false
+    targetBeam.userData.presentationOverlay = true
+    this.watcherTargetBeam = targetBeam
+
+    root.add(sector, boundary, targetBeam, sensorEye, statusRing, frontShield, rearSeal, rearSealRing)
+    this.updateWatcherVisionGeometry(this.enemyFovRadians())
+  }
+
+  private buildParadoxGuidance(): void {
+    const addRoute = (
+      name: string,
+      points: THREE.Vector3[],
+      color: number,
+      opacity: number,
+    ): THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial> => {
+      const geometry = this.geometry(new THREE.BufferGeometry().setFromPoints(points))
+      const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false })
+      this.materials.push(material)
+      const line = new THREE.Line(geometry, material)
+      line.name = name
+      line.renderOrder = 2
+      line.userData.presentationOverlay = true
+      this.root.add(line)
+      return line
+    }
+
+    addRoute('ParadoxEchoRoute', [
+      new THREE.Vector3(-7.4, 0.49, 2.7),
+      new THREE.Vector3(-6.2, 0.49, 2.55),
+      new THREE.Vector3(0.9, 0.49, 2.55),
+      new THREE.Vector3(-3.7, 0.5, 1.1),
+      new THREE.Vector3(-1.75, 0.5, -2.55),
+    ], 0xa56dff, 0.58)
+    addRoute('ParadoxPlayerRoute', [
+      new THREE.Vector3(-7.4, 0.5, 2.25),
+      new THREE.Vector3(-5.1, 0.5, -2.55),
+      new THREE.Vector3(3.2, 0.5, -2.55),
+      new THREE.Vector3(4.7, 0.5, 2.55),
+      new THREE.Vector3(7.2, 0.5, 0.2),
+      new THREE.Vector3(5.15, 0.53, -2.65),
+    ], 0x61e7ff, 0.5)
+    addRoute('ReceiverPlatformCable', [
+      new THREE.Vector3(7.2, 0.56, 0.2),
+      new THREE.Vector3(6.3, 0.56, -1.1),
+      new THREE.Vector3(5.15, 0.56, -2.65),
+      new THREE.Vector3(4.15, 0.56, -2.65),
+    ], 0x5effc7, 0.68)
+    this.guardianLowerTether = addRoute('GuardianLowerSealTether', [
+      new THREE.Vector3(-1.75, 0.78, -2.55),
+      new THREE.Vector3(0.8, 2.76, 0.85),
+    ], 0xc15bf2, 0.08)
+
+    const arenaMaterial = new THREE.MeshBasicMaterial({
+      color: 0xc15bf2,
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false,
+    })
+    this.materials.push(arenaMaterial)
+    const arena = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(1.45, 0.035, 8, 48)), arenaMaterial)
+    arena.name = 'GuardianArenaRing'
+    arena.position.set(0.8, 1.48, 0.85)
+    arena.rotation.x = Math.PI / 2
+    arena.userData.presentationOverlay = true
+    this.root.add(arena)
+
+    const finalGuide = new THREE.Group()
+    finalGuide.name = 'FinalEscapeGuide'
+    const beaconGeometry = this.geometry(new THREE.OctahedronGeometry(0.1, 0))
+    const beaconMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffd47a,
+      emissive: 0xff8a3d,
+      emissiveIntensity: 1.8,
+      transparent: true,
+      opacity: 0.32,
+      roughness: 0.22,
+      metalness: 0.25,
+      depthWrite: false,
+    })
+    this.materials.push(beaconMaterial)
+    for (let index = 0; index < 6; index += 1) {
+      const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial)
+      beacon.name = `FinalEscapeBeacon${index + 1}`
+      beacon.position.set(8.25, 3.54, 0.15 + index * 0.5)
+      beacon.userData.presentationOverlay = true
+      finalGuide.add(beacon)
+    }
+    finalGuide.visible = false
+    this.finalEscapeGuide = finalGuide
+    this.root.add(finalGuide)
   }
 
   private createWatcherSectorGeometry(): THREE.BufferGeometry {
@@ -2047,10 +2247,37 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const enemy = this.devices.get(id)
     if (!enemy?.body || this.enemyDefeated) {
       if (enemy && this.enemyDefeated) {
-        enemy.root.rotation.z = THREE.MathUtils.lerp(enemy.root.rotation.z, Math.PI / 2, 0.08)
+        if (this.chapter === 4) enemy.root.rotation.z = THREE.MathUtils.lerp(enemy.root.rotation.z, Math.PI / 2, 0.08)
         this.updateEnemyPresentation(enemy)
       }
       return
+    }
+    if (this.chapter === 5 && !this.facts.has('core-receiver')) {
+      this.enemyState = 'dormant'
+      this.enemyTarget = undefined
+      this.enemyTargetVisible = false
+      this.enemyTargetLockTicks = 0
+      this.enemyDetection = 0
+      this.enemyAlertTicks = 0
+      this.enemySearchTicks = 0
+      this.enemyRecoveryTicks = 0
+      this.enemyStimulusTicks = 0
+      enemy.root.position.copy(enemy.basePosition)
+      const lowerSeal = this.devices.get('lower-seal')
+      if (lowerSeal) this.faceEnemy(enemy, lowerSeal.root.position.clone().sub(enemy.root.position).setY(0))
+      enemy.body.body.setNextKinematicTranslation(this.vec(enemy.root.position))
+      enemy.body.body.setNextKinematicRotation({
+        x: enemy.root.quaternion.x,
+        y: enemy.root.quaternion.y,
+        z: enemy.root.quaternion.z,
+        w: enemy.root.quaternion.w,
+      })
+      this.updateEnemyPresentation(enemy)
+      return
+    }
+    if (this.chapter === 5 && this.enemyState === 'dormant') {
+      this.enemyState = 'alert'
+      this.enemyAlertTicks = ENEMY_ALERT_TICKS
     }
     const echo = actors.find((actor) => actor.kind === 'echo')
     const player = actors.find((actor) => actor.kind === 'player')
@@ -2064,7 +2291,13 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const targetLockActive = this.chapter === 4
       && this.enemyTarget !== undefined
       && this.enemyTargetLockTicks > 0
-    const visibleTarget = retainedTarget ?? (targetLockActive
+    const lowerSealEcho = this.chapter === 5
+      && echo
+      && seesEcho
+      && this.deviceHeldBy('lower-seal', 'echo')
+      ? echo
+      : undefined
+    const visibleTarget = lowerSealEcho ?? retainedTarget ?? (targetLockActive
       ? undefined
       : visibleActors
           .sort((a, b) => a.position.distanceToSquared(enemy.root.position) - b.position.distanceToSquared(enemy.root.position))[0])
@@ -2084,6 +2317,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       if (this.enemyAlertTicks > 0) {
         this.enemyState = 'alert'
         this.enemyAlertTicks -= 1
+      } else if (this.chapter === 5 && visibleTarget.kind === 'echo' && lowerSealEcho) {
+        this.enemyState = 'lure-hold'
       } else {
         this.enemyState = 'chase'
       }
@@ -2138,11 +2373,17 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
             this.enemyState = 'lure-hold'
           }
         } else {
-          const speed = this.chapter === 5 ? 0.008 : WATCHER_CHASE_SPEED
+          const speed = this.chapter === 5 ? GUARDIAN_CHASE_SPEED : WATCHER_CHASE_SPEED
           this.moveEnemy(enemy, direction.normalize().multiplyScalar(speed))
         }
       }
-      if (this.chapter === 5 && visibleTarget.kind === 'player' && this.enemyState === 'chase' && distance < 1.25) {
+      if (
+        this.chapter === 5
+        && visibleTarget.kind === 'player'
+        && this.enemyState === 'chase'
+        && distance < GUARDIAN_CONTACT_DISTANCE
+        && Math.abs(visibleTarget.position.y - enemy.root.position.y) < GUARDIAN_CONTACT_VERTICAL_DELTA
+      ) {
         this.failed = true
         this.failureReason = 'guardian'
       }
@@ -2158,9 +2399,11 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
     } else if (this.enemyState === 'investigate') {
       const direction = this.enemyLastKnown.clone().sub(enemy.root.position).setY(0)
-      if (direction.length() > 0.28) {
+      if (this.chapter === 5) {
         this.faceEnemy(enemy, direction)
-        this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.012 : 0.021))
+      } else if (direction.length() > 0.28) {
+        this.faceEnemy(enemy, direction)
+        this.moveEnemy(enemy, direction.normalize().multiplyScalar(0.021))
       } else {
         this.enemyForward.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.018).normalize()
         enemy.root.rotation.y = Math.atan2(this.enemyForward.x, this.enemyForward.z)
@@ -2273,9 +2516,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         && upperHeldByPlayer
         && this.facts.has('core-receiver')
         && this.facts.has('guardian-defeated')
+        && !this.facts.has('dual-seal')
       ) {
         this.facts.add('dual-seal')
-        if (this.escapeTicks === 0) this.escapeTicks = 35 * 60
+        this.escapeTicks = CHAPTERS[4]?.escapeTimeTicks ?? 15 * 60
       }
     }
   }
@@ -2578,23 +2822,29 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   }
 
   private updateEnemyPresentation(enemy: DeviceRecord, visibleTarget?: THREE.Vector3): void {
-    if (this.chapter !== 4) return
+    if (this.chapter !== 4 && this.chapter !== 5) return
+    const guardian = this.chapter === 5
+    const dormant = guardian && this.enemyState === 'dormant'
     const defeated = this.enemyDefeated || this.enemyState === 'trapped'
     const acquired = this.enemyTargetVisible && Boolean(visibleTarget)
     const searching = ['alert', 'investigate'].includes(this.enemyState)
-    const color = acquired ? 0xff4f6d : searching ? 0xffbd4a : 0x49d9ff
+    const color = dormant
+      ? 0x625b72
+      : acquired
+        ? guardian && this.enemyTarget === 'echo' ? 0xd66bff : 0xff4f6d
+        : searching ? 0xffbd4a : guardian ? 0xa579ff : 0x49d9ff
     const pulse = 1 + Math.sin(this.currentTick * 0.22) * (acquired ? 0.13 : 0.045)
 
     this.updateWatcherVisionGeometry(this.enemyFovRadians())
     if (this.watcherVisionSector) {
-      this.watcherVisionSector.visible = !defeated
+      this.watcherVisionSector.visible = !defeated && !dormant
       this.watcherVisionSector.material.color.setHex(color)
       this.watcherVisionSector.material.opacity = acquired
         ? 0.18 + this.enemyDetection * 0.12
         : searching ? 0.15 : 0.1
     }
     if (this.watcherVisionBoundary) {
-      this.watcherVisionBoundary.visible = !defeated
+      this.watcherVisionBoundary.visible = !defeated && !dormant
       this.watcherVisionBoundary.material.color.setHex(color)
       this.watcherVisionBoundary.material.opacity = acquired ? 0.98 : searching ? 0.88 : 0.7
     }
@@ -2602,7 +2852,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.watcherStatusRing.visible = !defeated
       this.watcherStatusRing.material.color.setHex(color)
       this.watcherStatusRing.material.emissive.setHex(color)
-      this.watcherStatusRing.material.emissiveIntensity = acquired ? 3.2 : searching ? 2.4 : 1.7
+      this.watcherStatusRing.material.emissiveIntensity = dormant ? 0.25 : acquired ? 3.2 : searching ? 2.4 : 1.7
+      this.watcherStatusRing.material.opacity = dormant ? 0.24 : 0.86
       this.watcherStatusRing.scale.setScalar(pulse)
       this.watcherStatusRing.rotation.z = this.currentTick * 0.012
     }
@@ -2610,11 +2861,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.watcherSensorEye.visible = !defeated
       this.watcherSensorEye.material.color.setHex(color)
       this.watcherSensorEye.material.emissive.setHex(color)
-      this.watcherSensorEye.material.emissiveIntensity = acquired ? 4.5 : searching ? 3.2 : 2.4
+      this.watcherSensorEye.material.emissiveIntensity = dormant ? 0.16 : acquired ? 4.5 : searching ? 3.2 : 2.4
       this.watcherSensorEye.scale.setScalar(pulse)
     }
     if (this.watcherTargetBeam) {
-      this.watcherTargetBeam.visible = acquired
+      this.watcherTargetBeam.visible = acquired && !dormant && !defeated
+      this.watcherTargetBeam.material.color.setHex(color)
       if (acquired && visibleTarget) {
         enemy.root.updateMatrixWorld(true)
         const localTarget = enemy.root.worldToLocal(visibleTarget.clone())
@@ -2626,10 +2878,62 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
     }
 
+    if (guardian) {
+      const exposed = acquired
+        && this.enemyTarget === 'echo'
+        && this.deviceHeldBy('lower-seal', 'echo')
+        && !defeated
+      if (this.guardianFrontShield) {
+        this.guardianFrontShield.visible = !defeated
+        this.guardianFrontShield.material.color.setHex(exposed ? 0x8c6ab8 : dormant ? 0x4f465b : 0xff5e7a)
+        this.guardianFrontShield.material.emissive.setHex(exposed ? 0x3a2358 : dormant ? 0x231d2a : 0xb21f49)
+        this.guardianFrontShield.material.emissiveIntensity = exposed ? 0.45 : dormant ? 0.12 : 2.6
+        this.guardianFrontShield.material.opacity = exposed ? 0.22 : dormant ? 0.26 : 0.82
+        this.guardianFrontShield.scale.setScalar(dormant ? 0.96 : pulse)
+      }
+      if (this.guardianRearSeal) {
+        this.guardianRearSeal.visible = !defeated
+        this.guardianRearSeal.material.emissiveIntensity = exposed ? 5.2 : dormant ? 0.18 : 1.1
+        this.guardianRearSeal.material.opacity = exposed ? 1 : dormant ? 0.22 : 0.58
+        this.guardianRearSeal.scale.setScalar(exposed ? pulse * 1.14 : 1)
+      }
+      if (this.guardianRearSealRing) {
+        this.guardianRearSealRing.visible = !defeated
+        this.guardianRearSealRing.material.emissiveIntensity = exposed ? 4.4 : dormant ? 0.12 : 0.9
+        this.guardianRearSealRing.material.opacity = exposed ? 0.96 : dormant ? 0.18 : 0.5
+        this.guardianRearSealRing.rotation.z = exposed ? -this.currentTick * 0.025 : 0
+      }
+      if (this.guardianLowerTether) {
+        this.guardianLowerTether.visible = !defeated
+        this.guardianLowerTether.material.opacity = exposed
+          ? 0.86
+          : this.facts.has('core-receiver') ? 0.2 : 0.06
+        this.guardianLowerTether.material.color.setHex(exposed ? 0xe589ff : 0x7b5a9b)
+      }
+      const arena = this.root.getObjectByName('GuardianArenaRing')
+      if (arena instanceof THREE.Mesh && arena.material instanceof THREE.MeshBasicMaterial) {
+        arena.material.color.setHex(dormant ? 0x5b5269 : exposed ? 0xd66bff : color)
+        arena.material.opacity = dormant ? 0.08 : exposed ? 0.42 : 0.2
+        arena.scale.setScalar(exposed ? pulse : 1)
+      }
+      if (this.finalEscapeGuide) {
+        this.finalEscapeGuide.visible = this.escapeTicks > 0 && !this.complete
+        const urgency = this.escapeTicks > 0 ? 1 - this.escapeTicks / (CHAPTERS[4]?.escapeTimeTicks ?? 15 * 60) : 0
+        const guidePulse = 0.9 + Math.sin(this.currentTick * (0.18 + urgency * 0.3)) * 0.2
+        for (const child of this.finalEscapeGuide.children) {
+          child.scale.setScalar(guidePulse)
+          if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+            child.material.opacity = 0.48 + urgency * 0.45
+            child.material.emissiveIntensity = 1.8 + urgency * 3.2
+          }
+        }
+      }
+    }
+
     let animation: CharacterState = 'Idle'
     if (defeated) animation = 'Defeat'
     else if (this.enemyState === 'knocked') animation = 'Hit'
-    else if (this.enemyState === 'lure-hold') animation = 'Attack'
+    else if (this.enemyState === 'lure-hold') animation = guardian ? 'Interact' : 'Attack'
     else if (this.enemyState === 'chase') animation = 'Run'
     else if (['patrol', 'investigate', 'recovery'].includes(this.enemyState)) animation = 'Walk'
     if (this.enemyAnimator && (this.enemyAnimator.state() !== animation || animation === 'Walk' || animation === 'Run')) {

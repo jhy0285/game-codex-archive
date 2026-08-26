@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { ActionBits, EchoTape, FixedStepAccumulator, createInputFrame, dequantizeMovement, dequantizeYaw, type InputFrame as EchoInputFrame } from '../game'
+import { ActionBits, CHAPTERS, EchoTape, FixedStepAccumulator, createInputFrame, dequantizeMovement, dequantizeYaw, type InputFrame as EchoInputFrame } from '../game'
 import { CHAPTER_LAYOUTS, type ChapterNumber, type StageNumber } from '../levels/layouts'
 import { CharacterMotor, type MotorInput, type MotorSnapshot } from '../physics/CharacterMotor'
 import { RapierWorld } from '../physics/RapierWorld'
@@ -37,7 +37,7 @@ type CampaignStats = {
 
 type TutorialStep = 'move' | 'camera' | 'jump' | 'interact' | 'carry' | 'echo'
 
-const MAX_ECHO_SECONDS = 15
+const DEFAULT_ECHO_SECONDS = 15
 const FIXED_STEP_MS = 1000 / 60
 const TRAJECTORY_POINT_CAPACITY = 22
 const modelHeightOffset = 0.78
@@ -69,7 +69,7 @@ export class GameApp {
   private readonly hud: HudController
   private readonly input: InputRouter
   private readonly fixedLoop = new FixedStepAccumulator()
-  private readonly echoTape = new EchoTape<EchoSnapshot>({ maxFrames: MAX_ECHO_SECONDS * 60 })
+  private echoTape = new EchoTape<EchoSnapshot>({ maxFrames: DEFAULT_ECHO_SECONDS * 60 })
   private readonly raycaster = new THREE.Raycaster()
   private readonly cameraRight = new THREE.Vector3()
   private readonly cameraForward = new THREE.Vector3()
@@ -689,7 +689,7 @@ export class GameApp {
     this.audio.reset()
     this.stats = emptyStats()
     this.unlockedThrough = STARTING_UNLOCKED_THROUGH
-    this.echoTape.reset()
+    this.resetEchoTape(0)
     this.removeEchoPath()
     if (!await this.rebuildChapter(0, false)) return
     this.mode = 'playing'
@@ -702,7 +702,7 @@ export class GameApp {
   private async selectChapter(chapter: ChapterId): Promise<void> {
     if (chapter > this.unlockedThrough && import.meta.env.PROD) return
     this.audio.reset()
-    this.echoTape.reset()
+    this.resetEchoTape(chapter)
     this.removeEchoPath()
     if (!await this.rebuildChapter(chapter, false)) return
     this.mode = 'playing'
@@ -747,7 +747,7 @@ export class GameApp {
   private async restartChapter(count: boolean): Promise<void> {
     if (count && this.chapter !== 0) this.stats.restarts += 1
     this.audio.reset()
-    this.echoTape.reset()
+    this.resetEchoTape(this.chapter)
     this.removeEchoPath()
     if (!await this.rebuildChapter(this.chapter, false)) return
     this.mode = 'playing'
@@ -759,7 +759,7 @@ export class GameApp {
     this.audio.reset()
     this.mode = 'title'
     this.input.setEnabled(false)
-    this.echoTape.reset()
+    this.resetEchoTape(0)
     this.destroyEcho()
     this.removeEchoPath()
     this.hud.clearTutorial()
@@ -898,7 +898,7 @@ export class GameApp {
   private async finishTutorial(): Promise<void> {
     if (this.chapter !== 0 || this.transitionPending) return
     this.audio.reset()
-    this.echoTape.reset()
+    this.resetEchoTape(1)
     this.removeEchoPath()
     this.tutorialSteps.clear()
     this.tutorialComplete = false
@@ -908,6 +908,14 @@ export class GameApp {
     this.hud.showPlaying()
     this.hud.showFeedbackKey('feedbackTutorialComplete', 'success', 4_200)
     await this.audio.resume()
+  }
+
+  private resetEchoTape(chapter: StageNumber): void {
+    this.echoTape.reset()
+    const maxFrames = chapter === 0
+      ? DEFAULT_ECHO_SECONDS * 60
+      : CHAPTERS[chapter - 1]?.echoMaxTicks ?? DEFAULT_ECHO_SECONDS * 60
+    this.echoTape = new EchoTape<EchoSnapshot>({ maxFrames })
   }
 
   private async requestFullscreen(): Promise<void> {
@@ -1142,10 +1150,11 @@ export class GameApp {
         mode: this.echoTape.mode,
         tick: this.echoTape.playbackTick,
         durationTicks: this.echoTape.durationTicks,
+        maxTicks: this.echoTape.maxFrames,
         position: this.vec(this.echo.motor.position),
         yaw: Number(this.echo.motor.facingYaw.toFixed(4)),
         animation: this.echo.animator.state(),
-      } : { mode: this.echoTape.mode, tick: 0, durationTicks: this.echoTape.durationTicks },
+      } : { mode: this.echoTape.mode, tick: 0, durationTicks: this.echoTape.durationTicks, maxTicks: this.echoTape.maxFrames },
       timer: this.stats.elapsedMs,
       pressurePlates: world?.pressurePlates ?? {},
       levers: world?.levers ?? {},

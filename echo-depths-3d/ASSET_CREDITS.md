@@ -73,6 +73,8 @@ public/assets/kaykit/characters/Rogue_Hooded.glb
 public/assets/kaykit/licenses/Adventurers-License.txt
 ```
 
+Runtime roles: `Rogue_Hooded.glb` is the Chapter 4 Watcher. The already shipped `Knight.glb` is cloned for the Player, Echo, and Chapter 5 Guardian; the Guardian receives runtime-only material tinting, front-shield/rear-seal overlays, status indicators, and shared rig animation. No asset binary, manifest entry, archive count, byte total, or provenance hash changed for the Chapter 5 presentation pass.
+
 ### Character Animations 1.1
 
 Source directory:
