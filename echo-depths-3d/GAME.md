@@ -12,7 +12,7 @@ The design uses 3D space as a rule, not as presentation alone. Floors are separa
 2. The player enters a campaign chapter at its authored start.
 3. Pressing `R` begins a fixed-tick recording and removes any older echo.
 4. The tape captures current actor motor state and the mutable dungeon state, then quantizes movement, facing, held use, jump, use, attack, throw, and dash into one frame per 60 Hz simulation tick.
-5. Pressing `R` again, or reaching the 15-second runtime limit, seals the tape.
+5. Pressing `R` again, or reaching the chapter-authored runtime limit (12/15/18/18/20 seconds for Chapters 1–5), seals the tape.
 6. The chapter is rebuilt, the record-start motor and dungeon snapshots are restored, present-owned carry/device state is transferred to the past echo, and both actors begin from the recorded motor state.
 7. The echo consumes one recorded transform/facing sample and one recorded input frame per fixed tick. Its real kinematic body follows the drift-free transform sample while recorded interactions, throws, attacks, and held use enter the same world resolver as present-player actions.
 8. When replay finishes, the echo stands at its last simulated position. One-shot actions cease; held use may remain active so a momentary lever stays held.
@@ -50,7 +50,7 @@ Both actors use capsule-shaped, position-based kinematic bodies. The character c
 
 ## Feedback
 
-The echo character uses transparent materials with cyan emission. Recording and playback states appear in the HUD timeline. A cyan/magenta path shows the sampled route, temporal rings mark record start and release, dashes create an afterimage, landings create a dust ring, attacks and device outcomes create restrained waves and camera shake, and a dashed ballistic line previews a carried core throw. Console screens, door stripes, platform beacons, and receiver rings brighten as their mechanisms activate; cores use containment halos, exits use transit arches, traps use recessed warning rails, and sentries use armored shells. The nearest usable object receives a cyan `BoxHelper` outline plus a localized prompt; device glow, opening doors, sight cones, failure copy, and the 35-second final timer explain state changes.
+The echo character uses transparent materials with cyan emission. Recording and playback states appear in the HUD timeline. A cyan/magenta path shows the sampled route, temporal rings mark record start and release, dashes create an afterimage, landings create a dust ring, attacks and device outcomes create restrained waves and camera shake, and a dashed ballistic line previews a carried core throw. Console screens, door stripes, platform beacons, and receiver rings brighten as their mechanisms activate; cores use containment halos, exits use transit arches, traps use recessed warning rails, and enemy characters use animated state markers plus their exact live sight sectors. The nearest usable object receives a cyan `BoxHelper` outline plus a localized prompt; device glow, opening doors, sight sectors, failure copy, and the 15-second final timer explain state changes.
 
 Device state changes also drive synthesized Web Audio. Lever, pickup/drop, pressure-scanner press/release, vault-door open/close, and receiver charge each use a distinct one-shot cue. Elevators, powered moving platforms, and rotating bridges start a low mechanical loop only while their authored transform changes, then play a stop cue and release that loop at rest. These events are presentation-only; the fixed-step puzzle state and echo frames never depend on audio playback.
 
@@ -97,32 +97,31 @@ An actor alone does not satisfy the authored cargo requirement in the pure devic
 
 ### Chapter 3 — THE SPLIT ATRIUM
 
-**Rules combined:** cross-height throwing, generous catching, directional redirect, a momentary bridge lever, and a rotating bridge.
+**Rules combined:** one rewindable physical Core, parallel flat routes, a player-only one-way passage, an east-side transfer shutter, and a receiver.
 
-The player and core begin on the west upper shelf. A wide physical descent leads to the lower catch area and the east-floor receiver/exit route. The aligned bridge is a visible cooperation signal while its active state keeps the exit dependency live.
+The west and east rooms share one floor height. The north lane is the Core-transfer route and the south lane is the present Player route. The central divider, colored floor zones, shutter, one-way barrier, and east catch basin show which actor owns each lane. There are no required stairs or jumps.
 
 **Solution:**
 
-1. Begin recording, pick up `memory-core` with `E`, face the lower atrium/catch route, hold `K` or right mouse to preview the arc, and release to throw.
-2. Continue the recorded route to `bridge-lever`, press and hold `E`, and finish the tape at the lever.
-3. After rewind, take the present route toward the lower catch area. The upper shelf now connects to atrium-lower through three descent stairs south of the shelf (top surfaces y=2.0, y=1.0, y=0.2), so the player steps south off the upper shelf and down through the stairs to atrium-lower while the echo repeats the throw.
-4. Hold `E` inside the catch volume to receive the echo-thrown core. The world catch uses a forgiving proximity check and does not demand a single exact frame.
-5. Use the bridge while the echo keeps it aligned. Throw the core toward the east receiver, then strike the loose core with a directional attack to redirect its horizontal velocity.
-6. Land the redirected core in `core-receiver`, cross the east route, and use the exit.
+1. Begin recording, pick up `memory-core`, carry it along the north lane to the transfer ledge, and throw it east.
+2. Continue the same recording back through the west room and cross the south route, then finish the tape after reaching the east side. Generic rewind leaves the live Player at that recording-end position.
+3. Release the Echo. The live Player's real east-side position opens `transfer-shutter` while the Echo replays the north-lane pickup and throw.
+4. Wait for that same Core to land in the east catch basin, pick it up, and carry it to `core-receiver`.
+5. Drop the Core into the receiver, cross to the open east passage, and use the exit.
 
-Victory requires an echo-held bridge lever, a player catch of the echo-thrown core, a directional redirect, receiver fill, and exit use. Socketing after the redirect also records the completed core route.
+Victory requires only the physical receiver outcome and exit use. Exactly one `memory-core` exists; it must pass the shutter as a Rapier body and intersect the receiver sensor. Pickup, throw, catch, or redirect history is not synthesized into victory.
 
 ### Chapter 4 — THE WATCHER'S GALLERY
 
 **Rules combined:** a deterministic patrol, facing and field of view, Rapier line-of-sight, wall/pillar occlusion, auditory investigation, visible Echo bait, alert/investigate/chase/recovery states, directional rear attack, height leverage, physical knockback, and a spike hazard.
 
-The Watcher owns a real world position and facing. Each fixed tick it tests both Player and Echo against range, state-dependent FOV, and a cover ray; chooses an actually visible target; preserves last-known/stimulus positions for investigation; and returns through recovery to its patrol. `lure-bell` supplies only a world-space sound stimulus—the bell does not assign a target or defeat state. Patrol, chase, investigation, and knockback displacement use three parallel wall/door clearance rays across the enemy's width. The upper flank is reached through three stepped platforms, and the Watcher has no conventional damage goal.
+The Watcher owns a real world position and facing. Each fixed tick it tests both Player and Echo against range, state-dependent FOV, and a cover ray; chooses an actually visible target; preserves last-known/stimulus positions for investigation; and returns through recovery to its patrol. `lure-bell` supplies only a world-space sound stimulus—the bell does not assign a target or defeat state. Patrol, chase, investigation, and knockback displacement use three parallel wall/door clearance rays across the enemy's width. The upper flank is reached by one long, gentle, walkable ramp, and the Watcher has no conventional damage goal.
 
 **Solution:**
 
 1. Record a route that emerges from cover, approaches `lure-bell`, presses `E`, and ends with the Echo standing in the Watcher's real sight lane.
 2. On rewind, stay behind authored cover while the bell produces an investigation stimulus and the visible Echo becomes the Watcher's selected target.
-3. Move up `flank-step-a`, `flank-step-b`, and `flank-step-c` to `gallery-flank`, using the walls and pillars to break direct sight.
+3. Move through the covered west flank and walk up `gallery-ramp` to `gallery-high-flank`, using the walls and pillars to break direct sight. No jump is required.
 4. Enter the rear attack cone from above, face toward the Watcher, and attack once. Frontal or low attacks are shielded; a valid strike applies physical knockback along the attack direction.
 5. Let the knocked Watcher intersect the real `spike-trap`, then cross the released door and use the exit. The trap cannot neutralize a merely patrolling or chasing Watcher, and the exit remains blocked beforehand.
 
@@ -130,23 +129,23 @@ Normal contact or repeated damage does not satisfy the room. The objective model
 
 ### Chapter 5 — THE PARADOX WELL
 
-**Rules combined:** three height bands, a climbable well ramp, one physical Core transferred through time, a descending receiver entry, a powered vertical platform, live Guardian perception and target switching, a rear/high seal strike, Echo lower seal, Player upper seal, and a timed escape.
+**Rules combined:** one recording, one physical Core, separate flat Echo/Player transfer routes, one powered moving platform, live Guardian perception, a rear/high seal strike, Echo lower seal, Player upper seal, and a timed escape.
 
-The lower start holds the sole `paradox-core` and `lower-seal`. The physical `well-ramp` climbs to the middle lip; the exposed `power-receiver` sits below and west of that lip so the same Core must enter while descending. The middle height contains the Guardian. Core power starts the vertical `well-platform`, which physically carries the present Player to the upper route, `guardian-flank`, `upper-seal`, and final exit.
+The lower west room holds the sole `paradox-core`. The Echo owns the north transfer lane and ends the same tape on `lower-seal`; the present Player owns the south one-way route. The east catch basin leads to `power-receiver`. That receiver powers both the only vertical device, `well-platform`, and the dormant Guardian. Before the real Core is seated, the Guardian remains sealed: its sight field and attack are disabled. The platform remains docked until boarded, carries the Player to the upper route, and returns after the Player steps off.
 
 **Solution:**
 
-1. Start the first recording, pick up the single `paradox-core`, carry it up `well-ramp`, and throw west/downward from the middle lip. On rewind the Echo repeats that real pickup, carry, and throw; no duplicate Core is spawned. The receiver accepts only the armed Core entering while descending.
-2. After that Core powers `power-receiver`, replace the first Echo with a second recording: walk down the traversable ramp to `lower-seal` and end the tape there.
-3. Let the second Echo settle on the physical lower seal. Occupancy powers the lower synchronizer but does not assign the Guardian's target.
-4. As the present Player, return up the ramp, board the powered vertical platform at its lower dock, ride it to the upper floor, and use cover to reach `guardian-flank`.
-5. Wait until the Guardian's actual FOV and Rapier LOS select the visible Echo, then attack from more than 1.3 world units above and inside the rear cone. A frontal or low strike reports the armor condition and changes no defeat state.
-6. Reach `upper-seal`, press and hold `E` while the Echo still physically occupies `lower-seal`. The live simultaneous occupancy latches final-door release and begins the 35-second escape.
-7. Traverse the upper escape platforms, reach the final passage, and press `E` before the countdown reaches zero.
+1. Start recording, pick up the single `paradox-core`, carry it along the north lane, and throw it east from the transfer ledge.
+2. Continue that same recording back through the west room to `lower-seal`, then finish the tape there. No replacement Echo is needed.
+3. As the present Player, cross the south one-way route. The east-side crossing opens `well-transfer-shutter`, allowing the Echo's real Core to land in the basin while the Echo settles on the lower seal.
+4. Pick up that same Core, place it in `power-receiver`, board the docked `well-platform`, and ride it to the upper floor.
+5. Use the upper flank after the powered Guardian locks onto the Echo on `lower-seal`. It faces that Echo from the central dais without chasing out of the arena, dimming its front shield and lighting the rear seal. Attack from more than 1.3 world units above and inside the rear cone; frontal or low strikes do nothing.
+6. Reach `upper-seal` and hold `E` while the Echo still physically occupies `lower-seal`. The live simultaneous occupancy latches final-door release and begins the 15-second escape.
+7. Cross the upper bridge, reach the final passage, and press `E` before the countdown reaches zero.
 
 The Guardian is a positional cooperation puzzle rather than a health bar. The objective model requires only the single Core in its real receiver, Guardian defeat from the qualified positional strike, final-door release, and exit use. Throw, attention, and seal facts remain internal causal evidence rather than inflated victory history.
 
-The Guardian uses the same actual visibility pipeline as the Watcher and may switch between visible Player and Echo; cover blocks targeting. Contact uses the original target distance before the chase vector is normalized. Final synchronization is live: release is latched only when the Echo currently occupies the lower seal, the Player currently holds the upper lever, the Core is in the receiver, and the Guardian seal is already broken. The opened door remains released while the 35-second escape runs.
+The Guardian uses the same actual visibility pipeline and geometry as its displayed 8.5-unit sight sector; cover blocks targeting. A live Echo on the lower seal has puzzle-priority and creates a stable central `lure-hold` window, while an unopposed visible Player is pursued. Contact requires both horizontal and vertical body overlap, so a Player directly below the dais cannot be defeated through the floor. Final synchronization is live: release is latched only when the Echo currently occupies the lower seal, the Player currently holds the upper lever, the Core is in the receiver, and the Guardian seal is already broken. The opened door remains released while the 15-second escape and non-colliding exit beacons run.
 
 ## Ending and scoring
 

@@ -4,9 +4,13 @@ Snapshot: 2026-08-25, Asia/Seoul.
 
 ## Current state
 
-The Chapter 4–5 temporal-mastery revision is locally complete on `feat/ch4-ch5-temporal-mastery`, based on open Chapter 3 repair head `8e84c7465a953caeec1a6be44bb3da264a969d75`. It adds actual Watcher/Guardian FOV and Rapier LOS, cover and attention states, rear/high positional attacks, physical knockback/trap resolution, one canonical Core across Echo replacement, a real powered vertical platform, and live two-actor final synchronization. The objective model records minimal physical outcomes instead of internal solution history.
+The Chapter 3–5 level-design rebuild is complete on `feat/ch3-ch5-level-design-rebuild`, based directly on `origin/main` at `410366f88ff3b935dc3137c161e886e3af523357`. Chapter 3 is now a flat, legible WEST/EAST split with separate Player and Core lanes, a real east-triggered transfer shutter, and a protected catch basin. Chapter 4 is an articulated surveillance gallery with safe entry, LOS cover, a zero-jump walkable ramp, high rear flank, physical trap, and exit. Chapter 5 now uses one recording, one physical Core, one transfer, one powered platform, and one continuous Echo timeline from Core duty to the lower seal before the present Player completes the upper flank and live dual seal.
 
-Final local evidence is PASS: `npm ci` with 0 vulnerabilities; strict Vite build with 38 modules; Vitest 17 files / 126 tests; full Playwright 25/25 in 24.6 minutes; focused desktop/mobile success-capture 4/4 in 6.9 minutes. The four generated PNGs were visually inspected. No deployment, production promotion, asset edit, sibling edit, `main` edit, or base-branch edit was performed.
+The camera uses chapter-specific distance, pitch, focus, and mobile framing for Chapters 3–5 while preserving the Chapter 1–2 defaults. It considers raised floors and platforms as occluders, fades only geometry actually between the camera and Player, and applies camera-side perimeter cutaways instead of globally hiding floors. Hidden receiver provenance (`upperThrowArmed`, `core-thrown-down`, downward-velocity history) and the unused second Chapter 5 lift are removed; victory depends on current physical outcomes.
+
+Current Chapter 5 overhaul evidence is PASS: strict Vite production build (38 modules); Vitest 18 files / 142 tests; real desktop Chapter 5 completion 1/1 in 3.0 minutes; real touch-only Chapter 5 completion 1/1 (test body 5.2 minutes, with delayed Windows reporter return). Receiver-gated Guardian dormancy, stable lower-Echo lure hold, vertical contact fairness, 20-second final tape, 15-second final escape, exact sight display, character presentation, and non-colliding route guidance are covered. An additional render-smoke run advanced through its desktop case but its separate mobile result could not be finalized because the Windows runner stopped returning filesystem/reporter output; the stronger mobile full-completion acceptance remains valid. No new asset binary or sibling project changed.
+
+Chapter 5's Guardian is now an animated clone of the already shipped official KayKit Knight instead of the procedural dodecahedron sentry. It stays sealed until the real Core activates `power-receiver`, then prioritizes the live lower-seal Echo while holding the central arena, exposing a lit rear seal and dimming its front shield. The exact active FOV is shown on the floor, the receiver/platform/dual-lane/final-exit relationships have restrained non-colliding cables and beacons, and a Player below the dais is no longer killed through the floor.
 
 The independent `echo-depths-3d` source tree contains a skippable Stage 00 PC orientation room before the five-chapter 3D time-echo campaign, ending, strict TypeScript source, pure-rule and physics tests, KayKit character/animation integration, bilingual HTML/CSS UI, desktop/mobile input, and deterministic browser-facing state API.
 
@@ -147,6 +151,33 @@ The user requested two things: (1) reframe the chapter 1 clear condition so that
 - Snapshot restoration covers every new attention field. Frontal/low attacks, early exits, fake receiver interaction, duplicate Core state, direct lower-seal target assignment, and non-simultaneous final seals are covered negatively.
 - English/Korean objectives remain broad enough to preserve discovery. Outcome requirements are minimal and physical: Watcher trapped; Core received, Guardian defeated, final door released.
 - Local final gates pass: build, Vitest 126/126, Playwright 25/25, and capture rerun 4/4. GitHub push/PR state is recorded after remote delivery; Vercel remains intentionally untouched.
+
+## 2026-08-25 — One-way portal readability follow-up
+
+The right-side Chapter 3 one-way object was visually reading as a small, ambiguous purple block even though its collision contract was already correct. Chapters 3 and 5 now use enlarged translucent portal frames: cyan arrows on top identify the only pass direction (live Player WEST → EAST), while red bars and a lock sigil identify the EAST-side no-return face. Echoes and physical Cores remain blocked on both directions. The HUD hints now state that rule explicitly in Korean and English. Local verification passed 18 Vitest files / 131 tests, strict Vite build, Chapter 3 visual capture, and empty browser error collection.
+
+## 2026-08-25 — Chapter 3 receiver-gated return door
+
+The Chapter 3 return route is now a distinct middle gate, not the red reverse face of `atrium-one-way`. It is closed until the physical `memory-core` has activated `core-receiver`; then its cyan field, light, and retracted panels indicate that only the live Player may cross. Echo and Core collision remains physical even while the Player-only route is visually open. The gate derives each frame and on snapshot restore from the receiver's active device state, so recording rewind/restart cannot retain a stale unlock. Targeted receiver/Player/Echo/Core/same-Core-transfer tests and the strict production build passed.
+
+## 2026-08-25 — Chapter 3 transfer shutter correction
+
+The east/north transfer shutter is now explicitly Core-only. Its full-span mechanical shutter blocks the physical Core until the Player is east, then retracts for the Echo's same-Core delivery. A separate cyan actor seal remains raised at all times, so neither Player nor Echo can traverse the north lane or bypass the receiver-gated return door. The rule is Chapter 3-specific and does not change Chapter 5 shutter behavior. Targeted Core/Player/Echo physics tests, production build, and a local Chapter 3 browser capture passed without console errors.
+
+## 2026-08-26 — Chapter 4 Watcher character pass
+
+The Chapter 4 Watcher is now the hooded Rogue from the same official KayKit Adventurers 2.0 series already used by the Player. It uses the existing Rig_Medium animations and is visually distinct from both the Player and the unchanged Chapter 5 Guardian. Its surveillance display is no longer a decorative approximation: the ground sector is generated from the same live range and FOV helpers used by target detection, with cyan patrol, amber search, red acquisition, a pulsing sensor/status ring, and a target beam gated by actual FOV plus Rapier line of sight. Local targeted tests, production build, real Chapter 4 completion, desktop rendering, portrait guidance, mobile landscape rendering, and browser error collection pass.
+
+Production deployment `dpl_8AkqppynEF8urDfsXD6VSLuPfubD` is Ready at `https://echo-depths-playtest.vercel.app`. The stable alias and new model return HTTP 200, desktop/mobile Chapter 4 renders pass, production debug API is absent, and the browser error/console collectors are empty.
+
+## 2026-08-26 — Chapter 4 Watcher pursuit and trap clarity
+
+- Corrected the generic platform updater so enemy `to` patrol endpoints are no longer interpreted as moving-platform transforms and reset every frame.
+- The Watcher now visibly patrols both directions on a line separated from the spike bed, gives a short warning, chases the Player at a fair sub-player speed, and kills only on real contact.
+- A real visible Echo locks attention and draws the Watcher to the spike edge. The Watcher stops there facing the Echo, creating a stable high/rear knockback window without destroying the Echo.
+- The spike bed is the Chapter 4 finisher, not decoration: a pulsing ring/beacon/light marks it, only a knocked Watcher intersection opens the gallery, and bilingual objectives explain the action.
+- Local evidence passes: 64 targeted unit checks, strict build, desktop Chapter 4 completion 1/1, touch-only Chapter 4 completion 1/1, and direct desktop render/console inspection.
+- Pushed source `65bcbfe25a17e29dd0c6c5bc974f30731b18c4ef` and deployed isolated Vercel production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT`. The stable playtest alias serves the new bundle and passes public gameplay, localization, mobile, fullscreen, runtime-asset, console, and production-debug checks.
 
 
 

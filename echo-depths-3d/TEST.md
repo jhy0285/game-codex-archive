@@ -7,9 +7,13 @@ Snapshot: 2026-08-25, Asia/Seoul.
 | Layer | Command or method | Result |
 | --- | --- | --- |
 | Strict TypeScript | `npx tsc --noEmit` / build compiler | PASS |
-| Production bundle | `npm run build` | PASS — 38 modules; JS 3,645.22 kB, CSS 22.71 kB |
-| Unit, pure-rule, state, and physics regression tests | `npx vitest run` | PASS — 17 files, 126 tests |
-| Playwright functional and layout coverage | local `npx playwright test` with external base URL unset | PASS — 25/25 in 24.6 minutes, including all existing Chapter 1–3 positive/negative regressions and four real-input Chapter 4–5 desktop/mobile completions |
+| Production bundle | `npm run build` | PASS — 38 modules; JS 3,674.91 kB, CSS 22.71 kB; existing large-chunk warning remains non-fatal |
+| Unit, pure-rule, state, and physics regression tests | `npm test -- --run` | PASS — 18 files, 142 tests |
+| Focused Chapter 5 desktop completion | `playwright test tests/chapter4-5-temporal.spec.ts -g "Chapter 5 completes"` with inherited production base URL removed | PASS — 1/1 in 3.0 minutes; one tape, one Core, receiver power, stable Guardian lure, high rear strike, live seals, 15-second escape, exit |
+| Focused Chapter 5 touch completion | `playwright test tests/chapter4-5-mobile-walkthrough.spec.ts -g "Chapter 5 completes"` with inherited production base URL removed | PASS — 1/1; touch-only Core/Echo/platform/Guardian/seal/exit route. Test body completed in 5.2 minutes; Windows reporter/PTY returned late |
+| Additional render smoke | `tests/chapter3-5-render-smoke.spec.ts` | Desktop Chapters 3–5 advanced into the mobile case without browser errors; the extra mobile result could not be independently finalized because the local Windows runner stopped returning filesystem/reporter output. The stronger touch-only full completion above remains the mobile acceptance result |
+
+Chapter 5-specific unit coverage now proves receiver-gated Guardian dormancy, exact 8.5-unit/`0.94π` displayed-and-detected active FOV, lower-Echo lure hold at the central dais, front shield/rear seal state, horizontal plus vertical contact overlap, qualified high/rear strike, latched timer start without restart, chapter-authored Echo capacity, route-guide assembly, and the existing one-Core full solution.
 | Chapter 4–5 success captures | focused desktop/mobile Playwright rerun with `ECHO_DEPTHS_SCREENSHOT_DIR` | PASS — 4/4 in 6.9 minutes; four PNG artifacts generated from successful physical routes |
 | 2026-08-25 external release | Git/Vercel inspection | No deployment or production promotion performed; `main`, `fix/echo2-ch3-structural`, existing production, assets, and siblings unchanged |
 | Local production-bundle smoke | `PLAYWRIGHT_BASE_URL=http://127.0.0.1:4541 npm run test:production` | PASS — 6/6 in 1.1 minutes |
@@ -244,3 +248,54 @@ Even a clean Playwright run does not establish:
 - natural bilingual wording, animation polish, audio balance, or motion comfort.
 
 Those claims require a person to play and record observations. No such human pass is represented here.
+
+## 2026-08-25 Chapter 3–5 level-design rebuild evidence
+
+The current feature branch is based directly on `origin/main` `410366f88ff3b935dc3137c161e886e3af523357`. The final verification set covers the rebuilt spatial routes rather than injecting facts or teleporting actors:
+
+- `npm test`: PASS, 18 files and 130 tests in 2.00 seconds. Layout checks cover route separation, zero-jump authored traversal, basin dimensions, Core/receiver separation, removal of the duplicate lift, and camera occluder registration. World/Rapier tests cover directional one-way collision, full-height closed shutters, actual receiver intersection, one canonical Core, actual Watcher/Guardian LOS, the single moving platform, and simultaneous live seals.
+- `npm run build`: PASS, TypeScript project build plus Vite production bundle, 38 modules in 452 ms. The existing large Three.js bundle warning remains nonfatal.
+- Chapter 3–5 render/framing smoke: PASS, 2/2 in 25.5 seconds. It loads each rebuilt chapter, checks fatal console/page/request errors, and checks Chapter 4–5 mobile landmark/control framing.
+- Focused real-input completion: PASS, 6/6 in 8.3 minutes. It completes Chapter 3 on desktop and touch, Chapter 4 on desktop and touch with zero jump input, and Chapter 5 on desktop and touch with one recording, one Core, and one platform.
+- Local production-bundle smoke: PASS, 6/6 in 47.6 seconds. It verifies the built bundle's language/title/start flow, Chapter 1 route, mobile layout, fullscreen rejection, KayKit dependencies, error collectors, and absence of `window.echoDepthsDebug`.
+- Final full Playwright: PASS, 20/20 in 12.6 minutes with one worker. It includes Chapter 1–2 regression, Chapter 3 structural shortcut rejection and full completion, Chapter 4–5 desktop/mobile completion, rendering, UI, asset, console, page, and request checks.
+- Visual evidence: 17 PNGs cover Chapter 3 start/shutter/transfer/receiver, Chapter 4 start/cover/high flank/trap plus mobile start/final state, and Chapter 5 start/transfer/receiver/upper flank/final door plus mobile start/final door. Representative frames were directly inspected for visible actors, landmarks, routes, HUD, and non-overlapping landscape touch controls.
+
+The automated evidence does not establish physical-phone ergonomics, unaided first-time puzzle comprehension, subjective camera comfort, difficulty, pacing, or fun. Those remain human playtest items.
+
+## 2026-08-25 — One-way portal visual correction
+
+- `npm test -- --run`: PASS, 18 files / 131 tests. The new regression checks the full portal mesh dimensions plus bright west-side pass arrows and bright east-side lock bars without altering the directional collision contract.
+- `npm run build`: PASS. The existing large Three.js bundle warning remains non-fatal.
+- Local Chapter 3 visual review: PASS. The quarter-view camera shows the enlarged translucent portal and its three top-facing directional arrows; browser error collection was empty.
+
+## 2026-08-25 — Chapter 3 return-gate targeted evidence
+
+- `npm test -- --run src/world/DungeonWorld.test.ts -t "Ch3 R|Ch3 N2|Ch3 E"`: PASS, 3 selected tests. It verifies receiver-inactive EAST → WEST Player denial, receiver-active Player passage, open-gate Echo/Core denial, receiver-state rewind restoration, and the existing same-Core Echo transfer.
+- `npm run build`: PASS. TypeScript and the Vite production bundle completed; the pre-existing large Three.js bundle warning is non-fatal.
+
+## 2026-08-25 — Chapter 3 transfer shutter targeted evidence
+
+- `npm test -- --run src/world/DungeonWorld.test.ts -t "Ch3 M|Ch3 N2|Ch3 N3"`: PASS, 3 selected tests. It verifies closed-shutter Core denial, the same physical Core crossing after the east-side opening, and Player/Echo denial on the open Core-only lane.
+- `npm run build`: PASS. TypeScript and the Vite production bundle completed; the pre-existing large Three.js bundle warning is non-fatal.
+- Local Chapter 3 browser capture: PASS. The shutter shows full-span slats plus a persistent cyan actor seal; browser error collection was empty.
+
+## 2026-08-26 — Chapter 4 Watcher presentation evidence
+
+- `npm test -- --run src/render/AssetLibrary.test.ts src/world/DungeonWorld.test.ts`: PASS, 2 files / 55 tests. Coverage checks the distinct Watcher manifest asset, full Watcher object assembly, exact 7.2-unit patrol range, exact `0.62π` live patrol FOV, red acquired-target state, and target-beam visibility.
+- `npm run build`: PASS. TypeScript and the Vite production bundle completed; the existing large Three.js bundle warning remains non-fatal.
+- `PLAYWRIGHT_BASE_URL='' npm run test:e2e -- tests/chapter4-5-temporal.spec.ts --grep "Chapter 4 completes" --workers=1`: PASS, 1/1 in 1.0 minute. The real bell, cover, walkable ramp, high rear strike, trap, door, and exit route remains complete.
+- Local production-bundle visual review: PASS at desktop and `844x390`; the KayKit hooded Watcher, animated patrol, ground range sector, sensor marker, HUD, and touch controls render visibly. Portrait `390x844` correctly shows rotate guidance. `agent-browser errors` and `agent-browser console` were empty.
+- The initial Playwright invocation was an infrastructure-only failure because the inherited `PLAYWRIGHT_BASE_URL` pointed to a production build with no development debug API. Clearing that variable started the configured development server and the same Chapter 4 story passed.
+- Vercel production `dpl_8AkqppynEF8urDfsXD6VSLuPfubD`: READY. The stable alias, manifest, and `Rogue_Hooded.glb` returned HTTP 200; the model response length is 381,432 bytes. Public Chapter 4 desktop/mobile captures show the hooded Watcher and sight boundary; page errors and console logs are empty; `window.echoDepthsDebug` is `undefined`.
+
+## 2026-08-26 — Chapter 4 pursuit/trap targeted evidence
+
+- `npm test -- src/world/DungeonWorld.test.ts src/levels/layouts.test.ts src/game/i18n.test.ts src/ui/i18n.test.ts`: PASS, 4 files / 64 tests. New coverage proves a real two-way patrol, Echo acquisition and trap-edge hold, a saturated warning meter without remote failure, Player catch failure on contact, snapshot target-lock restoration, and the existing physical knock-into-trap clear.
+- `npm run build`: PASS. TypeScript and the production Vite bundle complete; the pre-existing large Three.js bundle warning remains non-fatal.
+- Local Chapter 4 desktop completion: PASS, 1/1 in 46.8 seconds. The real bell, cover, no-jump ramp, high rear strike, spike intersection, door, and exit route remain completable.
+- Local Chapter 4 touch-only completion: PASS, 1/1 in 1.6 minutes.
+- Local browser inspection: PASS. Separate frames show the hooded Watcher at different points of the south patrol line, visibly separated from the spike bed; the spike ring/beacon/light are readable and the browser console contains no fatal errors.
+- The first two Playwright attempts did not exercise local gameplay because the machine-level `PLAYWRIGHT_BASE_URL` pointed at a production build without the development-only debug API. Explicitly selecting the E2E-enabled local server resolved the environment mismatch; both desktop and touch completion stories then passed.
+- Vercel production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT`: READY and aliased to `https://echo-depths-playtest.vercel.app`. The public HTML returns HTTP 200 and references the new verified `index-DNG9ShK_.js` bundle.
+- Public smoke: 5/5 gameplay/UI stories passed in 1.0 minute; the KayKit manifest/dependency story initially hit the workstation's self-signed certificate chain, then passed 1/1 in 3.9 seconds with Node system CAs. Public Chapter 4 loads, mobile portrait/landscape works, console/page errors are empty, and `window.echoDepthsDebug` is absent.

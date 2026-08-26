@@ -2,52 +2,59 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { CameraRig } from './CameraRig'
 
-describe('CameraRig direction outputs', () => {
-  it('writes forward and right into caller-owned vectors', () => {
-    const camera = new CameraRig(1)
-    const forward = new THREE.Vector3()
-    const right = new THREE.Vector3()
+describe('CameraRig chapter framing', () => {
+  it('preserves the Chapter 1 profile and widens later chapters on mobile', () => {
+    const rig = new CameraRig(16 / 9)
+    const player = new THREE.Vector3(-5.4, 1.08, 3.8)
 
-    expect(camera.forward(forward)).toBe(forward)
-    expect(camera.right(right)).toBe(right)
-    expect(forward.length()).toBeCloseTo(1)
-    expect(right.length()).toBeCloseTo(1)
-    expect(forward.dot(right)).toBeCloseTo(0)
+    rig.setChapter(1, 1280)
+    rig.snapTo(player)
+    const chapterOneDistance = rig.camera.position.distanceTo(player.clone().add(new THREE.Vector3(0, 1.05, 0)))
+    expect(chapterOneDistance).toBeCloseTo(12.8, 4)
+    expect(rig.camera.fov).toBe(43)
+
+    rig.setChapter(5, 480)
+    rig.snapTo(player)
+    const mobileDistance = rig.camera.position.distanceTo(player.clone().add(new THREE.Vector3(0, 1.05, 0)))
+    expect(mobileDistance).toBeGreaterThan(17)
+    expect(rig.camera.fov).toBe(52)
   })
 
-  it('keeps a shortened obstruction distance stable between 30 Hz probes', () => {
-    const camera = new CameraRig(1)
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(3, 5, 0.8), new THREE.MeshBasicMaterial())
-    wall.position.set(2, 3, 2)
-    wall.updateMatrixWorld()
-    camera.setObstructions([wall])
-    const player = new THREE.Vector3()
-    const velocity = new THREE.Vector3()
-    const raycaster = new THREE.Raycaster()
+  it('fades a registered raised floor that blocks the player sight line', () => {
+    const rig = new CameraRig(16 / 9)
+    const player = new THREE.Vector3(0, 1, 0)
+    rig.setChapter(5, 1280)
+    rig.snapTo(player)
 
-    for (let frame = 0; frame < 120; frame += 1) camera.update(player, velocity, 1 / 60, raycaster)
+    const material = new THREE.MeshStandardMaterial()
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(8, 0.8, 8), material)
+    floor.position.copy(rig.camera.position).lerp(player.clone().add(new THREE.Vector3(0, 1.05, 0)), 0.45)
+    floor.updateMatrixWorld(true)
+    rig.setObstructions([floor])
+    rig.update(player, new THREE.Vector3(), 1 / 30, new THREE.Raycaster())
 
-    const focus = new THREE.Vector3(0, 1.05, 0)
-    const blockedDistance = camera.camera.position.distanceTo(focus)
-    camera.update(player, velocity, 1 / 120, raycaster)
-    const nextDistance = camera.camera.position.distanceTo(focus)
-
-    expect(blockedDistance).toBeLessThan(5)
-    expect(nextDistance - blockedDistance).toBeLessThan(0.08)
+    expect(material.transparent).toBe(true)
+    expect(material.opacity).toBeLessThan(0.2)
   })
 
-  it('eases vertical camera drag within a comfortable orbit range', () => {
-    const camera = new CameraRig(1)
-    const player = new THREE.Vector3()
-    const velocity = new THREE.Vector3()
-    const raycaster = new THREE.Raycaster()
+  it('keeps wide authored framing when a perimeter wall is too close to clear', () => {
+    const rig = new CameraRig(16 / 9)
+    const player = new THREE.Vector3(-7, 1.08, 2.8)
+    rig.setChapter(3, 1280)
+    rig.snapTo(player)
 
-    for (let frame = 0; frame < 120; frame += 1) camera.update(player, velocity, 1 / 60, raycaster)
-    const heightBeforeDrag = camera.camera.position.y
-    camera.rotate(0, 1)
-    for (let frame = 0; frame < 60; frame += 1) camera.update(player, velocity, 1 / 60, raycaster)
+    const focus = player.clone().add(new THREE.Vector3(2.6, 1.05, 0))
+    const direction = rig.camera.position.clone().sub(focus).normalize()
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(8, 8, 0.2), new THREE.MeshStandardMaterial())
+    wall.position.copy(focus).addScaledVector(direction, 2.1)
+    wall.lookAt(focus)
+    wall.updateMatrixWorld(true)
+    rig.setObstructions([wall])
+    for (let frame = 0; frame < 120; frame += 1) {
+      rig.update(player, new THREE.Vector3(), 1 / 60, new THREE.Raycaster())
+    }
 
-    expect(camera.camera.position.y).toBeGreaterThan(heightBeforeDrag + 1)
-    expect(camera.camera.position.y).toBeLessThan(12)
+    expect(rig.camera.position.distanceTo(focus)).toBeGreaterThan(13)
+    expect((wall.material as THREE.MeshStandardMaterial).opacity).toBe(0)
   })
 })

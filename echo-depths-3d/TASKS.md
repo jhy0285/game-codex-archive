@@ -11,12 +11,12 @@ This ledger separates implementation present in the source tree from verificatio
 | Independent project scaffold | Present | Vite, strict TypeScript, Three.js, Rapier 3D, Vitest, Playwright configuration, no React |
 | 3D application shell | Present | Three.js WebGL canvas plus separate HTML/CSS screens, HUD, touch layer, loading, errors, pause, ending |
 | Character physics | Present | Rapier capsule kinematic controller, autostep, slope rules, ground snap, gravity, jump buffering, coyote time, landing, dash |
-| Camera | Present | Quarter-view follow damping, velocity look-ahead, yaw control, wall shortening, obstruction fade, shake |
+| Camera | Present | Chapter-specific Chapter 3–5 framing, mobile widening, east-landmark focus, camera-side perimeter cutaway, raised-floor/platform obstruction handling, orbit preservation across rewind, damping, and shake; Chapters 1–2 retain their original profile |
 | Deterministic echo | Present | Full motor/world record-start snapshot plus 60 Hz quantized input/action and transform/facing tape, collision-aware kinematic replay, shared world action resolver, ownership transfer to one replacement echo, terminal held use |
-| Dynamic interactions | Present | Crate and core carry/drop/throw with camera-heading placement, ballistic preview, core catch, attack redirect, pressure plates, levers, receivers, doors, fixed-sensor/kinematic overlap configuration, and prompt-matched interaction range |
-| Vertical machinery | Present | Counterweight elevator, final elevator, moving platform, rotating bridge, stairs, jumps, upper/lower routes |
-| Enemy puzzles | Present | Deterministic patrol/alert/investigate/chase/recovery, live Player/Echo FOV and Rapier LOS through cover, world-space bell stimulus, visible-target switching, rear/high strike validation, physical knockback-only trap defeat, Guardian positional seal rule |
-| Orientation and five chapters | Present | Skippable Stage 00 PC tutorial, five campaign layouts, chapter transitions, final 35-second escape, stats, rank, replay, chapter selection |
+| Dynamic interactions | Present | Crate and Core carry/drop/throw with camera-heading placement, ballistic preview, physical gates/shutters, direction-aware player passage, pressure plates, levers, collision-driven receivers, doors, fixed-sensor/kinematic overlap configuration, and prompt-matched interaction range |
+| Vertical machinery | Present | Chapter 2 counterweight elevator, Chapter 4 walkable ramp, and Chapter 5's single receiver-powered boarding platform; no redundant final elevator or required precision-jump chain |
+| Enemy puzzles | Present | Deterministic patrol/alert/investigate/chase/recovery, live Player/Echo FOV and Rapier LOS through cover, world-space bell stimulus, visible-target switching, rear/high strike validation, physical knockback-only trap defeat, receiver-powered Guardian and stable lower-Echo lure hold |
+| Orientation and five chapters | Present | Skippable Stage 00 PC tutorial, five campaign layouts, chapter-authored Echo limits, chapter transitions, final 15-second escape, stats, rank, replay, chapter selection |
 | Character presentation | Present | Official KayKit character and five clip libraries loaded through GLTFLoader, 13 AnimationMixer states with crossfades, locomotion speed scaling, and smoothed visual yaw |
 | Asset fallback | Present | Code-built animated character is selected when model loading or full clip mapping fails; runtime reports asset status |
 | Localization | Present | Korean and English runtime catalogs and localized chapter/UI/failure/ending/orientation copy |
@@ -37,7 +37,7 @@ This ledger separates implementation present in the source tree from verificatio
 | Playwright functional suite | Passed | 8/8 scenarios passed in 4.3 minutes, including a real desktop `E` interaction at the visible prompt |
 | Local visual browser inspection | Passed representative review | Settings, echo, Chapters 1–5, ending, portrait, and landscape captures show no black frame, missing actor/model, clipped primary UI, or unreadable copy |
 | Console, page, request failure review | Passed locally | Automatic browser collectors reported no unhandled page, console, or request failures |
-| Chapter 5 guardian and final synchronizers | Corrected and covered | One canonical Core is carried and thrown by the first Echo recording; a replacement Echo holds the lower seal; actual Guardian LOS, powered platform traversal, rear/high strike, and current Echo/Player dual-seal state release the final door |
+| Chapter 5 integrated timeline | Corrected and covered | One 20-second recording transfers one canonical Core and ends on the lower seal; the present Player delivers that same Core, powers the dormant Guardian, rides the only platform, exploits the stable central Echo lure/rear exposure, and holds the upper seal concurrently to release the final door |
 | Chapter 4–5 temporal-mastery unit/physics gate | Passed locally | 17 Vitest files, 126/126; covers actual LOS/cover, attention lifecycle, snapshot restoration, strike rejection, physical trap entry, one Core, support motion, receiver, and live seals |
 | Chapter 4–5 desktop/mobile browser gate | Passed locally | Full Playwright 25/25 in 24.6 minutes; focused success-capture rerun 4/4 in 6.9 minutes; keyboard-only desktop and touch-only mobile solutions |
 | Candidate-deployment browser check | Passed | 5/5 in 59.7 seconds against the verified candidate |
@@ -193,9 +193,60 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 
 - [x] Replace direct bell/plate targeting with actual Watcher and Guardian FOV, Rapier LOS, cover, visible-target selection, last-known/stimulus investigation, chase, recovery, and deterministic patrol.
 - [x] Require Player-only rear/high attacks; reject frontal or low strikes; apply real knockback; defeat the Watcher only when a knocked body intersects the physical trap; keep exits blocked until real outcomes exist.
-- [x] Preserve one canonical `paradox-core`; use a first Echo recording for physical carry/throw/receiver delivery and a replacement recording for live lower-seal occupancy.
+- [x] Preserve one canonical `paradox-core`; use one continuous Echo recording for physical carry/throw transfer and live lower-seal occupancy, then let the present Player seat that same Core in the receiver.
 - [x] Make the powered vertical platform physically carry the Player to the Guardian flank and require actual Echo visibility before the rear/high Guardian seal strike.
-- [x] Require simultaneous live Echo lower-seal occupancy and Player upper-seal hold before latching final-door release and starting the 35-second escape.
-- [x] Preserve the 15-second, 60 Hz Echo 2.0 contract and restore all mutable perception state in rewind snapshots; add no AI planning, teleport, auto-interaction, solution step, fact injection, or production debug surface.
+- [x] Require simultaneous live Echo lower-seal occupancy and Player upper-seal hold before latching final-door release and starting the 15-second escape.
+- [x] Wire the authored 12/15/18/18/20-second, 60 Hz Echo 2.0 limits into runtime and restore all mutable perception state in rewind snapshots; add no AI planning, teleport, auto-interaction, solution step, fact injection, or production debug surface.
 - [x] Pass `npm ci` with 0 vulnerabilities, strict Vite build, Vitest 126/126, full Playwright 25/25, and focused desktop/mobile success-capture 4/4.
 - [x] Limit source work to `echo-depths-3d/` on `feat/ch4-ch5-temporal-mastery`, based on `fix/echo2-ch3-structural`; leave `main`, the base repair branch, production deployment, assets, and siblings unchanged.
+
+## 2026-08-25 — Chapter 3–5 level-design rebuild
+
+- [x] Branch `feat/ch3-ch5-level-design-rebuild` directly from verified `origin/main` `410366f88ff3b935dc3137c161e886e3af523357`; do not edit, merge, or deploy `main`.
+- [x] Give Chapters 3–5 distinct wide/mobile framing, add raised-floor and platform obstruction handling, and cut away only camera-side perimeter geometry while preserving Chapter 1–2 defaults.
+- [x] Rebuild Chapter 3 as readable WEST/EAST rooms with a flat Player-only one-way lane, separate Core lane, live east-triggered physical shutter, wide railed catch basin, and same-Core receiver delivery.
+- [x] Rebuild Chapter 4 as a safe-entry surveillance gallery with real FOV/LOS cover, readable hazard/patrol space, a fully walkable ramp, high rear flank, physical trap resolution, and zero required jumps.
+- [x] Rebuild Chapter 5 around one recording, one `paradox-core`, one transfer shutter, one powered moving platform, one continuous Echo Core-to-lower-seal timeline, actual Guardian exposure, and live dual seals.
+- [x] Remove receiver provenance and unused-device dependencies, including `upperThrowArmed`, `core-thrown-down`, downward-velocity history, and `well-elevator`; keep completion tied to current physical results.
+- [x] Synchronize Korean/English objectives and hints; add layout, camera, motor, Rapier/world, structural-negative, desktop, mobile, render, and production-bundle regressions.
+- [x] Capture and inspect 17 current Chapter 3–5 desktop/mobile PNGs; pass Vitest 130/130, strict build, render smoke 2/2, focused completion 6/6, and production-bundle smoke 6/6.
+- [x] Record the final full Playwright result and confirm that local verification did not mutate `main` or production; perform the feature-branch/PR handoff separately.
+
+## 2026-08-25 — Chapter 3/5 one-way portal readability
+
+- [x] Keep the fixed Player-only WEST → EAST collision rule; it is not a shutter and never opens for Echo or Core.
+- [x] Resize the two one-way barriers to full portal proportions and replace the opaque purple slab read with a transparent directional field, top-facing cyan pass arrows, and a red east-side no-return seal.
+- [x] Clarify the same rule in Korean and English Chapter 3/5 hints; add layout and world regressions for portal dimensions and west/east presentation state.
+
+## 2026-08-25 — Chapter 3 receiver-gated return door
+
+- [x] Keep `atrium-one-way` and its red east-side no-return face unchanged.
+- [x] Add a separate middle `atrium-return-gate`, initially closed, which unlocks only from the actual `core-receiver` active state.
+- [x] Allow only the live Player through the open return gate; retain real Echo and Core collision in both gate states.
+- [x] Restore the gate deterministically from the receiver device state on recording rewind and restart; add closed/open color, light, field, and retracting-panel feedback.
+
+## 2026-08-25 — Chapter 3 Core-only transfer shutter correction
+
+- [x] Keep the east transfer shutter closed to physical Cores until the live Player reaches the east side.
+- [x] Add a fixed, actor-only north-lane seal: Player and Echo cannot use an open Core shutter as a crossing or return shortcut.
+- [x] Widen the visible shutter slats to the full transfer span and retain a cyan lock field/rails as the actor-only boundary.
+
+## 2026-08-26 — Chapter 4 Watcher character and surveillance readability
+
+- [x] Use the official KayKit Adventurers 2.0 `Rogue_Hooded.glb` for Chapter 4 and reuse the shipped official `Knight.glb` rig for the Chapter 5 Guardian with runtime tint, shield, rear seal, exact sight sector, and state animation; add no new asset binary.
+- [x] Reuse the existing Rig_Medium animation mapping for Watcher idle, walk, run, hit, and defeat presentation.
+- [x] Draw the Watcher's real 7.2-unit FOV as a ground sector and boundary, with cyan patrol, amber search, and red acquired-target states.
+- [x] Show a pulsing sensor/ring and a red target beam only when the existing FOV, Rapier LOS, and target-selection logic has actually acquired Player or Echo.
+- [x] Pass targeted unit tests, strict production build, the real Chapter 4 completion story, and desktop/mobile browser inspection before production deployment.
+- [x] Deploy the verified static bundle to the isolated `echo-depths-playtest` Vercel production project and smoke the stable public alias.
+
+## 2026-08-26 — Chapter 4 Watcher pursuit and spike-trap purpose
+
+- [x] Fix the moving-platform loop that reset enemy patrol endpoints every frame, and move the Watcher's west patrol endpoint/line clear of the center cover and spike bed.
+- [x] Make Chapter 4 sight a warning state, accelerate a real Player pursuit, and fail only on close physical catch rather than a filled remote sight meter.
+- [x] Keep the current visible target stable briefly; have a real visible Echo draw the Watcher to a safe standoff at the spike edge without consuming or defeating the Echo.
+- [x] Preserve the existing high/rear Player-only strike and require the knocked Watcher to intersect the physical spike sensor before opening the door.
+- [x] Add a pulsing target ring, low beacon, and light to the spike bed; update Korean/English copy to teach its knockback purpose.
+- [x] Restore target-lock state through recording snapshots and cover patrol reversal, Echo lure hold, warning/contact failure, trap resolution, and rewind with targeted tests.
+- [x] Pass 64 targeted Vitest checks, strict production build, Chapter 4 desktop completion, and Chapter 4 touch-only completion before isolated playtest deployment.
+- [x] Deploy production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT` to the isolated playtest project and verify the stable public alias, mobile smoke, runtime assets, clean console, and absent production debug API.

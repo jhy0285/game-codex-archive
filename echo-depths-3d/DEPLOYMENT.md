@@ -251,3 +251,14 @@ This Windows host initially reported `SELF_SIGNED_CERT_IN_CHAIN` from Node while
 ## Chapter 3 descent fix candidate pending
 
 Source commit (not yet committed at this snapshot): descent-stair fix in src/levels/layouts.ts. Local evidence: npm ci 0 vulnerabilities, strict Vite build PASS (38 modules), Vitest 96/96, Playwright 15/15 in 3.6 minutes, and a spatial-sweep screenshot pass that confirms the player can descend the new stairs. No KayKit asset or sibling project changed.
+
+## 2026-08-26 Chapter 4 Watcher playtest production
+
+| Record | Verified fact |
+| --- | --- |
+| Source commit | `d8623493c31270438ed3685f364ea238c220e2f6`, pushed to `origin/feat/ch3-ch5-level-design-rebuild` |
+| Local evidence | targeted Vitest 55/55, strict Vite build, real Chapter 4 completion 1/1, and desktop/mobile production-bundle visual review with empty page/console errors |
+| Vercel project | isolated static playtest project `echo-depths-playtest` (`prj_a4MfFr0PtVMttKvDMQmYvUxMR0F3`); protected sibling and canonical projects were not modified |
+| Production deployment | `dpl_8AkqppynEF8urDfsXD6VSLuPfubD` — `https://echo-depths-playtest-2n9n8um5q-ai-build3.vercel.app`, Ready |
+| Stable public alias | `https://echo-depths-playtest.vercel.app` |
+| Public smoke | alias, KayKit manifest, and `Rogue_Hooded.glb` returned HTTP 200; Chapter 4 desktop/mobile landscape rendered the new Watcher and sight range; production debug API absent; page/console collectors empty |

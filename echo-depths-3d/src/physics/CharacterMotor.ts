@@ -127,8 +127,16 @@ export class CharacterMotor {
       undefined,
       undefined,
       (collider) => {
-        const tag = collider.parent()?.userData as { kind?: string; carried?: boolean; nonBlocking?: boolean } | undefined
+        const tag = collider.parent()?.userData as { kind?: string; carried?: boolean; nonBlocking?: boolean; playerPassDirectionX?: 1 | -1; playerReturnPassOpen?: boolean } | undefined
+        if (tag?.kind === 'one-way-wall'
+          && this.record.tag.kind === 'player'
+          && tag.playerPassDirectionX !== undefined
+          && this.movement.x * tag.playerPassDirectionX > 0.0001) return false
+        if (tag?.kind === 'return-gate'
+          && this.record.tag.kind === 'player'
+          && tag.playerReturnPassOpen === true) return false
         if (tag?.carried || tag?.nonBlocking) return false
+        if (tag?.kind === 'gate') return false
         if (tag?.kind === 'plate' || tag?.kind === 'lever' || tag?.kind === 'trap' || tag?.kind === 'exit') return false
         return tag?.kind !== 'player' && tag?.kind !== 'echo'
       },
@@ -208,8 +216,16 @@ export class CharacterMotor {
       undefined,
       undefined,
       (collider) => {
-        const tag = collider.parent()?.userData as { kind?: string; carried?: boolean; nonBlocking?: boolean } | undefined
+        const tag = collider.parent()?.userData as { kind?: string; carried?: boolean; nonBlocking?: boolean; playerPassDirectionX?: 1 | -1; playerReturnPassOpen?: boolean } | undefined
+        if (tag?.kind === 'one-way-wall'
+          && this.record.tag.kind === 'player'
+          && tag.playerPassDirectionX !== undefined
+          && this.movement.x * tag.playerPassDirectionX > 0.0001) return false
+        if (tag?.kind === 'return-gate'
+          && this.record.tag.kind === 'player'
+          && tag.playerReturnPassOpen === true) return false
         if (tag?.carried || tag?.nonBlocking) return false
+        if (tag?.kind === 'gate') return false
         if (tag?.kind === 'plate' || tag?.kind === 'lever' || tag?.kind === 'trap' || tag?.kind === 'exit') return false
         return tag?.kind !== 'player' && tag?.kind !== 'echo'
       },

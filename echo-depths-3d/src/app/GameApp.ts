@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { ActionBits, EchoTape, FixedStepAccumulator, createInputFrame, dequantizeMovement, dequantizeYaw, type InputFrame as EchoInputFrame } from '../game'
+import { ActionBits, CHAPTERS, EchoTape, FixedStepAccumulator, createInputFrame, dequantizeMovement, dequantizeYaw, type InputFrame as EchoInputFrame } from '../game'
 import { CHAPTER_LAYOUTS, type ChapterNumber, type StageNumber } from '../levels/layouts'
 import { CharacterMotor, type MotorInput, type MotorSnapshot } from '../physics/CharacterMotor'
 import { RapierWorld } from '../physics/RapierWorld'
@@ -37,7 +37,7 @@ type CampaignStats = {
 
 type TutorialStep = 'move' | 'camera' | 'jump' | 'interact' | 'carry' | 'echo'
 
-const MAX_ECHO_SECONDS = 15
+const DEFAULT_ECHO_SECONDS = 15
 const FIXED_STEP_MS = 1000 / 60
 const TRAJECTORY_POINT_CAPACITY = 22
 const modelHeightOffset = 0.78
@@ -69,7 +69,7 @@ export class GameApp {
   private readonly hud: HudController
   private readonly input: InputRouter
   private readonly fixedLoop = new FixedStepAccumulator()
-  private readonly echoTape = new EchoTape<EchoSnapshot>({ maxFrames: MAX_ECHO_SECONDS * 60 })
+  private echoTape = new EchoTape<EchoSnapshot>({ maxFrames: DEFAULT_ECHO_SECONDS * 60 })
   private readonly raycaster = new THREE.Raycaster()
   private readonly cameraRight = new THREE.Vector3()
   private readonly cameraForward = new THREE.Vector3()
@@ -109,6 +109,7 @@ export class GameApp {
   private lastTime = performance.now()
   private manualStepping = false
   private failRestartTicks = 0
+  private activeFailureReason: FailureReason | '' = ''
   private destroyed = false
   private contextLost = false
   private throwWasHeld = false
@@ -280,7 +281,13 @@ export class GameApp {
       this.echo = this.createActor('echo', spawn, true)
       if (snapshot) this.echo.motor.restore(snapshot.player)
     }
+    // Rewinding into an Echo rebuilds the physics world, but it must not also
+    // rotate the player's controls. Preserve the current orbit for same-chapter
+    // snapshot rebuilds; fresh chapter loads still receive their authored view.
+    if (snapshot) this.camera.resize(window.innerWidth, window.innerHeight)
+    else this.camera.setChapter(chapter, window.innerWidth)
     this.camera.setObstructions(this.world.staticObstructions)
+    this.camera.snapTo(this.player.motor.position)
     if (chapter === 0) {
       if (!snapshot) {
         this.tutorialSteps.clear()
@@ -298,6 +305,7 @@ export class GameApp {
     this.tick = 0
     this.throwWasHeld = false
     this.failRestartTicks = 0
+    this.activeFailureReason = ''
     this.fixedLoop.reset()
     this.transitionPending = false
     return true
@@ -478,7 +486,16 @@ export class GameApp {
         if (result === 'lever') {
           const firstChapterLever = this.chapter === 1 && context.kind === 'player'
           this.hud.showFeedbackKey(firstChapterLever ? 'feedbackFirstLeverActive' : 'feedbackLeverActive', 'success', firstChapterLever ? 5_600 : 2_600)
-        } else if (result === 'core' && this.chapter === 3 && context.kind === 'player' && carryingBeforeInteract !== 'core') {
+        } else if (
+          result === 'core'
+          && this.chapter === 3
+          && context.kind === 'player'
+          && carryingBeforeInteract !== 'core'
+          // This copy is only true after the Echo has delivered the Core to
+          // the east catch basin; it must not fire for the initial pickup.
+          && this.echo !== undefined
+          && context.position.x >= 2.7
+        ) {
           this.hud.showFeedbackKey('feedbackCoreCaught', 'success', 2_600)
         }
       }
@@ -573,9 +590,6 @@ export class GameApp {
     )
     if (this.player) this.spawnTemporalPulse(this.player.motor.position, 0xc15bf2)
     this.hud.showFeedbackKey('feedbackRecordEnd', 'success')
-    if (recording.snapshot.chapter === 3 && this.player && this.player.motor.position.x >= 4) {
-      this.hud.showFeedbackKey('feedbackTransferLaneOpen', 'success', 2_600)
-    }
     if (recording.snapshot.chapter === 0) {
       this.tutorialSteps.add('echo')
       this.tutorialComplete = TUTORIAL_STEPS.every((step) => this.tutorialSteps.has(step))
@@ -662,6 +676,7 @@ export class GameApp {
     if (this.failRestartTicks > 0 || this.mode !== 'playing') return
     this.stats.failures += 1
     this.failRestartTicks = 90
+    this.activeFailureReason = reason
     this.audio.cue('fail')
     this.hud.showFailure(reason)
     if (this.player) {
@@ -674,7 +689,7 @@ export class GameApp {
     this.audio.reset()
     this.stats = emptyStats()
     this.unlockedThrough = STARTING_UNLOCKED_THROUGH
-    this.echoTape.reset()
+    this.resetEchoTape(0)
     this.removeEchoPath()
     if (!await this.rebuildChapter(0, false)) return
     this.mode = 'playing'
@@ -687,7 +702,7 @@ export class GameApp {
   private async selectChapter(chapter: ChapterId): Promise<void> {
     if (chapter > this.unlockedThrough && import.meta.env.PROD) return
     this.audio.reset()
-    this.echoTape.reset()
+    this.resetEchoTape(chapter)
     this.removeEchoPath()
     if (!await this.rebuildChapter(chapter, false)) return
     this.mode = 'playing'
@@ -732,7 +747,7 @@ export class GameApp {
   private async restartChapter(count: boolean): Promise<void> {
     if (count && this.chapter !== 0) this.stats.restarts += 1
     this.audio.reset()
-    this.echoTape.reset()
+    this.resetEchoTape(this.chapter)
     this.removeEchoPath()
     if (!await this.rebuildChapter(this.chapter, false)) return
     this.mode = 'playing'
@@ -744,7 +759,7 @@ export class GameApp {
     this.audio.reset()
     this.mode = 'title'
     this.input.setEnabled(false)
-    this.echoTape.reset()
+    this.resetEchoTape(0)
     this.destroyEcho()
     this.removeEchoPath()
     this.hud.clearTutorial()
@@ -795,8 +810,8 @@ export class GameApp {
       if (event.type === 'door') this.audio.cue(event.open ? 'doorOpen' : 'doorClose')
       else if (event.type === 'plate') this.audio.cue(event.pressed ? 'platePress' : 'plateRelease')
       else if (event.type === 'shutter') {
-        this.audio.cue('doorOpen')
-        this.hud.showFeedbackKey('feedbackTransferLaneOpen', 'success', 2_600)
+        this.audio.cue(event.open ? 'doorOpen' : 'doorClose')
+        if (event.open) this.hud.showFeedbackKey('feedbackTransferLaneOpen', 'success', 2_600)
       } else if (event.type === 'receiver') {
         this.audio.cue('receiver')
         this.hud.showFeedbackKey('feedbackCoreRedirected', 'success', 3_200)
@@ -829,6 +844,28 @@ export class GameApp {
           : !this.world.facts.has('cargo-plate')
             ? 'counterweight-cargo'
             : 'reach-exit'
+    } else if (this.chapter === 3) {
+      objective = !this.echo
+        ? 'atrium-bridge'
+        : !this.world.facts.has('transfer-shutter:player-east')
+          ? 'atrium-catch'
+          : !this.world.facts.has('receiver-filled')
+            ? 'atrium-redirect'
+            : 'reach-exit'
+    } else if (this.chapter === 4) {
+      objective = !this.world.facts.has('lured-by-echo')
+        ? 'watcher-lure'
+        : !this.world.facts.has('watcher-trapped')
+          ? 'watcher-hazard'
+          : 'reach-exit'
+    } else if (this.chapter === 5) {
+      objective = !this.world.facts.has('core-receiver')
+        ? 'paradox-core'
+        : !this.world.facts.has('guardian-defeated')
+          ? 'paradox-guardian'
+          : !this.world.facts.has('dual-seal')
+            ? 'paradox-sync'
+            : 'paradox-escape'
     } else {
       return
     }
@@ -861,7 +898,7 @@ export class GameApp {
   private async finishTutorial(): Promise<void> {
     if (this.chapter !== 0 || this.transitionPending) return
     this.audio.reset()
-    this.echoTape.reset()
+    this.resetEchoTape(1)
     this.removeEchoPath()
     this.tutorialSteps.clear()
     this.tutorialComplete = false
@@ -871,6 +908,14 @@ export class GameApp {
     this.hud.showPlaying()
     this.hud.showFeedbackKey('feedbackTutorialComplete', 'success', 4_200)
     await this.audio.resume()
+  }
+
+  private resetEchoTape(chapter: StageNumber): void {
+    this.echoTape.reset()
+    const maxFrames = chapter === 0
+      ? DEFAULT_ECHO_SECONDS * 60
+      : CHAPTERS[chapter - 1]?.echoMaxTicks ?? DEFAULT_ECHO_SECONDS * 60
+    this.echoTape = new EchoTape<EchoSnapshot>({ maxFrames })
   }
 
   private async requestFullscreen(): Promise<void> {
@@ -1105,10 +1150,11 @@ export class GameApp {
         mode: this.echoTape.mode,
         tick: this.echoTape.playbackTick,
         durationTicks: this.echoTape.durationTicks,
+        maxTicks: this.echoTape.maxFrames,
         position: this.vec(this.echo.motor.position),
         yaw: Number(this.echo.motor.facingYaw.toFixed(4)),
         animation: this.echo.animator.state(),
-      } : { mode: this.echoTape.mode, tick: 0, durationTicks: this.echoTape.durationTicks },
+      } : { mode: this.echoTape.mode, tick: 0, durationTicks: this.echoTape.durationTicks, maxTicks: this.echoTape.maxFrames },
       timer: this.stats.elapsedMs,
       pressurePlates: world?.pressurePlates ?? {},
       levers: world?.levers ?? {},
@@ -1119,6 +1165,7 @@ export class GameApp {
       barriers: world?.barriers ?? {},
       enemies: world?.enemies ?? {},
       objectives: { required: world?.objectiveFacts ?? [], facts: world?.facts ?? [], complete: world?.complete ?? false },
+      failureReason: this.activeFailureReason || world?.failureReason || '',
       tutorial: this.chapter === 0 ? { completed: [...this.tutorialSteps], ready: this.tutorialComplete } : null,
       score: Math.max(0, Math.round(10_000 - this.stats.elapsedMs / 100 - this.stats.failures * 350 - this.stats.restarts * 150)),
       resetCount: this.stats.restarts,

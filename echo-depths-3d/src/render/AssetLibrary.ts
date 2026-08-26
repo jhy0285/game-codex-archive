@@ -10,6 +10,7 @@ type ProgressHandler = (loaded: number, total: number, label: string) => void
 
 type KayKitManifest = {
   character?: string
+  watcherCharacter?: string
   animations?: string[]
   environment: string[]
   resources?: string[]
@@ -37,6 +38,7 @@ export class AssetLibrary {
       this.manifest = (await response.json()) as KayKitManifest
       const urls = [
         ...(this.manifest.character ? [this.manifest.character] : []),
+        ...(this.manifest.watcherCharacter ? [this.manifest.watcherCharacter] : []),
         ...(this.manifest.animations ?? []),
         ...this.manifest.environment,
         ...(this.manifest.resources ?? []),
@@ -56,7 +58,39 @@ export class AssetLibrary {
   }
 
   createCharacter(echo = false): CharacterAnimator {
-    const characterUrl = this.manifest.character
+    const actor = this.createKayKitCharacter(this.manifest.character, echo)
+    if (actor) {
+      this.status = 'kaykit'
+      return actor
+    }
+    return this.createProceduralCharacter(echo)
+  }
+
+  createWatcherCharacter(): CharacterAnimator {
+    return this.createKayKitCharacter(this.manifest.watcherCharacter, false)
+      ?? createAnimatedActor({
+        cloth: 0x16483e,
+        armor: 0x27333d,
+        glow: 0xff5c79,
+        skin: 0xeadcc5,
+      })
+  }
+
+  createGuardianCharacter(): CharacterAnimator {
+    return this.createKayKitCharacter(this.manifest.character, false, 'guardian')
+      ?? createAnimatedActor({
+        cloth: 0x24183c,
+        armor: 0x6e5aa8,
+        glow: 0xc881ff,
+        skin: 0xd7c9b5,
+      })
+  }
+
+  private createKayKitCharacter(
+    characterUrl: string | undefined,
+    echo: boolean,
+    style: 'default' | 'guardian' = 'default',
+  ): CharacterAnimator | undefined {
     const gltf = characterUrl ? this.loaded.get(characterUrl) : undefined
     if (gltf) {
       try {
@@ -64,7 +98,7 @@ export class AssetLibrary {
           ...gltf.animations,
           ...(this.manifest.animations ?? []).flatMap((url) => this.loaded.get(url)?.animations ?? []),
         ])
-        if (clips.length !== REQUIRED_CHARACTER_STATES.length) return this.createProceduralCharacter(echo)
+        if (clips.length !== REQUIRED_CHARACTER_STATES.length) return undefined
         const root = clone(gltf.scene) as THREE.Group
         root.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return
@@ -81,15 +115,24 @@ export class AssetLibrary {
               next.depthWrite = false
               if ('emissive' in next && next.emissive instanceof THREE.Color) next.emissive.set(0x28e7dc)
             }
+          } else if (style === 'guardian') {
+            for (const next of cloned) {
+              if ('color' in next && next.color instanceof THREE.Color) {
+                next.color.lerp(new THREE.Color(0x7459ad), 0.38)
+              }
+              if ('emissive' in next && next.emissive instanceof THREE.Color) next.emissive.set(0x2f174d)
+              if ('emissiveIntensity' in next && typeof next.emissiveIntensity === 'number') {
+                next.emissiveIntensity = 0.32
+              }
+            }
           }
         })
-        this.status = 'kaykit'
         return new CharacterAnimator(root, clips)
       } catch {
-        return this.createProceduralCharacter(echo)
+        return undefined
       }
     }
-    return this.createProceduralCharacter(echo)
+    return undefined
   }
 
   private createProceduralCharacter(echo: boolean): CharacterAnimator {

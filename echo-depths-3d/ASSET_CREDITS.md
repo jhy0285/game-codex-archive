@@ -1,6 +1,6 @@
 # ECHO DEPTHS Asset Credits and Provenance
 
-Snapshot: 2026-08-14, Asia/Seoul.
+Snapshot: 2026-08-26, Asia/Seoul.
 
 ## Ownership statement
 
@@ -42,33 +42,38 @@ The four archives total 69,272,631 bytes. Their recorded working acquisition loc
 
 ## Production selection summary
 
-The exact selection contains 50 files and 5,703,863 bytes, about 8.2% of the four source-archive bytes. Omitting the unused archive contents reduces that comparison by about 91.8%.
+The exact selection contains 51 files and 6,085,295 bytes, about 8.8% of the four source-archive bytes. Omitting the unused archive contents reduces that comparison by about 91.2%.
 
 | Type | Files | Bytes |
 | --- | ---: | ---: |
-| GLB character/animation data | 6 | 5,039,800 |
+| GLB character/animation data | 7 | 5,421,232 |
 | GLTF model descriptors | 19 | 61,106 |
 | GLTF binary buffers | 19 | 478,036 |
 | PNG textures | 2 | 118,983 |
 | Copied license texts | 4 | 5,938 |
-| **Total** | **50** | **5,703,863** |
+| **Total** | **51** | **6,085,295** |
 
-`manifest.json` and `provenance.json` add two metadata files and are not included in the 50-file source selection count.
+`manifest.json` and `provenance.json` add two metadata files and are not included in the 51-file source selection count.
 
 ## Exact selected files
 
 ### Adventurers 2.0
 
-Source character:
+Source characters:
 
 `KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb`
+
+`KayKit_Adventurers_2.0_FREE/Characters/gltf/Rogue_Hooded.glb`
 
 Shipped files:
 
 ```text
 public/assets/kaykit/characters/Knight.glb
+public/assets/kaykit/characters/Rogue_Hooded.glb
 public/assets/kaykit/licenses/Adventurers-License.txt
 ```
+
+Runtime roles: `Rogue_Hooded.glb` is the Chapter 4 Watcher. The already shipped `Knight.glb` is cloned for the Player, Echo, and Chapter 5 Guardian; the Guardian receives runtime-only material tinting, front-shield/rear-seal overlays, status indicators, and shared rig animation. No asset binary, manifest entry, archive count, byte total, or provenance hash changed for the Chapter 5 presentation pass.
 
 ### Character Animations 1.1
 
@@ -155,7 +160,7 @@ Per-file source paths, public URLs, byte lengths, and SHA-256 hashes are recorde
 
 ## Animation use
 
-`AssetLibrary` loads `Knight.glb` and the five animation GLBs with Three.js `GLTFLoader`. It clones the skinned model with `SkeletonUtils.clone`, collects clips from the character and animation libraries, maps aliases to the game's 13 required states, and passes the normalized clips to `CharacterAnimator`.
+`AssetLibrary` loads `Knight.glb`, `Rogue_Hooded.glb`, and the five animation GLBs with Three.js `GLTFLoader`. It clones the skinned models with `SkeletonUtils.clone`, collects clips from the character and animation libraries, maps aliases to the game's 13 required states, and passes the normalized clips to `CharacterAnimator`. `Knight.glb` is used for Player/Echo; the distinct hooded Rogue is used for the Chapter 4 Watcher.
 
 | Game state | Source file | Source clip |
 | --- | --- | --- |
@@ -187,10 +192,10 @@ The playable floors, walls, pillars, mechanisms, doors, cores, enemies, traps, a
 
 ## Optimization and modification record
 
-- Only the selected 50 source files ship; none of the four ZIP archives ship.
-- Forty-eight selected files were reorganized into `characters/`, `animations/`, `environment/`, `resources/`, and `licenses/` without altering their contents. The two shared texture transformations are recorded below.
+- Only the selected 51 source files ship; none of the four ZIP archives ship.
+- Forty-nine selected files were reorganized into `characters/`, `animations/`, `environment/`, `resources/`, and `licenses/` without altering their contents. The two shared texture transformations are recorded below.
 - No geometry reduction, rig edit, animation edit, material bake, audio conversion, or source-model conversion is recorded.
-- A current-file audit matched both byte length and SHA-256 for all 50 production files against the provenance ledger: 50/50 length matches and 50/50 hash matches.
+- A current-file audit matched both byte length and SHA-256 for all 51 production files against the provenance ledger: 51/51 length matches and 51/51 hash matches.
 - `dungeon_texture.png` was downscaled from the 1024×1024 source to a 512×512 runtime PNG with high-quality bicubic resampling; the output is 60,114 bytes with SHA-256 `03b9ebd6840ebafbb771d4137dd48c0c01d4a05fb0a312edf50dc1c85bdaaeb1`.
 - `resource_bits_texture.png` was downscaled from the 1024×1024 source to a 512×512 runtime PNG with high-quality bicubic resampling; the output is 58,869 bytes with SHA-256 `aa3eaf778cf52cb663c1d32dd4b5847689c99259652dc3b20bee1be6788d1896`.
 - The optimized runtime textures total 118,983 bytes. Geometry, animation data, UVs, and source style were not altered by this texture pass.
@@ -202,4 +207,4 @@ The playable floors, walls, pillars, mechanisms, doors, cores, enemies, traps, a
 - `public/assets/kaykit/provenance.json` records schema version, verification date, author, acquisition method, license, archive hashes, source paths, public URLs, exact bytes, per-file hashes, production selection totals, and clip coverage.
 - The copied license texts preserve the terms delivered with each source archive.
 
-The provenance verification date is 2026-08-14. Any future asset-content change must update the public file, manifest where applicable, provenance bytes/hash, and this credit ledger in the same change.
+The provenance verification date is 2026-08-26. Any future asset-content change must update the public file, manifest where applicable, provenance bytes/hash, and this credit ledger in the same change.

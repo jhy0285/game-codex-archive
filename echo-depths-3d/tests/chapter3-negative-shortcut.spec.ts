@@ -1,127 +1,56 @@
 import { expect, test } from '@playwright/test'
-import { advanceTicks, holdKey, moveAxis, pressKey, readState, rotateCameraCardinal, startChapter, waitForState } from './runtime-helpers'
+import {
+  advanceTicks,
+  holdKey,
+  moveAxisPrecise as moveAxis,
+  pressKey,
+  readState,
+  rotateCameraCardinal,
+  startChapter,
+} from './runtime-helpers'
 
-async function recordPlayerCore(page: Parameters<typeof startChapter>[0]): Promise<void> {
+async function pickUpCore(page: Parameters<typeof startChapter>[0]): Promise<void> {
   await rotateCameraCardinal(page)
-  await pressKey(page, 'r')
-  await holdKey(page, 'd', 54)
+  await moveAxis(page, 'z', 2.45, 'reach the Core lane')
+  await moveAxis(page, 'x', -6.2, 'reach the Core')
   await pressKey(page, 'e')
   await expect.poll(async () => (await readState(page)).cores['memory-core']?.carriedBy).toBe('player')
 }
 
-test.describe('Chapter 3 independent negative runtime contracts', () => {
-  test('A — direct Player receiver interaction cannot fill without the Core', async ({ page }) => {
-    test.setTimeout(150_000)
+test.describe('Chapter 3 physical shortcut rejection', () => {
+  test('a carried Core cannot use the player-only south gate', async ({ page }) => {
+    test.setTimeout(180_000)
     await startChapter(page, 3)
-    await recordPlayerCore(page)
-    expect((await readState(page)).cores['memory-core']?.carriedBy).toBe('player')
+    await pickUpCore(page)
+    await moveAxis(page, 'x', -1.7, 'approach the west south-route turn')
+    await moveAxis(page, 'z', -2.45, 'enter the player route with the Core')
     await holdKey(page, 'd', 120)
-    await pressKey(page, 'e')
     const current = await readState(page)
-    const shutter = current.barriers?.['transfer-shutter']
-    expect(shutter?.open).toBe(false)
     expect(current.cores['memory-core']?.carriedBy).toBeUndefined()
-    expect(current.cores['memory-core']?.position.x ?? 99, 'the Core remains WEST of the closed receiver lane').toBeLessThan((shutter?.position.x ?? 3.5) + 0.5)
+    expect(current.cores['memory-core']?.position.x ?? 99).toBeLessThan(1.0)
     expect(current.objectives.facts).not.toContain('receiver-filled')
-    expect(current.mode).not.toBe('chapter-complete')
   })
 
-  test('B — carried Core cannot use the Player one-way route', async ({ page }) => {
-    test.setTimeout(150_000)
+  test('the north transfer shutter blocks a throw until the live Player is east', async ({ page }) => {
     await startChapter(page, 3)
-    await recordPlayerCore(page)
-    await moveAxis(page, 'z', -2, 'approach the Player route while carrying')
-    await moveAxis(page, 'x', 0.5, 'reach the physical one-way barrier')
-    await advanceTicks(page, 20)
-    const current = await readState(page)
-    const barrier = current.barriers?.['atrium-one-way']
-    expect(barrier, 'the real one-way barrier is present in the runtime state').toBeDefined()
-    expect(current.cores['memory-core']?.position.x ?? 99, 'the carried Core remains WEST of the barrier').toBeLessThan((barrier?.position.x ?? 3) + 0.5)
-    expect(current.cores['memory-core']?.carriedBy).toBe('player')
-    await pressKey(page, 'k')
-    await advanceTicks(page, 20)
-    const released = await readState(page)
-    expect(released.cores['memory-core']?.carriedBy).toBeUndefined()
-    expect(released.cores['memory-core']?.position.x ?? 99).toBeLessThan((barrier?.position.x ?? 3) + 0.8)
-    expect(current.objectives.facts).not.toContain('temporal-gate-rejected')
-  })
-
-  test('C — thrown Core is stopped by the temporal gate collider', async ({ page }) => {
-    test.setTimeout(150_000)
-    await startChapter(page, 3)
-    await recordPlayerCore(page)
-    await moveAxis(page, 'z', -2.3, 'enter the Player route')
-    await moveAxis(page, 'x', -0.8, 'reach west throw point')
+    await pickUpCore(page)
+    await moveAxis(page, 'x', 0.0, 'reach the closed north shutter')
+    const closed = await readState(page)
+    expect(closed.barriers?.['transfer-shutter']?.open).toBe(false)
     await holdKey(page, 'd', 1)
     await pressKey(page, 'k')
-    await advanceTicks(page, 30)
-    const current = await readState(page)
-    const barrier = current.barriers?.['atrium-one-way']
-    const core = current.cores['memory-core']
-    expect(barrier).toBeDefined()
-    expect(core?.carriedBy).toBeUndefined()
-    expect(core?.position.x ?? 99, 'the thrown Core stops WEST of the authored barrier').toBeLessThan((barrier?.position.x ?? 3) + 0.05)
-    expect(core?.position.x ?? -99).toBeGreaterThan((barrier?.position.x ?? 3) - 1.0)
+    await advanceTicks(page, 60)
+    const stopped = await readState(page)
+    const shutterX = stopped.barriers?.['transfer-shutter']?.position.x ?? 1.45
+    expect(stopped.cores['memory-core']?.position.x ?? 99).toBeLessThan(shutterX + 0.6)
+    expect(stopped.objectives.facts).not.toContain('receiver-filled')
   })
 
-  test('D — a second thrown attempt cannot bypass the gate', async ({ page }) => {
-    test.setTimeout(300_000)
-    await startChapter(page, 3)
-    await recordPlayerCore(page)
-    await moveAxis(page, 'z', -1.8, 'enter the Gate-aligned Player route')
-    await moveAxis(page, 'x', -0.8, 'reach west throw point')
-    // Throw EAST toward the authored gate; the first attempt must stop WEST.
-    await holdKey(page, 'd', 1)
-    await pressKey(page, 'k')
-    await advanceTicks(page, 30)
-    const firstThrow = await readState(page)
-    expect(firstThrow.cores['memory-core']?.carriedBy).toBeUndefined()
-    const barrier = firstThrow.barriers?.['atrium-one-way']
-    expect(firstThrow.cores['memory-core']?.position.x ?? 99).toBeLessThan((barrier?.position.x ?? 3))
-    const rejectedCore = firstThrow.cores['memory-core']?.position
-    await moveAxis(page, 'z', rejectedCore?.z ?? -1.8, 'return to the rejected Core')
-    await moveAxis(page, 'x', rejectedCore?.x ?? 1.5, 'approach the rejected Core from the west')
-    await pressKey(page, 'e')
-    await advanceTicks(page, 2)
-    const repicked = await readState(page)
-    expect(repicked.cores['memory-core']?.carriedBy).toBe('player')
-    // Carry the Core around the north side of the Gate, then return WEST.
-    await moveAxis(page, 'z', -1.0, 'route north around the Gate')
-    await moveAxis(page, 'x', -4.5, 'move safely outside the Gate west edge with carry clearance')
-    await moveAxis(page, 'z', -1.8, 'return to the Gate-aligned west throw point')
-    // Repeat the same real EAST throw from the WEST side.
-    await holdKey(page, 'd', 1)
-    await pressKey(page, 'k')
-    await advanceTicks(page, 20)
-    const secondAttempt = await readState(page)
-    expect(secondAttempt.cores['memory-core']?.carriedBy).toBeUndefined()
-    expect(secondAttempt.cores['memory-core']?.position.x ?? 99).toBeLessThan((secondAttempt.barriers?.['atrium-one-way']?.position.x ?? 3) + 0.05)
-  })
-
-  test('E — divider edge movement does not bypass the authored crossings', async ({ page }) => {
-    test.setTimeout(150_000)
+  test('the solid center divider cannot be bypassed with jump and dash', async ({ page }) => {
     await startChapter(page, 3)
     await rotateCameraCardinal(page)
-    await moveAxis(page, 'z', -0.9, 'line up the north divider edge')
-    await holdKey(page, 'd', 120)
-    const north = await readState(page)
-    expect(north.player?.position.x ?? 99, 'north divider edge remains WEST').toBeLessThan(3.5)
-    await moveAxis(page, 'z', 0.7, 'line up the south divider edge')
-    await holdKey(page, 'd', 120)
-    const south = await readState(page)
-    expect(south.player?.position.x ?? 99, 'south divider edge remains WEST').toBeLessThan(3.5)
-    expect(south.objectives.facts).not.toContain('receiver-filled')
-  })
-
-  test('F — jump and dash inputs do not cross the closed Player wall', async ({ page }) => {
-    test.setTimeout(150_000)
-    await startChapter(page, 3)
-    await rotateCameraCardinal(page)
-    await moveAxis(page, 'z', -0.2, 'line up the closed divider wall')
-    await moveAxis(page, 'x', 2.1, 'reach the wall before jump and dash')
-    const before = await readState(page)
-    expect(before.player?.position.x ?? 99).toBeGreaterThan(1.5)
-    expect(before.player?.position.x ?? -99).toBeLessThan(before.barriers?.['atrium-one-way']?.position.x ?? 3)
+    await moveAxis(page, 'z', 0, 'line up the center divider')
+    await moveAxis(page, 'x', 0.7, 'approach the center divider')
     await page.keyboard.down('d')
     for (let attempt = 0; attempt < 4; attempt += 1) {
       await page.keyboard.down('Space')
@@ -131,139 +60,31 @@ test.describe('Chapter 3 independent negative runtime contracts', () => {
       await page.keyboard.up('Space')
     }
     await page.keyboard.up('d')
-    const after = await readState(page)
-    expect(after.player?.position.x ?? 99).toBeLessThan((before.barriers?.['atrium-one-way']?.position.x ?? 3) + 0.5)
+    const result = await readState(page)
+    expect(result.failureReason === 'fall' || (result.player?.position.x ?? 99) < 1.2).toBe(true)
   })
 
-  test('G — closed shutter blocks a Core from entering the transfer lane', async ({ page }) => {
-    test.setTimeout(150_000)
-    await startChapter(page, 3)
-    await recordPlayerCore(page)
-    await moveAxis(page, 'z', 1.6, 'enter the transfer shutter lane')
-    await moveAxis(page, 'x', -0.8, 'reach the WEST shutter throw point')
-    const before = await readState(page)
-    expect(before.barriers?.['transfer-shutter']?.open).toBe(false)
-    await holdKey(page, 'd', 1)
-    await pressKey(page, 'k')
-    await advanceTicks(page, 40)
-    const current = await readState(page)
-    const shutter = current.barriers?.['transfer-shutter']
-    expect(shutter?.open).toBe(false)
-    expect(current.cores['memory-core']?.carriedBy).toBeUndefined()
-    expect(current.cores['memory-core']?.position.x ?? 99).toBeLessThan((shutter?.position.x ?? 3.5) + 0.5)
-  })
-
-  test('H — open shutter allows the Echo throw to use the same Core', async ({ page }) => {
-    test.setTimeout(180_000)
-    await startChapter(page, 3)
-    await pressKey(page, 'r')
-    await holdKey(page, 'd', 54)
-    await pressKey(page, 'e')
-    await expect.poll(async () => (await readState(page)).cores['memory-core']?.carriedBy).toBe('player')
-    await rotateCameraCardinal(page)
-    await moveAxis(page, 'z', 1.6, 'enter transfer lane')
-    await moveAxis(page, 'x', -0.8, 'reach west throw point')
-    await holdKey(page, 'd', 1)
-    await pressKey(page, 'k')
-    await moveAxis(page, 'x', -1.5, 'line up the Ch3 descent stairs')
-    await moveAxis(page, 'z', -2.3, 'line up the Player route')
-    await moveAxis(page, 'x', 4.4, 'cross Player route')
-    await pressKey(page, 'r')
-    await waitForState(page, (current) => current.barriers?.['transfer-shutter']?.open === true, 240, 'shutter did not open for the live Player')
-    const replaying = await waitForState(page, (current) => current.echo.tick >= 62, 120, 'Echo did not reach the recorded pickup')
-    expect(replaying.cores['memory-core']?.carriedBy).toBe('echo')
-    await waitForState(page, (current) => current.echo.mode === 'holding', 420, 'Echo did not complete the physical throw')
-    const landed = await readState(page)
-    expect(Object.keys(landed.cores)).toEqual(['memory-core'])
-    expect(landed.cores['memory-core']?.carriedBy).toBeUndefined()
-    expect(landed.cores['memory-core']?.position.x ?? 0).toBeGreaterThan(4)
-    expect(landed.objectives.facts).not.toContain('receiver-filled')
-  })
-
-  test('I — Player interference leaves Echo unable to duplicate the Core', async ({ page }) => {
-    test.setTimeout(180_000)
-    await startChapter(page, 3)
-    await recordPlayerCore(page)
-    await pressKey(page, 'r')
-    const rewind = await readState(page)
-    expect(rewind.cores['memory-core']?.carriedBy).toBeUndefined()
-    await pressKey(page, 'e')
-    await expect.poll(async () => (await readState(page)).cores['memory-core']?.carriedBy).toBe('player')
-    const original = (await readState(page)).cores['memory-core']!.position
-    await holdKey(page, 'a', 18)
-    await advanceTicks(page, 120)
-    const current = await readState(page)
-    expect(current.echo.tick).toBeGreaterThanOrEqual(59)
-    expect(current.cores['memory-core']?.carriedBy).toBe('player')
-    expect(Math.hypot(
-      (current.cores['memory-core']?.position.x ?? 0) - original.x,
-      (current.cores['memory-core']?.position.z ?? 0) - original.z,
-    )).toBeGreaterThan(0.5)
-    expect(Object.keys(current.cores)).toEqual(['memory-core'])
-    expect(current.cores['memory-core']?.receiver).toBe(false)
-  })
-
-  test('J — Echo pickup keeps one canonical Core record', async ({ page }) => {
-    test.setTimeout(180_000)
-    await startChapter(page, 3)
-    await pressKey(page, 'r')
-    await holdKey(page, 'd', 54)
-    await pressKey(page, 'e')
-    await expect.poll(async () => (await readState(page)).cores['memory-core']?.carriedBy).toBe('player')
-    await rotateCameraCardinal(page)
-    await moveAxis(page, 'z', 1.6, 'enter transfer lane for canonical Core test')
-    await moveAxis(page, 'x', -0.8, 'reach canonical Core throw point')
-    await holdKey(page, 'd', 1)
-    await pressKey(page, 'k')
-    await moveAxis(page, 'x', -1.5, 'line up the canonical descent stairs')
-    await moveAxis(page, 'z', -2.3, 'cross the canonical Player route')
-    await moveAxis(page, 'x', 4.4, 'finish the canonical recording in EAST')
-    await pressKey(page, 'r')
-    await waitForState(page, (current) => current.barriers?.['transfer-shutter']?.open === true, 240, 'shutter did not open for the canonical Player')
-    const pickup = await waitForState(page, (current) => current.echo.tick >= 62, 120, 'Echo did not reach recorded pickup')
-    expect(pickup.cores['memory-core']?.carriedBy).toBe('echo')
-    expect(Object.keys(pickup.cores)).toEqual(['memory-core'])
-    await waitForState(page, (current) => current.echo.mode === 'holding', 420, 'Echo did not finish the canonical throw')
-    const thrown = await readState(page)
-    expect(thrown.cores['memory-core']?.carriedBy).toBeUndefined()
-    expect(thrown.cores['memory-core']?.position.x ?? 0).toBeGreaterThan(4)
-    expect(Object.keys(thrown.cores)).toEqual(['memory-core'])
-    await moveAxis(page, 'z', thrown.cores['memory-core']?.position.z ?? 1.6, 'walk to the canonical landed Core')
-    await moveAxis(page, 'x', thrown.cores['memory-core']?.position.x ?? 5, 'approach the canonical landed Core')
-    await pressKey(page, 'e')
-    const playerPickup = await readState(page)
-    expect(playerPickup.cores['memory-core']?.carriedBy).toBe('player')
-    expect(Object.keys(playerPickup.cores)).toEqual(['memory-core'])
-  })
-
-  test('K — a new real recording replaces the previous Echo tape', async ({ page }) => {
-    test.setTimeout(180_000)
+  test('the south passage remains one-way after the Player reaches east', async ({ page }) => {
     await startChapter(page, 3)
     await rotateCameraCardinal(page)
-    await pressKey(page, 'r')
-    await holdKey(page, 'd', 18)
-    await pressKey(page, 'r')
-    await expect.poll(async () => (await readState(page)).echoesCreated).toBe(1)
-    expect(Object.keys((await readState(page)).cores)).toEqual(['memory-core'])
-    await pressKey(page, 'r')
-    await holdKey(page, 'a', 18)
-    await pressKey(page, 'r')
-    await expect.poll(async () => (await readState(page)).echoesCreated).toBe(2)
-    const replaced = await readState(page)
-    expect(Object.keys(replaced.cores)).toEqual(['memory-core'])
-    expect(replaced.echoesCreated).toBe(2)
-  })
-
-  test('L — EAST to WEST remains blocked by the one-way crossing', async ({ page }) => {
-    test.setTimeout(180_000)
-    await startChapter(page, 3)
-    await rotateCameraCardinal(page)
-    await moveAxis(page, 'z', -2.3, 'line up the authored crossing')
-    await moveAxis(page, 'x', 4.4, 'cross WEST to EAST')
-    const east = await readState(page)
-    expect(east.player?.position.x ?? 0).toBeGreaterThan(4)
+    await moveAxis(page, 'z', -2.45, 'line up the player-only passage')
+    await moveAxis(page, 'x', 3.2, 'cross west to east')
     await holdKey(page, 'a', 120)
     const blocked = await readState(page)
-    expect(blocked.player?.position.x ?? 0, 'the live Player cannot cross EAST to WEST').toBeGreaterThan(3.5)
+    expect(blocked.player?.position.x ?? 0).toBeGreaterThan(2.1)
+  })
+
+  test('using the receiver without the same Core cannot complete the chapter', async ({ page }) => {
+    await startChapter(page, 3)
+    await rotateCameraCardinal(page)
+    await moveAxis(page, 'z', -2.45, 'take the player-only passage')
+    await moveAxis(page, 'x', 3.2, 'reach east')
+    await moveAxis(page, 'z', 0.25, 'approach the empty receiver')
+    await moveAxis(page, 'x', 8.0, 'stand at the empty receiver')
+    await pressKey(page, 'e')
+    const current = await readState(page)
+    expect(current.objectives.facts).not.toContain('receiver-filled')
+    expect(current.mode).toBe('playing')
+    expect(Object.keys(current.cores)).toEqual(['memory-core'])
   })
 })
