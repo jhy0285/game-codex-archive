@@ -249,3 +249,4 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 - [x] Add a pulsing target ring, low beacon, and light to the spike bed; update Korean/English copy to teach its knockback purpose.
 - [x] Restore target-lock state through recording snapshots and cover patrol reversal, Echo lure hold, warning/contact failure, trap resolution, and rewind with targeted tests.
 - [x] Pass 64 targeted Vitest checks, strict production build, Chapter 4 desktop completion, and Chapter 4 touch-only completion before isolated playtest deployment.
+- [x] Deploy production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT` to the isolated playtest project and verify the stable public alias, mobile smoke, runtime assets, clean console, and absent production debug API.

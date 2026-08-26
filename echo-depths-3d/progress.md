@@ -175,6 +175,7 @@ Production deployment `dpl_8AkqppynEF8urDfsXD6VSLuPfubD` is Ready at `https://ec
 - A real visible Echo locks attention and draws the Watcher to the spike edge. The Watcher stops there facing the Echo, creating a stable high/rear knockback window without destroying the Echo.
 - The spike bed is the Chapter 4 finisher, not decoration: a pulsing ring/beacon/light marks it, only a knocked Watcher intersection opens the gallery, and bilingual objectives explain the action.
 - Local evidence passes: 64 targeted unit checks, strict build, desktop Chapter 4 completion 1/1, touch-only Chapter 4 completion 1/1, and direct desktop render/console inspection.
+- Pushed source `65bcbfe25a17e29dd0c6c5bc974f30731b18c4ef` and deployed isolated Vercel production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT`. The stable playtest alias serves the new bundle and passes public gameplay, localization, mobile, fullscreen, runtime-asset, console, and production-debug checks.
 
 
 

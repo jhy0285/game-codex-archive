@@ -292,5 +292,7 @@ Player detection is now readable warning and pursuit: after the short alert the 
 
 The trap gained a pulsing red target ring, translucent beacon, and local light. Korean/English objectives now state that the Watcher must be knocked into the spikes. Target commitment is snapshot-restored so recording rewind remains deterministic. Targeted Vitest, strict build, desktop completion, touch-only completion, and local visual/console checks pass.
 
+Source commit `65bcbfe25a17e29dd0c6c5bc974f30731b18c4ef` was pushed to `origin/feat/ch3-ch5-level-design-rebuild`. The verified static bundle was deployed as isolated Vercel production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT` and aliased to `https://echo-depths-playtest.vercel.app`. The public alias serves the new bundle, Chapter 4 renders on desktop, the production smoke set passes after using the workstation system CA for the asset request, console/page errors are empty, and the development debug API is absent.
+
 
 
