@@ -252,7 +252,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       bridge: ['IndustrialPlatformDeck', 'IndustrialPlatformInset', 'IndustrialPlatformRails', 'IndustrialPlatformBeacons'],
       crate: ['CargoShell', 'CargoCornerBraces', 'CargoBands', 'CargoSeal'],
       core: ['CoreCrystal', 'CoreEquator', 'CoreHalo', 'CoreLight'],
-      trap: ['TrapHousing', 'TrapWarningRails', 'TrapSpikes'],
+      trap: ['TrapHousing', 'TrapWarningRails', 'TrapSpikes', 'TrapTargetRing', 'TrapLureBeacon', 'TrapTargetLight'],
       exit: ['ExitPlinth', 'ExitTransitArch', 'ExitBeam', 'ExitBeacons'],
       receiver: ['ReceiverCradle', 'ReceiverRing', 'ReceiverProngs', 'ReceiverBeam'],
       enemy: ['SentryBase', 'SentryShell', 'SentryEye', 'SentryHalo', 'SentryFins', 'SightCone'],
@@ -624,6 +624,71 @@ describe('DungeonWorld authored runtime contracts', () => {
     }
   })
 
+  it('patrols both directions instead of behaving like a stationary trigger', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const positions: number[] = []
+      for (let tick = 1; tick <= 260; tick += 1) {
+        stepWorld(world, physics, tick, [])
+        const x = world.debugState().enemies.watcher?.position.x
+        if (x !== undefined) positions.push(x)
+      }
+      const minimum = Math.min(...positions)
+      const maximum = Math.max(...positions)
+      const minimumIndex = positions.indexOf(minimum)
+      const returnMaximum = Math.max(...positions.slice(minimumIndex))
+      expect(maximum - minimum).toBeGreaterThan(1.5)
+      expect(returnMaximum - minimum).toBeGreaterThan(1.4)
+      expect(world.debugState().enemies.watcher?.state).toBe('patrol')
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('holds at the spike edge while pursuing the real Echo lure', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const echo = actor('echo', 'echo', [-1.9, 0.72, 3.0])
+      for (let tick = 1; tick <= 90; tick += 1) stepWorld(world, physics, tick, [echo])
+
+      const watcher = world.debugState().enemies.watcher
+      const trap = CHAPTER_LAYOUTS[4].devices.find((device) => device.id === 'spike-trap')
+      if (!watcher || !trap) throw new Error('Watcher lure geometry is missing')
+      const trapDistance = Math.hypot(watcher.position.x - trap.position[0], watcher.position.z - trap.position[2])
+      expect(watcher).toMatchObject({ state: 'lure-hold', target: 'echo', targetVisible: true, defeated: false })
+      expect(trapDistance).toBeGreaterThan(0.75)
+      expect(trapDistance).toBeLessThan(1.15)
+      expect(world.failed).toBe(false)
+      expect(world.debugState().facts).toContain('lured-by-echo')
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('uses sight as warning and fails Chapter 4 only when the Watcher catches the Player', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const player = actor('player', 'player', [-1.9, 3.2, 3.0])
+      for (let tick = 1; tick <= 150; tick += 1) stepWorld(world, physics, tick, [player])
+
+      const warned = world.debugState().enemies.watcher
+      expect(warned?.target).toBe('player')
+      expect(warned?.detection).toBe(1)
+      expect(world.failed).toBe(false)
+
+      if (!warned) throw new Error('Watcher state is missing')
+      player.position.set(warned.position.x, warned.position.y, warned.position.z)
+      stepWorld(world, physics, 151, [player])
+      expect(world.failed).toBe(true)
+      expect(world.failureReason).toBe('seen')
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
   it('restores every mutable attention field with the recording snapshot', async () => {
     const { physics, world } = await createWorld(4)
     try {
@@ -643,6 +708,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       const restored = world.captureSnapshot()
       expect(restored).toMatchObject({
         enemyTargetVisible: snapshot.enemyTargetVisible,
+        enemyTargetLockTicks: snapshot.enemyTargetLockTicks,
         enemyLastKnown: snapshot.enemyLastKnown,
         enemyAlertTicks: snapshot.enemyAlertTicks,
         enemySearchTicks: snapshot.enemySearchTicks,

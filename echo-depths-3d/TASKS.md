@@ -239,3 +239,13 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 - [x] Show a pulsing sensor/ring and a red target beam only when the existing FOV, Rapier LOS, and target-selection logic has actually acquired Player or Echo.
 - [x] Pass targeted unit tests, strict production build, the real Chapter 4 completion story, and desktop/mobile browser inspection before production deployment.
 - [x] Deploy the verified static bundle to the isolated `echo-depths-playtest` Vercel production project and smoke the stable public alias.
+
+## 2026-08-26 — Chapter 4 Watcher pursuit and spike-trap purpose
+
+- [x] Fix the moving-platform loop that reset enemy patrol endpoints every frame, and move the Watcher's west patrol endpoint/line clear of the center cover and spike bed.
+- [x] Make Chapter 4 sight a warning state, accelerate a real Player pursuit, and fail only on close physical catch rather than a filled remote sight meter.
+- [x] Keep the current visible target stable briefly; have a real visible Echo draw the Watcher to a safe standoff at the spike edge without consuming or defeating the Echo.
+- [x] Preserve the existing high/rear Player-only strike and require the knocked Watcher to intersect the physical spike sensor before opening the door.
+- [x] Add a pulsing target ring, low beacon, and light to the spike bed; update Korean/English copy to teach its knockback purpose.
+- [x] Restore target-lock state through recording snapshots and cover patrol reversal, Echo lure hold, warning/contact failure, trap resolution, and rewind with targeted tests.
+- [x] Pass 64 targeted Vitest checks, strict production build, Chapter 4 desktop completion, and Chapter 4 touch-only completion before isolated playtest deployment.

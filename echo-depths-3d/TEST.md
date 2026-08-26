@@ -284,3 +284,12 @@ The automated evidence does not establish physical-phone ergonomics, unaided fir
 - Local production-bundle visual review: PASS at desktop and `844x390`; the KayKit hooded Watcher, animated patrol, ground range sector, sensor marker, HUD, and touch controls render visibly. Portrait `390x844` correctly shows rotate guidance. `agent-browser errors` and `agent-browser console` were empty.
 - The initial Playwright invocation was an infrastructure-only failure because the inherited `PLAYWRIGHT_BASE_URL` pointed to a production build with no development debug API. Clearing that variable started the configured development server and the same Chapter 4 story passed.
 - Vercel production `dpl_8AkqppynEF8urDfsXD6VSLuPfubD`: READY. The stable alias, manifest, and `Rogue_Hooded.glb` returned HTTP 200; the model response length is 381,432 bytes. Public Chapter 4 desktop/mobile captures show the hooded Watcher and sight boundary; page errors and console logs are empty; `window.echoDepthsDebug` is `undefined`.
+
+## 2026-08-26 — Chapter 4 pursuit/trap targeted evidence
+
+- `npm test -- src/world/DungeonWorld.test.ts src/levels/layouts.test.ts src/game/i18n.test.ts src/ui/i18n.test.ts`: PASS, 4 files / 64 tests. New coverage proves a real two-way patrol, Echo acquisition and trap-edge hold, a saturated warning meter without remote failure, Player catch failure on contact, snapshot target-lock restoration, and the existing physical knock-into-trap clear.
+- `npm run build`: PASS. TypeScript and the production Vite bundle complete; the pre-existing large Three.js bundle warning remains non-fatal.
+- Local Chapter 4 desktop completion: PASS, 1/1 in 46.8 seconds. The real bell, cover, no-jump ramp, high rear strike, spike intersection, door, and exit route remain completable.
+- Local Chapter 4 touch-only completion: PASS, 1/1 in 1.6 minutes.
+- Local browser inspection: PASS. Separate frames show the hooded Watcher at different points of the south patrol line, visibly separated from the spike bed; the spike ring/beacon/light are readable and the browser console contains no fatal errors.
+- The first two Playwright attempts did not exercise local gameplay because the machine-level `PLAYWRIGHT_BASE_URL` pointed at a production build without the development-only debug API. Explicitly selecting the E2E-enabled local server resolved the environment mismatch; both desktop and touch completion stories then passed.

@@ -227,7 +227,7 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
     ],
     devices: [
       { id: 'lure-bell', kind: 'lever', position: [-1.9, 0.72, 3.0] },
-      { id: 'watcher', kind: 'enemy', position: [2.2, 0.98, 0.45], size: [0.48, 0.85, 0.48], to: [-0.4, 0.98, 0.45] },
+      { id: 'watcher', kind: 'enemy', position: [2.2, 0.98, -0.45], size: [0.48, 0.85, 0.48], to: [0.25, 0.98, -0.45] },
       { id: 'spike-trap', kind: 'trap', position: [1.1, 0.52, 1.15], size: [0.7, 0.2, 0.7] },
       { id: 'gallery-door', kind: 'door', position: [7.75, 2.4, -0.7], size: [0.32, 2.0, 1.2] },
       { id: 'exit', kind: 'exit', position: [8.35, 1.08, -2.55] },

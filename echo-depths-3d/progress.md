@@ -168,5 +168,13 @@ The Chapter 4 Watcher is now the hooded Rogue from the same official KayKit Adve
 
 Production deployment `dpl_8AkqppynEF8urDfsXD6VSLuPfubD` is Ready at `https://echo-depths-playtest.vercel.app`. The stable alias and new model return HTTP 200, desktop/mobile Chapter 4 renders pass, production debug API is absent, and the browser error/console collectors are empty.
 
+## 2026-08-26 — Chapter 4 Watcher pursuit and trap clarity
+
+- Corrected the generic platform updater so enemy `to` patrol endpoints are no longer interpreted as moving-platform transforms and reset every frame.
+- The Watcher now visibly patrols both directions on a line separated from the spike bed, gives a short warning, chases the Player at a fair sub-player speed, and kills only on real contact.
+- A real visible Echo locks attention and draws the Watcher to the spike edge. The Watcher stops there facing the Echo, creating a stable high/rear knockback window without destroying the Echo.
+- The spike bed is the Chapter 4 finisher, not decoration: a pulsing ring/beacon/light marks it, only a knocked Watcher intersection opens the gallery, and bilingual objectives explain the action.
+- Local evidence passes: 64 targeted unit checks, strict build, desktop Chapter 4 completion 1/1, touch-only Chapter 4 completion 1/1, and direct desktop render/console inspection.
+
 
 

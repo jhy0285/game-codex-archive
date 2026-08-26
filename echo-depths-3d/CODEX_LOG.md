@@ -284,5 +284,13 @@ Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLA
 - Targeted Vitest 55/55, strict build, real Chapter 4 completion 1/1, and desktop/mobile local visual/error review pass.
 - Pushed source commit `d8623493c31270438ed3685f364ea238c220e2f6` to `origin/feat/ch3-ch5-level-design-rebuild`, deployed the verified bundle as Vercel production `dpl_8AkqppynEF8urDfsXD6VSLuPfubD`, and verified `https://echo-depths-playtest.vercel.app` on desktop and mobile landscape with no page/console errors or production debug API.
 
+## 2026-08-26 — Chapter 4 pursuit and spike-trap gameplay pass
+
+The Watcher now performs the authored east/west patrol instead of being reset to its starting transform by the generic moving-platform loop. Its patrol line sits south of the spike bed, so the character does not appear to stroll harmlessly across the intended kill device.
+
+Player detection is now readable warning and pursuit: after the short alert the Watcher runs toward the present Player, and failure occurs only when horizontal and vertical catch volumes overlap. A visible Echo remains the stable lure. The Watcher pursues it to a computed standoff on the near side of the physical spike trap, faces the Echo, and holds an attack pose; it neither consumes the Echo nor steps voluntarily into the kill zone. The existing Player-only high/rear strike and knocked-body trap intersection still own the clear.
+
+The trap gained a pulsing red target ring, translucent beacon, and local light. Korean/English objectives now state that the Watcher must be knocked into the spikes. Target commitment is snapshot-restored so recording rewind remains deterministic. Targeted Vitest, strict build, desktop completion, touch-only completion, and local visual/console checks pass.
+
 
 

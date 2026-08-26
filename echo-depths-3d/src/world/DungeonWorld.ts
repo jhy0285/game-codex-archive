@@ -118,6 +118,7 @@ export type DungeonWorldSnapshot = {
   enemyKnock: Vec3
   enemyDetection: number
   enemyTargetVisible: boolean
+  enemyTargetLockTicks: number
   enemyLastKnown: Vec3
   enemyAlertTicks: number
   enemySearchTicks: number
@@ -157,6 +158,12 @@ const ENEMY_ALERT_TICKS = 18
 const ENEMY_SEARCH_TICKS = 150
 const ENEMY_RECOVERY_TICKS = 72
 const ENEMY_STIMULUS_TICKS = 180
+const WATCHER_TARGET_LOCK_TICKS = 120
+const WATCHER_CHASE_SPEED = 0.041
+const WATCHER_ECHO_LURE_SPEED = 0.032
+const WATCHER_CONTACT_DISTANCE = 1.12
+const WATCHER_CONTACT_VERTICAL_DELTA = 1.15
+const WATCHER_TRAP_STANDOFF = 0.95
 const WATCHER_REAR_DOT_MAX = -0.25
 const GUARDIAN_REAR_DOT_MAX = -0.45
 
@@ -194,6 +201,7 @@ export class DungeonWorld {
   private enemyKnock = new THREE.Vector3()
   private enemyDetection = 0
   private enemyTargetVisible = false
+  private enemyTargetLockTicks = 0
   private readonly enemyLastKnown = new THREE.Vector3()
   private enemyAlertTicks = 0
   private enemySearchTicks = 0
@@ -641,6 +649,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       enemyKnock: this.vec(this.enemyKnock),
       enemyDetection: this.enemyDetection,
       enemyTargetVisible: this.enemyTargetVisible,
+      enemyTargetLockTicks: this.enemyTargetLockTicks,
       enemyLastKnown: this.vec(this.enemyLastKnown),
       enemyAlertTicks: this.enemyAlertTicks,
       enemySearchTicks: this.enemySearchTicks,
@@ -668,6 +677,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     this.enemyKnock.set(snapshot.enemyKnock.x, snapshot.enemyKnock.y, snapshot.enemyKnock.z)
     this.enemyDetection = snapshot.enemyDetection
     this.enemyTargetVisible = snapshot.enemyTargetVisible
+    this.enemyTargetLockTicks = snapshot.enemyTargetLockTicks
     this.enemyLastKnown.set(snapshot.enemyLastKnown.x, snapshot.enemyLastKnown.y, snapshot.enemyLastKnown.z)
     this.enemyAlertTicks = snapshot.enemyAlertTicks
     this.enemySearchTicks = snapshot.enemySearchTicks
@@ -770,6 +780,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (this.enemyTarget === actor) {
       this.enemyTarget = undefined
       this.enemyTargetVisible = false
+      this.enemyTargetLockTicks = 0
       if (!this.enemyDefeated) this.enemyState = 'patrol'
       this.enemyDetection = 0
     }
@@ -1366,7 +1377,23 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         spikes.setMatrixAt(i, spikeMatrix)
       }
       spikes.instanceMatrix.needsUpdate = true
-      root.add(housing, warnings, spikes)
+      const targetRing = new THREE.Mesh(
+        this.geometry(new THREE.TorusGeometry(size[0] * 1.22, 0.055, 8, 32)),
+        this.material(0xe95757, 0.24, 0.18, 0xe95757, 0.82),
+      )
+      targetRing.name = 'TrapTargetRing'
+      targetRing.position.y = 0.19
+      targetRing.rotation.x = Math.PI / 2
+      const lureBeacon = new THREE.Mesh(
+        this.geometry(new THREE.CylinderGeometry(0.1, size[0] * 0.5, 1.35, 18, 1, true)),
+        this.material(0xe95757, 0.32, 0.08, 0xe95757, 0.14),
+      )
+      lureBeacon.name = 'TrapLureBeacon'
+      lureBeacon.position.y = 0.82
+      const trapLight = new THREE.PointLight(0xe95757, 1.3, 4.5)
+      trapLight.name = 'TrapTargetLight'
+      trapLight.position.y = 0.75
+      root.add(housing, warnings, spikes, targetRing, lureBeacon, trapLight)
       body = this.physics.createSensor(definition.id, 'trap', this.vec(position), { x: size[0], y: 0.65, z: size[2] })
     } else if (definition.kind === 'exit') {
       root = new THREE.Group()
@@ -1562,6 +1589,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     for (const device of this.devices.values()) {
       const { definition } = device
       if (!definition.to || !device.body) continue
+      // Enemy patrol endpoints also use `to`; only authored moving surfaces
+      // belong in this platform reset/interpolation loop.
+      if (definition.kind !== 'elevator' && definition.kind !== 'platform') continue
       let amount = 0
       if (definition.kind === 'elevator') {
         const powered = this.chapter === 2
@@ -2031,8 +2061,13 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       ...(player && seesPlayer ? [player] : []),
     ]
     const retainedTarget = visibleActors.find((actor) => actor.kind === this.enemyTarget)
-    const visibleTarget = retainedTarget ?? visibleActors
-      .sort((a, b) => a.position.distanceToSquared(enemy.root.position) - b.position.distanceToSquared(enemy.root.position))[0]
+    const targetLockActive = this.chapter === 4
+      && this.enemyTarget !== undefined
+      && this.enemyTargetLockTicks > 0
+    const visibleTarget = retainedTarget ?? (targetLockActive
+      ? undefined
+      : visibleActors
+          .sort((a, b) => a.position.distanceToSquared(enemy.root.position) - b.position.distanceToSquared(enemy.root.position))[0])
 
     if (visibleTarget) {
       const changedTarget = this.enemyTarget !== visibleTarget.kind
@@ -2042,6 +2077,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.enemySearchTicks = ENEMY_SEARCH_TICKS
       this.enemyRecoveryTicks = 0
       this.enemyStimulusTicks = 0
+      if (this.chapter === 4) this.enemyTargetLockTicks = WATCHER_TARGET_LOCK_TICKS
       if (changedTarget || ['patrol', 'investigate', 'recovery'].includes(this.enemyState)) {
         this.enemyAlertTicks = ENEMY_ALERT_TICKS
       }
@@ -2055,18 +2091,17 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         this.facts.add(this.chapter === 5 ? 'guardian-target-echo' : 'lured-by-echo')
         this.enemyDetection = Math.max(0, this.enemyDetection - 1 / 45)
       } else if (this.chapter === 4) {
-        this.enemyDetection = Math.min(1, this.enemyDetection + 1 / 120)
-        if (this.enemyDetection >= 1) {
-          this.failed = true
-          this.failureReason = 'seen'
-        }
+        // Detection is a readable warning meter. Failure now requires the
+        // Watcher to physically catch the present Player, never remote damage.
+        this.enemyDetection = Math.min(1, this.enemyDetection + 1 / 75)
       }
     } else {
       const hadTarget = this.enemyTarget !== undefined
-      this.enemyTarget = undefined
       this.enemyTargetVisible = false
       this.enemyAlertTicks = 0
       this.enemyDetection = Math.max(0, this.enemyDetection - 1 / 180)
+      if (this.enemyTargetLockTicks > 0) this.enemyTargetLockTicks -= 1
+      else this.enemyTarget = undefined
       if (this.enemyStimulusTicks > 0) {
         this.enemyStimulusTicks -= 1
         this.enemyLastKnown.copy(this.enemyStimulusPosition)
@@ -2092,11 +2127,34 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const distance = direction.length()
       this.faceEnemy(enemy, direction)
       if (this.enemyState === 'chase' && distance > 0.75) {
-        this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.008 : 0.006))
+        if (this.chapter === 4 && visibleTarget.kind === 'echo') {
+          const lurePosition = this.watcherLurePosition(visibleTarget.position)
+          const lureDirection = lurePosition.sub(enemy.root.position).setY(0)
+          if (lureDirection.length() > 0.18) {
+            this.moveEnemy(enemy, lureDirection.normalize().multiplyScalar(WATCHER_ECHO_LURE_SPEED))
+          } else {
+            // The Watcher wants the Echo, but will not voluntarily step onto
+            // the spikes. This is the stable rear-strike window for the Player.
+            this.enemyState = 'lure-hold'
+          }
+        } else {
+          const speed = this.chapter === 5 ? 0.008 : WATCHER_CHASE_SPEED
+          this.moveEnemy(enemy, direction.normalize().multiplyScalar(speed))
+        }
       }
       if (this.chapter === 5 && visibleTarget.kind === 'player' && this.enemyState === 'chase' && distance < 1.25) {
         this.failed = true
         this.failureReason = 'guardian'
+      }
+      if (
+        this.chapter === 4
+        && visibleTarget.kind === 'player'
+        && this.enemyState === 'chase'
+        && distance < WATCHER_CONTACT_DISTANCE
+        && Math.abs(visibleTarget.position.y - enemy.root.position.y) < WATCHER_CONTACT_VERTICAL_DELTA
+      ) {
+        this.failed = true
+        this.failureReason = 'seen'
       }
     } else if (this.enemyState === 'investigate') {
       const direction = this.enemyLastKnown.clone().sub(enemy.root.position).setY(0)
@@ -2152,14 +2210,18 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.enemyDefeated = true
       this.enemyState = 'trapped'
       this.enemyTargetVisible = false
+      this.enemyTargetLockTicks = 0
       this.facts.add('watcher-trapped')
       this.spawnWave(trap.root.position, 0xe95757)
     }
-    // 시각: 트랩은 항상 위험 표시 (dim red), enemy가 위에 있으면 더 밝게 (빨간 위험 경고)
+    // The beacon makes the spikes read as the intended knockback target.
+    // It intensifies while the Watcher is committed at the trap edge.
     const redColor = 0xe95757
-    const targetHousing = hasEnemy ? 1.6 : 0.35
-    const targetRails = hasEnemy ? 2.4 : 0.7
-    const targetSpikes = hasEnemy ? 2.6 : 0.9
+    const watcherCommitted = hasEnemy || this.enemyState === 'lure-hold'
+    const pulse = 1 + Math.sin(this.currentTick * 0.2) * 0.18
+    const targetHousing = watcherCommitted ? 1.6 * pulse : 0.35
+    const targetRails = watcherCommitted ? 2.4 * pulse : 0.7
+    const targetSpikes = watcherCommitted ? 2.6 * pulse : 0.9
     const housing = trap.root.getObjectByName('TrapHousing')
     if (housing instanceof THREE.Mesh && housing.material instanceof THREE.MeshStandardMaterial) {
       housing.material.emissive.setHex(redColor)
@@ -2174,6 +2236,22 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (spikes instanceof THREE.Mesh && spikes.material instanceof THREE.MeshStandardMaterial) {
       spikes.material.emissive.setHex(redColor)
       this.setEmissiveIntensity(spikes, targetSpikes)
+    }
+    const targetRing = trap.root.getObjectByName('TrapTargetRing')
+    if (targetRing instanceof THREE.Mesh && targetRing.material instanceof THREE.MeshStandardMaterial) {
+      targetRing.material.emissive.setHex(redColor)
+      targetRing.material.emissiveIntensity = watcherCommitted ? 3.4 * pulse : 1.45 * pulse
+      targetRing.scale.setScalar(watcherCommitted ? 1.05 + 0.06 * Math.sin(this.currentTick * 0.2) : 1)
+    }
+    const lureBeacon = trap.root.getObjectByName('TrapLureBeacon')
+    if (lureBeacon instanceof THREE.Mesh && lureBeacon.material instanceof THREE.MeshStandardMaterial) {
+      lureBeacon.material.emissive.setHex(redColor)
+      lureBeacon.material.emissiveIntensity = watcherCommitted ? 2.6 * pulse : 0.8
+      lureBeacon.material.opacity = this.enemyDefeated ? 0.03 : watcherCommitted ? 0.28 : 0.1
+    }
+    const trapLight = trap.root.getObjectByName('TrapTargetLight')
+    if (trapLight instanceof THREE.PointLight) {
+      trapLight.intensity = this.enemyDefeated ? 0.25 : watcherCommitted ? 3.3 * pulse : 1.1
     }
   }
 
@@ -2551,6 +2629,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     let animation: CharacterState = 'Idle'
     if (defeated) animation = 'Defeat'
     else if (this.enemyState === 'knocked') animation = 'Hit'
+    else if (this.enemyState === 'lure-hold') animation = 'Attack'
     else if (this.enemyState === 'chase') animation = 'Run'
     else if (['patrol', 'investigate', 'recovery'].includes(this.enemyState)) animation = 'Walk'
     if (this.enemyAnimator && (this.enemyAnimator.state() !== animation || animation === 'Walk' || animation === 'Run')) {
@@ -2562,6 +2641,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (direction.lengthSq() <= 0.0001) return
     this.enemyForward.copy(direction).setY(0).normalize()
     enemy.root.rotation.y = Math.atan2(this.enemyForward.x, this.enemyForward.z)
+  }
+
+  private watcherLurePosition(echoPosition: THREE.Vector3): THREE.Vector3 {
+    const trap = this.devices.get('spike-trap')
+    if (!trap) return echoPosition.clone()
+    const awayFromEcho = trap.root.position.clone().sub(echoPosition).setY(0)
+    if (awayFromEcho.lengthSq() <= 0.0001) awayFromEcho.copy(this.enemyForward).multiplyScalar(-1)
+    return trap.root.position.clone().add(awayFromEcho.normalize().multiplyScalar(WATCHER_TRAP_STANDOFF))
   }
 
   private moveEnemy(enemy: DeviceRecord, displacement: THREE.Vector3): void {
