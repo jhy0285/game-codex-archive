@@ -842,6 +842,12 @@ describe('DungeonWorld authored runtime contracts', () => {
       stepWorld(world, physics, attentionTick, [player, echo])
       stepWorld(world, physics, attentionTick + 1, [player, echo])
       stepWorld(world, physics, attentionTick + 2, [player, echo])
+      expect(world.debugState().facts).toContain('dual-seal')
+      expect(world.debugState().facts).not.toContain('final-door-opened')
+      expect(world.debugState().escapeSeconds).toBe(0)
+      for (let tick = attentionTick + 3; tick <= attentionTick + 30; tick += 1) {
+        stepWorld(world, physics, tick, [player, echo])
+      }
 
       const opened = world.debugState()
       expect(opened.facts).toEqual(expect.arrayContaining([
@@ -849,6 +855,14 @@ describe('DungeonWorld authored runtime contracts', () => {
       ]))
       expect(opened.doors['final-door']?.open).toBe(true)
       expect(opened.escapeSeconds).toBeGreaterThan(0)
+      const openedSnapshot = world.captureSnapshot()
+      for (let tick = attentionTick + 31; tick <= attentionTick + 1_000; tick += 1) {
+        stepWorld(world, physics, tick, [player, echo])
+      }
+      expect(world.debugState().escapeSeconds).toBe(0)
+      expect(world.debugState().doors['final-door']?.open).toBe(false)
+      world.restoreSnapshot(openedSnapshot, false)
+      stepWorld(world, physics, attentionTick + 31, [player, echo])
       player.position.set(8.25, 3.78, 2.65)
       expect(world.interact(player)).toBe('exit')
       world.afterPhysics([player, echo])

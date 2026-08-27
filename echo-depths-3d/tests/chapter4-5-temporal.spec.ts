@@ -157,6 +157,7 @@ test.describe('Chapters 4 and 5 temporal mastery', () => {
     expect(received.objectives.facts).not.toContain('core-thrown-down')
     await attachSuccessScreenshot(page, testInfo, 'chapter-5-desktop-receiver-powered')
 
+    await moveAxis(page, 'x', 5.75, 'clear the occupied receiver')
     await moveAxis(page, 'z', -2.65, 'reach the powered platform lane')
     await moveAxis(page, 'x', 4.15, 'wait at the single moving platform')
     await waitForState(page, (current) => (current.elevators?.['well-platform']?.y ?? 99) < 0.9, 720, 'the platform did not return low')

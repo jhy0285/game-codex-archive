@@ -2,6 +2,15 @@
 
 All entries use Asia/Seoul dates.
 
+## 2026-08-27 — Chapter 5 safety, readability, and physical-open timing
+
+- Audited the canonical one-recording Chapter 5 route on desktop and touch. Kept the lower Player and Echo/Core lanes physically separated while widening the powered-platform landing, Guardian flank seam, boarding apron, and timed final bridge.
+- Removed an overlapping solid upper-pillar prop, moved the remaining corner pillars outward, and split tall north/south/east camera-facing walls into lower containment and upper route parapets.
+- Changed `final-door` from an overhead lift to a lateral east-side retraction. `final-door-opened` and the 15-second escape now begin only after the live collider has cleared the passage.
+- Added structural overlap/separation assertions and a world regression proving the dual seal alone does not prematurely open the door or consume escape time.
+- Corrected the desktop/touch canonical route to sidestep the occupied physical receiver before entering the platform lane, and changed the Vite Playwright server arguments to unambiguous `--host=` / `--port=` syntax.
+- `npm ci` found 0 vulnerabilities; Vitest passed 143/143 across 18 files; production build passed. The complete browser run passed 19 unaffected cases and exposed only the straight-line receiver collision; the corrected Chapter 5 desktop/touch pair then passed 2/2, with final captures visually inspected.
+
 ## 2026-08-14 — Repository intake
 
 - Read the repository-root agent instructions and migration, project-index, machine-setup, and deployment records.

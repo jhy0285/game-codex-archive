@@ -226,6 +226,7 @@ test.describe('Chapters 4 and 5 mobile touch walkthroughs', () => {
     await tapAction(page, 'interact')
     await waitForState(page, (current) => current.cores['paradox-core']?.receiver === true, 240, 'touch same Core did not power receiver')
 
+    await moveTouchAxis(page, 'x', 5.75, 'touch clear the occupied receiver')
     await moveTouchAxis(page, 'z', -2.65, 'touch platform lane')
     await moveTouchAxis(page, 'x', 4.15, 'touch platform dock wait')
     await waitForState(page, (current) => (current.elevators?.['well-platform']?.y ?? 99) < 0.9, 900, 'touch platform did not dock')

@@ -1,8 +1,12 @@
 # ECHO DEPTHS Progress
 
-Snapshot: 2026-08-25, Asia/Seoul.
+Snapshot: 2026-08-27, Asia/Seoul.
 
 ## Current state
+
+Chapter 5 now has controller-safe physical overlap from the powered platform to the upper floor, across the Guardian flank seam, and along the final bridge and lower boarding apron. These changes do not fill the center void or connect the separate lower Player and Echo/Core transfer lanes. Camera-facing outer walls are split into lower containment and upper parapets, the doubled upper pillar is gone, and the final door retracts laterally instead of remaining overhead in the quarter-view camera. Its open fact and full 15-second escape begin only after the collider is physically clear.
+
+Local acceptance is current: `npm ci` reports 0 vulnerabilities, Vitest passes 143/143 across 18 files, and the 38-module production build passes. A complete 20-case Playwright run passed 19 cases and identified one touch automation route attempting to walk straight through the occupied receiver; after adding the real west-side sidestep, the affected Chapter 5 desktop and touch routes passed 2/2 in 7.5 minutes. Final upper-flank and open-door captures were inspected.
 
 The Chapter 3–5 level-design rebuild is complete on `feat/ch3-ch5-level-design-rebuild`, based directly on `origin/main` at `410366f88ff3b935dc3137c161e886e3af523357`. Chapter 3 is now a flat, legible WEST/EAST split with separate Player and Core lanes, a real east-triggered transfer shutter, and a protected catch basin. Chapter 4 is an articulated surveillance gallery with safe entry, LOS cover, a zero-jump walkable ramp, high rear flank, physical trap, and exit. Chapter 5 now uses one recording, one physical Core, one transfer, one powered platform, and one continuous Echo timeline from Core duty to the lower seal before the present Player completes the upper flank and live dual seal.
 

@@ -1,8 +1,16 @@
 # ECHO DEPTHS Delivery Ledger
 
-Snapshot: 2026-08-25, Asia/Seoul.
+Snapshot: 2026-08-27, Asia/Seoul.
 
 This ledger separates implementation present in the source tree from verification, external release, and human judgment. A source-complete row does not by itself mean the game is production-released.
+
+## Current Chapter 5 stabilization
+
+- [x] Widen the platform landing, Guardian flank overlap, boarding apron, and final bridge without connecting the lower Player and Echo/Core lanes.
+- [x] Remove the doubled upper pillar and replace camera-blocking north/south/east outer walls with lower containment plus route-local upper parapets.
+- [x] Slide the final door out of the camera, delay logical-open state and the escape timer until its collider clears, and preserve the latched live dual-seal condition.
+- [x] Keep the occupied receiver physical and route desktop/touch walkthroughs around it before entering the platform lane.
+- [x] Pass `npm ci`, 143/143 Vitest checks, production build, 19 unaffected full-suite Playwright cases, and corrected Chapter 5 desktop/touch 2/2 reruns.
 
 ## Implementation present
 

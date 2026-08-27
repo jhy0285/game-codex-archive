@@ -1,6 +1,6 @@
 # ECHO DEPTHS — Delivery Plan
 
-Status: Chapter 3–5 level-design and camera rebuild implemented on 2026-08-25 (Asia/Seoul) on `feat/ch3-ch5-level-design-rebuild`, based directly on `origin/main` at `410366f88ff3b935dc3137c161e886e3af523357`.
+Status: Chapter 3–5 rebuild is on `main`; the 2026-08-27 Chapter 5 stabilization widens only the canonical upper/boarding route, preserves the separated lower lanes, removes camera-blocking geometry, and synchronizes the final door's physical clearance with the 15-second escape.
 
 ## Product contract
 

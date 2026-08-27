@@ -1,14 +1,16 @@
 # ECHO DEPTHS Verification Record
 
-Snapshot: 2026-08-25, Asia/Seoul.
+Snapshot: 2026-08-27, Asia/Seoul.
 
 ## Current result
 
 | Layer | Command or method | Result |
 | --- | --- | --- |
 | Strict TypeScript | `npx tsc --noEmit` / build compiler | PASS |
-| Production bundle | `npm run build` | PASS — 38 modules; JS 3,674.91 kB, CSS 22.71 kB; existing large-chunk warning remains non-fatal |
-| Unit, pure-rule, state, and physics regression tests | `npm test -- --run` | PASS — 18 files, 142 tests |
+| Production bundle | `npm run build` | PASS — 38 modules; JS 3,675.40 kB, CSS 22.71 kB; existing large-chunk warning remains non-fatal |
+| Unit, pure-rule, state, and physics regression tests | `npm test -- --run` | PASS — 18 files, 143 tests |
+| Complete development browser regression | `npm run test:e2e` against a fixed loopback Vite server | 19 unaffected cases passed in the complete 20-case run; the sole touch Chapter 5 failure was a straight-line receiver collision, not a game failure. After adding the canonical west sidestep, the affected Chapter 5 desktop/touch pair passed 2/2 in 7.5 minutes. |
+| Chapter 5 safety and final-door regression | layout/world Vitest plus real desktop and touch Playwright routes | PASS — lower lanes remain separated; platform/flank/bridge/apron overlaps are guarded; final-door fact and 15-second timer begin only after the laterally retracting collider clears. |
 | Focused Chapter 5 desktop completion | `playwright test tests/chapter4-5-temporal.spec.ts -g "Chapter 5 completes"` with inherited production base URL removed | PASS — 1/1 in 3.0 minutes; one tape, one Core, receiver power, stable Guardian lure, high rear strike, live seals, 15-second escape, exit |
 | Focused Chapter 5 touch completion | `playwright test tests/chapter4-5-mobile-walkthrough.spec.ts -g "Chapter 5 completes"` with inherited production base URL removed | PASS — 1/1; touch-only Core/Echo/platform/Guardian/seal/exit route. Test body completed in 5.2 minutes; Windows reporter/PTY returned late |
 | Additional render smoke | `tests/chapter3-5-render-smoke.spec.ts` | Desktop Chapters 3–5 advanced into the mobile case without browser errors; the extra mobile result could not be independently finalized because the local Windows runner stopped returning filesystem/reporter output. The stronger touch-only full completion above remains the mobile acceptance result |

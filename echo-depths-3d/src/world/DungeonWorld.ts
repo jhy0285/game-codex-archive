@@ -1676,16 +1676,28 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   }
 
   private updateDoors(): void {
-    const open = this.doorCondition()
+    const requestedOpen = this.chapter === 5
+      ? this.chapterFiveDoorReleased() && (!this.facts.has('final-door-opened') || this.escapeTicks > 0)
+      : this.doorCondition()
     for (const device of this.devices.values()) {
       if (device.definition.kind !== 'door' || !device.body) continue
       const wasOpen = device.active
+      if (this.chapter === 5) {
+        const targetX = device.basePosition.x + (requestedOpen ? 2.8 : 0)
+        device.root.position.x = THREE.MathUtils.lerp(device.root.position.x, targetX, requestedOpen ? 0.18 : 0.1)
+        device.root.position.y = device.basePosition.y
+      } else {
+        const targetY = device.basePosition.y + (requestedOpen ? 4.8 : 0)
+        device.root.position.y = THREE.MathUtils.lerp(device.root.position.y, targetY, 0.1)
+      }
+      const open = requestedOpen && (this.chapter !== 5 || device.root.position.x >= device.basePosition.x + 2.25)
       device.active = open
-      if (this.chapter === 5 && open) this.facts.add('final-door-opened')
+      if (this.chapter === 5 && open && !this.facts.has('final-door-opened')) {
+        this.facts.add('final-door-opened')
+        this.escapeTicks = CHAPTERS[4]?.escapeTimeTicks ?? 15 * 60
+      }
       if (wasOpen !== open) this.emitAudio({ type: 'door', id: device.definition.id, open })
-      const targetY = device.basePosition.y + (open ? 4.8 : 0)
-      device.root.position.y = THREE.MathUtils.lerp(device.root.position.y, targetY, 0.1)
-      device.body.body.setNextKinematicTranslation({ x: device.basePosition.x, y: device.root.position.y, z: device.basePosition.z })
+      device.body.body.setNextKinematicTranslation({ x: device.root.position.x, y: device.root.position.y, z: device.basePosition.z })
       this.setEmissiveIntensity(device.root.getObjectByName('VaultDoorStatusStripes'), open ? 1.8 : 0.35)
     }
   }
@@ -2519,7 +2531,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         && !this.facts.has('dual-seal')
       ) {
         this.facts.add('dual-seal')
-        this.escapeTicks = CHAPTERS[4]?.escapeTimeTicks ?? 15 * 60
       }
     }
   }
@@ -2723,10 +2734,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (this.chapter === 4) {
       return this.facts.has('watcher-trapped')
     }
+    return this.facts.has('final-door-opened')
+      && this.escapeTicks > 0
+  }
+
+  private chapterFiveDoorReleased(): boolean {
     return this.facts.has('core-receiver')
       && this.facts.has('guardian-defeated')
       && this.facts.has('dual-seal')
-      && this.escapeTicks > 0
   }
 
   private canExit(): boolean {
