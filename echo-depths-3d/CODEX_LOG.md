@@ -10,6 +10,7 @@ All entries use Asia/Seoul dates.
 - Added structural overlap/separation assertions and a world regression proving the dual seal alone does not prematurely open the door or consume escape time.
 - Corrected the desktop/touch canonical route to sidestep the occupied physical receiver before entering the platform lane, and changed the Vite Playwright server arguments to unambiguous `--host=` / `--port=` syntax.
 - `npm ci` found 0 vulnerabilities; Vitest passed 143/143 across 18 files; production build passed. The complete browser run passed 19 unaffected cases and exposed only the straight-line receiver collision; the corrected Chapter 5 desktop/touch pair then passed 2/2, with final captures visually inspected.
+- Pushed source `9dd9e6ca444a42df3ddcd6d144f56b513924746a`. Candidate `dpl_GhFLxjcg12jgC2kXYdKh1c3HHko1` passed smoke 6/6 after the hosted Chapter 1 keyboard path was made position-aware without debug APIs. The exact candidate promoted as Ready production `dpl_Hf9RE2xVSnJETE9ki9kW4h3drFjh`; public smoke passed 6/6 and direct Chapter 5 desktop/mobile entry collected no errors.
 
 ## 2026-08-14 — Repository intake
 

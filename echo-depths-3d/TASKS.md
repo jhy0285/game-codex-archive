@@ -11,6 +11,7 @@ This ledger separates implementation present in the source tree from verificatio
 - [x] Slide the final door out of the camera, delay logical-open state and the escape timer until its collider clears, and preserve the latched live dual-seal condition.
 - [x] Keep the occupied receiver physical and route desktop/touch walkthroughs around it before entering the platform lane.
 - [x] Pass `npm ci`, 143/143 Vitest checks, production build, 19 unaffected full-suite Playwright cases, and corrected Chapter 5 desktop/touch 2/2 reruns.
+- [x] Push source `9dd9e6c`, verify candidate `dpl_GhFLxjcg12jgC2kXYdKh1c3HHko1`, and promote the exact candidate as Ready production `dpl_Hf9RE2xVSnJETE9ki9kW4h3drFjh`; public smoke passes 6/6.
 
 ## Implementation present
 

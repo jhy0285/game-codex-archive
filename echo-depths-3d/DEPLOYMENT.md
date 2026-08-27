@@ -1,6 +1,6 @@
 # ECHO DEPTHS Deployment Record
 
-Snapshot: 2026-08-17, Asia/Seoul.
+Snapshot: 2026-08-27, Asia/Seoul.
 
 ## Required identity
 
@@ -33,6 +33,10 @@ This game must receive its own Vercel project, deployment history, and productio
 | Latest candidate / production | Candidate `dpl_3xxaY6kiZowbhANr9D6NkuHam2RZ` → production `dpl_FJYteX8jJN6tRvSqiKnkyGfwJ1Vx`; alias remains `https://echo-depths-3d.vercel.app` |
 | Late-chapter clearability source | `6046e009bdce64e90c109d1b117d774a957391d0` (`fix(echo-depths-3d): make late chapter routes clearable`); pushed with verification record `46602c2` |
 | Latest candidate / production | Candidate `dpl_3AN2dPKpusX5waCJnAMoTv7i1Wc2` → production `dpl_DT6wvejwq8Txz1BtMTpfvRaiP17s`; alias remains `https://echo-depths-3d.vercel.app` |
+| Chapter 5 stabilization source | `9dd9e6ca444a42df3ddcd6d144f56b513924746a` (`fix(echo-depths-3d): stabilize chapter 5 traversal`), pushed to `origin/main` and verified by `git ls-remote` |
+| Chapter 5 verified candidate | `dpl_GhFLxjcg12jgC2kXYdKh1c3HHko1` — `https://echo-depths-3d-j7zyceghn-ai-build3.vercel.app`; Ready; hosted smoke 6/6 plus direct Chapter 5 desktop/mobile entry |
+| Chapter 5 production | `dpl_Hf9RE2xVSnJETE9ki9kW4h3drFjh` — `https://echo-depths-3d-ci6gadxg2-ai-build3.vercel.app`; Ready; alias `https://echo-depths-3d.vercel.app`; public smoke 6/6; bundle `index-CAFm-gyQ.js` |
+| Chapter 5 public browser evidence | HTTP 200, five chapter cards, Chapter 5 playing on 1440×900 and 844×390, KayKit active, touch controls visible on mobile, production debug API absent, no collected console/page/request errors; static deployment returned no runtime logs |
 | Pressure-scanner presentation source | `6b17461598bc2c6999265dcb0b9b57cef2dfdb5b` (`fix(echo-depths-3d): replace pressure buttons with scanners`); pushed to `origin/main` with remote-head verification |
 | Latest candidate / production | Candidate `dpl_8uP6jsXu17BHB1WUo79ipXe3H7HR` → production `dpl_2EoEkQKZQmJmn91VJnFtFHcuwh9y`; alias remains `https://echo-depths-3d.vercel.app` |
 | Industrial-device presentation source | `0c9b60e522d38c7dd880d19efd9f87dc2ef2addf` (`feat(echo-depths-3d): upgrade industrial puzzle devices`); pushed to `origin/main` with remote-head verification |
