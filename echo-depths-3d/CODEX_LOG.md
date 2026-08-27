@@ -310,5 +310,12 @@ Source commit `65bcbfe25a17e29dd0c6c5bc974f30731b18c4ef` was pushed to `origin/f
 - Added two real `CharacterMotor` probes through the former west-perimeter and cover-to-patrol holes. Both must remain grounded and above the fall region; existing ramp, Watcher, trap, and exit regressions remain unchanged.
 - Local acceptance passed: `npm ci` with 0 vulnerabilities, Vitest 143/143, strict Vite build, focused Chapter 4 touch/desktop completion, final desktop visual rerun, and full Playwright 20/20 in 17.7 minutes. No asset or sibling project changed.
 
+## 2026-08-27 — Chapter 4 floor-safety production release
+
+- Committed source as `29b2c461fd1fcbe6c21fc352929aa4b2b074981d`, pushed it to `origin/main`, and verified the remote branch SHA. The pre-existing untracked `marketing/` directory remained excluded.
+- Deployed preview `dpl_7mTPt7rKgsLs1fYB6gynK28FLhtn` at `https://echo-depths-3d-eknwa5z11-ai-build3.vercel.app`. Vercel's `npm ci` found 0 vulnerabilities, the 38-module Vite build completed, and candidate smoke passed 6/6 in 1.2 minutes.
+- Direct candidate Chapter 4 inspection confirmed the new `index-BC8hbp0t.js` bundle, enabled Chapter 4 card, active KayKit runtime, continuous gallery floor, absent production debug API, and empty page/console error collectors.
+- Promoted the verified candidate to production `dpl_35J6WSrWsaVW1PnvgzXpjhrJDbjd` at `https://echo-depths-3d-1v1nzwuw9-ai-build3.vercel.app`. The stable alias `https://echo-depths-3d.vercel.app` points to it and passed public smoke 6/6 in 57.4 seconds plus direct Chapter 4 inspection. The static deployment reported no runtime logs.
+
 
 

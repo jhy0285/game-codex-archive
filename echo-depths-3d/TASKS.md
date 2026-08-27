@@ -258,3 +258,5 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 - [x] Add direct motor regressions across the former west-perimeter hole and the former cover-to-patrol hole; require grounded traversal without a fall.
 - [x] Inspect the revised desktop/mobile Chapter 4 captures and brighten the foundation so it reads as floor rather than a black void.
 - [x] Pass `npm ci`, Vitest 143/143, strict production build, focused Chapter 4 desktop/touch completion 2/2, and full Playwright 20/20.
+- [x] Push source `29b2c461fd1fcbe6c21fc352929aa4b2b074981d`, verify candidate `dpl_7mTPt7rKgsLs1fYB6gynK28FLhtn` with hosted smoke 6/6, and promote production `dpl_35J6WSrWsaVW1PnvgzXpjhrJDbjd`.
+- [x] Verify `https://echo-depths-3d.vercel.app` with public smoke 6/6, direct Chapter 4 entry, matching `index-BC8hbp0t.js`, KayKit runtime, empty page/console errors, and absent production debug API.

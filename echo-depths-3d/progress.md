@@ -185,6 +185,7 @@ Production deployment `dpl_8AkqppynEF8urDfsXD6VSLuPfubD` is Ready at `https://ec
 - Preserved the complete Watcher puzzle: real bell stimulus, Echo target acquisition, cover, no-jump ramp, high/rear Player strike, physical knockback into the spikes, released door, and exit.
 - Added direct motor coverage for both former fall regions. `npm ci` reports 0 vulnerabilities; Vitest passes 143/143; strict production build passes; focused touch/desktop Chapter 4 completion passes; and full Playwright passes 20/20 in 17.7 minutes.
 - Current desktop and mobile captures were inspected. The floor reads continuously, the Watcher/trap/ramp remain visible, and no black frame, missing model, clipped HUD, or fatal browser error was observed.
+- Source `29b2c461fd1fcbe6c21fc352929aa4b2b074981d` is pushed to `origin/main`. Candidate `dpl_7mTPt7rKgsLs1fYB6gynK28FLhtn` passed 6/6 in 1.2 minutes; promoted production `dpl_35J6WSrWsaVW1PnvgzXpjhrJDbjd` is Ready, and `https://echo-depths-3d.vercel.app` passed public smoke 6/6 in 57.4 seconds. Direct public Chapter 4 entry loads the matching bundle with KayKit active, no debug API, and no page/console errors.
 
 
 

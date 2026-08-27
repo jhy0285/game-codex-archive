@@ -262,3 +262,14 @@ Source commit (not yet committed at this snapshot): descent-stair fix in src/lev
 | Production deployment | `dpl_8AkqppynEF8urDfsXD6VSLuPfubD` — `https://echo-depths-playtest-2n9n8um5q-ai-build3.vercel.app`, Ready |
 | Stable public alias | `https://echo-depths-playtest.vercel.app` |
 | Public smoke | alias, KayKit manifest, and `Rogue_Hooded.glb` returned HTTP 200; Chapter 4 desktop/mobile landscape rendered the new Watcher and sight range; production debug API absent; page/console collectors empty |
+
+## 2026-08-27 Chapter 4 continuous-floor production
+
+| Record | Verified fact |
+| --- | --- |
+| Source commit | `29b2c461fd1fcbe6c21fc352929aa4b2b074981d` (`fix(ch4): make watcher gallery floor continuous`), pushed to `origin/main`; remote SHA verified |
+| Local evidence | `npm ci` 0 vulnerabilities; Vitest 143/143; strict Vite build; focused Chapter 4 touch/desktop completion; full Playwright 20/20 in 17.7 minutes; revised desktop/mobile capture inspection |
+| Candidate | `dpl_7mTPt7rKgsLs1fYB6gynK28FLhtn` — `https://echo-depths-3d-eknwa5z11-ai-build3.vercel.app`, Ready; hosted production-bundle smoke 6/6 in 1.2 minutes |
+| Production | `dpl_35J6WSrWsaVW1PnvgzXpjhrJDbjd` — `https://echo-depths-3d-1v1nzwuw9-ai-build3.vercel.app`, Ready; stable alias `https://echo-depths-3d.vercel.app` |
+| Public verification | Smoke 6/6 in 57.4 seconds; Chapter 4 card enabled and entered; `assetStatus: kaykit`; matching `index-BC8hbp0t.js`; production debug API absent; page/console errors empty |
+| Log review | Static production reported no runtime logs; Vercel build and deployment status Ready |
