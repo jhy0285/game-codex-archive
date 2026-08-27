@@ -179,5 +179,12 @@ Production deployment `dpl_8AkqppynEF8urDfsXD6VSLuPfubD` is Ready at `https://ec
 - Local evidence passes: 64 targeted unit checks, strict build, desktop Chapter 4 completion 1/1, touch-only Chapter 4 completion 1/1, and direct desktop render/console inspection.
 - Pushed source `65bcbfe25a17e29dd0c6c5bc974f30731b18c4ef` and deployed isolated Vercel production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT`. The stable playtest alias serves the new bundle and passes public gameplay, localization, mobile, fullscreen, runtime-asset, console, and production-debug checks.
 
+## 2026-08-27 — Chapter 4 continuous gallery floor
+
+- Added a continuous muted-cyan foundation across the Chapter 4 room's full inner-wall footprint. The original colored route slabs remain raised by 0.03 units, so the intended safe/Echo/patrol/ramp/high-flank/exit language remains visible without interior fall holes.
+- Preserved the complete Watcher puzzle: real bell stimulus, Echo target acquisition, cover, no-jump ramp, high/rear Player strike, physical knockback into the spikes, released door, and exit.
+- Added direct motor coverage for both former fall regions. `npm ci` reports 0 vulnerabilities; Vitest passes 143/143; strict production build passes; focused touch/desktop Chapter 4 completion passes; and full Playwright passes 20/20 in 17.7 minutes.
+- Current desktop and mobile captures were inspected. The floor reads continuously, the Watcher/trap/ramp remain visible, and no black frame, missing model, clipped HUD, or fatal browser error was observed.
+
 
 

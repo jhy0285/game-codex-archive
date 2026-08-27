@@ -209,6 +209,12 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
     accent: 0xe95757,
     fog: 0x140c10,
     boxes: [
+      // A continuous inset foundation keeps the surveillance gallery readable
+      // without turning a missed route edge into an unrelated fall/reset. The
+      // colored route slabs sit 0.03 units above it, so entry, Echo, cover,
+      // patrol, and exit ownership remain visible while the whole room stays
+      // physically walkable inside the perimeter walls.
+      floor('gallery-foundation', [-0.2, 0.36, 0], [9.15, 0.06, 4.35], 'safe'),
       floor('gallery-entry', [-6.3, 0, 2.2], [3.0, 0.45, 2.0], 'safe'),
       floor('gallery-bell-route', [-2.5, 0, 2.2], [1.0, 0.45, 2.0], 'echo'),
       floor('gallery-covered-flank', [-5.8, 0, -1.9], [1.6, 0.45, 2.3], 'safe'),

@@ -89,6 +89,55 @@ describe('DungeonWorld authored runtime contracts', () => {
     }
   })
 
+  it('keeps the former Chapter 4 floor gaps walkable inside the gallery walls', async () => {
+    const traverse = async (
+      id: string,
+      start: readonly [number, number, number],
+      movement: { moveX: number; moveZ: number },
+      ticks: number,
+    ) => {
+      const { physics, world } = await createWorld(4)
+      const record = physics.createActor(id, 'player', { x: start[0], y: start[1], z: start[2] })
+      const motor = new CharacterMotor(physics, record)
+      try {
+        let minimumY = motor.position.y
+        let groundedTicks = 0
+        for (let tick = 0; tick < ticks; tick += 1) {
+          motor.prepare({
+            ...movement,
+            jumpPressed: false,
+            dashPressed: false,
+          })
+          physics.step()
+          motor.syncAfterStep()
+          minimumY = Math.min(minimumY, motor.position.y)
+          if (motor.grounded) groundedTicks += 1
+        }
+        return {
+          x: motor.position.x,
+          y: motor.position.y,
+          z: motor.position.z,
+          minimumY,
+          groundedTicks,
+        }
+      } finally {
+        motor.dispose()
+        world.dispose()
+        physics.dispose()
+      }
+    }
+
+    const westPerimeter = await traverse('gallery-west-gap-probe', [-8.8, 1.08, 2.3], { moveX: 0, moveZ: -1 }, 56)
+    expect(westPerimeter.z, JSON.stringify(westPerimeter)).toBeLessThan(0)
+    expect(westPerimeter.minimumY, JSON.stringify(westPerimeter)).toBeGreaterThan(0.8)
+    expect(westPerimeter.groundedTicks, JSON.stringify(westPerimeter)).toBeGreaterThan(44)
+
+    const coverConnection = await traverse('gallery-cover-gap-probe', [-5.6, 1.08, -1.8], { moveX: 1, moveZ: 0 }, 58)
+    expect(coverConnection.x, JSON.stringify(coverConnection)).toBeGreaterThan(-2.6)
+    expect(coverConnection.minimumY, JSON.stringify(coverConnection)).toBeGreaterThan(0.8)
+    expect(coverConnection.groundedTicks, JSON.stringify(coverConnection)).toBeGreaterThan(46)
+  })
+
   it('lets the shared capsule motor walk up the Chapter 4 ramp with zero jumps', async () => {
     const { physics, world } = await createWorld(4)
     const record = physics.createActor('ramp-player', 'player', { x: -3.2, y: 1.08, z: -3.05 })

@@ -299,3 +299,13 @@ The automated evidence does not establish physical-phone ergonomics, unaided fir
 - The first two Playwright attempts did not exercise local gameplay because the machine-level `PLAYWRIGHT_BASE_URL` pointed at a production build without the development-only debug API. Explicitly selecting the E2E-enabled local server resolved the environment mismatch; both desktop and touch completion stories then passed.
 - Vercel production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT`: READY and aliased to `https://echo-depths-playtest.vercel.app`. The public HTML returns HTTP 200 and references the new verified `index-DNG9ShK_.js` bundle.
 - Public smoke: 5/5 gameplay/UI stories passed in 1.0 minute; the KayKit manifest/dependency story initially hit the workstation's self-signed certificate chain, then passed 1/1 in 3.9 seconds with Node system CAs. Public Chapter 4 loads, mobile portrait/landscape works, console/page errors are empty, and `window.echoDepthsDebug` is absent.
+
+## 2026-08-27 — Chapter 4 continuous-floor evidence
+
+- `npm ci`: PASS, 57 packages installed, 0 vulnerabilities.
+- Focused layout/world regression: PASS, 6 selected checks. The new motor probes cross the former west-perimeter gap and the former cover-to-patrol gap while remaining above `y=0.8` and grounded for the required ticks; the existing no-jump ramp and Chapter 4 outcome tests remain green.
+- `npm test -- --run`: PASS, 18 files / 143 tests.
+- `npm run build`: PASS, strict TypeScript plus Vite, 38 modules. The existing large-bundle warning remains non-fatal.
+- Focused Chapter 4 browser acceptance: PASS, touch and desktop 2/2 in 2.3 minutes before the final color adjustment; the final desktop rerun passed 1/1 in 55.9 seconds.
+- Visual inspection: PASS. The revised foundation is a continuous muted-cyan floor inside the walls, while safe, Echo, patrol, ramp, high-flank, trap, and exit surfaces remain distinguishable. No black frame, missing actor, clipped HUD, or malformed Watcher was observed.
+- Full development Playwright: PASS, 20/20 in 17.7 minutes. It retains Chapter 1–5 desktop/touch completion, Chapter 3 shortcut rejection, chapter selection, rendering, input, and UI coverage.

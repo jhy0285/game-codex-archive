@@ -6,10 +6,10 @@ The game is a Vite static application written in strict TypeScript. Three.js ren
 
 ## Current release evidence
 
-Snapshot: 2026-08-25, Asia/Seoul.
+Snapshot: 2026-08-27, Asia/Seoul.
 
-- The Chapter 4–5 temporal-mastery work is isolated on `feat/ch4-ch5-temporal-mastery`, based on the still-open Chapter 3 repair branch `fix/echo2-ch3-structural`. It replaces scripted enemy outcomes with live field-of-view, Rapier line-of-sight, cover, target selection, patrol/alert/investigate/chase/recovery, positional strikes, physical knockback/traps, one physical Core, powered traversal, and live two-actor seals. `main`, the Chapter 3 repair branch, the public deployment, sibling projects, and assets remain unchanged by this work.
-- Local final gates pass on the feature tree: `npm ci` reports 0 vulnerabilities, the strict production build transforms 38 modules, Vitest passes 126/126 across 17 files, and Playwright passes 25/25 in 24.6 minutes. The four new Chapter 4–5 desktop/mobile full-solution captures were regenerated in a focused 4/4 run in 6.9 minutes.
+- `main` contains the complete Chapter 1–5 rebuild. The current Chapter 4 floor-safety pass adds a continuous inset gallery foundation inside the perimeter walls, retaining the raised safe/Echo/patrol route inlays, cover, walkable ramp, high flank, Watcher sight, and physical spike-trap solution while removing unrelated interior fall holes.
+- Current local gates pass: `npm ci` reports 0 vulnerabilities, the strict production build transforms 38 modules, Vitest passes 143/143 across 18 files, focused Chapter 4 desktop/touch completion passes 2/2, and the complete Playwright suite passes 20/20 in 17.7 minutes. Two physical probes also cross the former west-perimeter and cover-to-patrol gaps without losing grounded state.
 
 - `npm ci`, strict TypeScript, and the final Vite production build pass on the recovered tree.
 - Vitest passes all 96 tests across 16 test files, including device-audio transition/loop regression, camera-obstruction continuity, vertical orbit, responsive reversal, compact-scanner construction/active-feedback, industrial device assembly, and Chapters 3–5 completion regressions.

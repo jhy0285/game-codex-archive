@@ -302,5 +302,13 @@ Source commit `65bcbfe25a17e29dd0c6c5bc974f30731b18c4ef` was pushed to `origin/f
 - Wired the authored Chapter 1–5 Echo capacities (12/15/18/18/20 seconds) into `GameApp`, reduced the final escape to 15 seconds, prevented timer restart, and added non-colliding dual-route/cable/tether/exit-beacon guidance.
 - Local acceptance: Vitest 18 files / 142 tests PASS; strict production build PASS; real Chapter 5 desktop completion PASS 1/1 in 3.0 minutes; real touch-only Chapter 5 completion PASS 1/1 (test body 5.2 minutes). A first desktop rerun revealed that newly added collision rails blocked the side-entry exit path; those rails were removed and the same story passed. The inherited machine-level `PLAYWRIGHT_BASE_URL` also initially pointed at production without debug API; explicitly removing it selected the intended local server.
 
+## 2026-08-27 — Chapter 4 gallery floor-safety pass
+
+- Confirmed that the authored Chapter 4 solution was complete, but broad empty regions inside the outer walls were real fall/reset spaces rather than decoration. The canonical route avoided them, yet exploratory movement made the room feel unfinished.
+- Added a thin continuous `gallery-foundation` covering the complete inner wall bounds. Existing safe, Echo, patrol, ramp, high-flank, and exit slabs remain slightly raised, preserving route colors, cover, sight, and attack height while removing unrelated interior falls.
+- Changed the foundation from dark stone to the muted safe-floor material after the first desktop/mobile captures showed that a physically solid dark slab could still read as a void.
+- Added two real `CharacterMotor` probes through the former west-perimeter and cover-to-patrol holes. Both must remain grounded and above the fall region; existing ramp, Watcher, trap, and exit regressions remain unchanged.
+- Local acceptance passed: `npm ci` with 0 vulnerabilities, Vitest 143/143, strict Vite build, focused Chapter 4 touch/desktop completion, final desktop visual rerun, and full Playwright 20/20 in 17.7 minutes. No asset or sibling project changed.
+
 
 

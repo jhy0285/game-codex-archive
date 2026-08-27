@@ -33,6 +33,7 @@ describe('Chapter 3-5 authored level architecture', () => {
     const watcher = layout.devices.find((device) => device.id === 'watcher')
 
     expect([...boxes.keys()]).toEqual(expect.arrayContaining([
+      'gallery-foundation',
       'gallery-entry',
       'gallery-bell-route',
       'gallery-covered-flank',
@@ -41,6 +42,14 @@ describe('Chapter 3-5 authored level architecture', () => {
       'gallery-high-flank',
     ]))
     expect([...boxes.keys()].some((id) => id.startsWith('flank-step'))).toBe(false)
+    const foundation = boxes.get('gallery-foundation')!
+    const entry = boxes.get('gallery-entry')!
+    expect(foundation.position[0] - foundation.size[0]).toBeLessThanOrEqual(-9.35)
+    expect(foundation.position[0] + foundation.size[0]).toBeGreaterThanOrEqual(8.95)
+    expect(foundation.position[2] - foundation.size[2]).toBeLessThanOrEqual(-4.35)
+    expect(foundation.position[2] + foundation.size[2]).toBeGreaterThanOrEqual(4.35)
+    expect(top(foundation)).toBeGreaterThan(0.4)
+    expect(top(foundation)).toBeLessThan(top(entry))
     expect(boxes.get('gallery-ramp')?.rotation?.[2]).toBeGreaterThan(0.14)
     expect(boxes.get('gallery-high-flank')?.occluder).toBe(true)
     expect(top(boxes.get('gallery-high-flank')!)).toBeGreaterThan((watcher?.position[1] ?? 0) + 0.9)

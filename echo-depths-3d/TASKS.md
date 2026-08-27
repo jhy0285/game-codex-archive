@@ -250,3 +250,11 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
 - [x] Restore target-lock state through recording snapshots and cover patrol reversal, Echo lure hold, warning/contact failure, trap resolution, and rewind with targeted tests.
 - [x] Pass 64 targeted Vitest checks, strict production build, Chapter 4 desktop completion, and Chapter 4 touch-only completion before isolated playtest deployment.
 - [x] Deploy production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT` to the isolated playtest project and verify the stable public alias, mobile smoke, runtime assets, clean console, and absent production debug API.
+
+## 2026-08-27 — Chapter 4 continuous gallery floor
+
+- [x] Fill every interior gap inside the Chapter 4 perimeter with one thin continuous Rapier-backed foundation while preserving the raised color-coded route slabs.
+- [x] Keep Watcher LOS, cover, patrol, Echo lure, no-jump ramp, high/rear strike, physical spike defeat, gallery door, and exit behavior unchanged.
+- [x] Add direct motor regressions across the former west-perimeter hole and the former cover-to-patrol hole; require grounded traversal without a fall.
+- [x] Inspect the revised desktop/mobile Chapter 4 captures and brighten the foundation so it reads as floor rather than a black void.
+- [x] Pass `npm ci`, Vitest 143/143, strict production build, focused Chapter 4 desktop/touch completion 2/2, and full Playwright 20/20.
