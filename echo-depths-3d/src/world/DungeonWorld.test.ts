@@ -706,6 +706,39 @@ describe('DungeonWorld authored runtime contracts', () => {
     }
   })
 
+  it('steers the Watcher around the center-cover corner instead of stalling while the Player stays visible', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      // This diagonal sight line clears the south edge of gallery-cover-center,
+      // but the Watcher's body-width clearance ray clips the corner. A direct-
+      // only chase therefore used to repeat the same blocked step forever.
+      const player = actor('player', 'player', [-5.8, 1.08, -2.3])
+      const trace: Array<{ tick: number; x: number; z: number; state: string; visible: boolean }> = []
+      for (let tick = 1; tick <= 240; tick += 1) {
+        stepWorld(world, physics, tick, [player])
+        if (tick % 30 === 0) {
+          const watcher = world.debugState().enemies.watcher
+          if (watcher) trace.push({
+            tick,
+            x: watcher.position.x,
+            z: watcher.position.z,
+            state: watcher.state,
+            visible: watcher.targetVisible,
+          })
+        }
+      }
+
+      const watcher = world.debugState().enemies.watcher
+      if (!watcher) throw new Error('Watcher state is missing')
+      expect(watcher.target, JSON.stringify(trace)).toBe('player')
+      expect(watcher.position.x, JSON.stringify(trace)).toBeLessThan(-0.9)
+      expect(watcher.position.z, JSON.stringify(trace)).toBeLessThan(-1.05)
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
   it('holds at the spike edge while pursuing the real Echo lure', async () => {
     const { physics, world } = await createWorld(4)
     try {

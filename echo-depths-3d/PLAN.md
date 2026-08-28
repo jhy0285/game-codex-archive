@@ -1,6 +1,6 @@
 # ECHO DEPTHS — Delivery Plan
 
-Status: Chapter 3–5 rebuild is on `main`; the 2026-08-27 Chapter 5 stabilization widens only the canonical upper/boarding route, preserves the separated lower lanes, removes camera-blocking geometry, and synchronizes the final door's physical clearance with the 15-second escape.
+Status: Chapter 3–5 rebuild is on `main`; the 2026-08-28 deep audit adds deterministic enemy corner steering while preserving straight physical knockback, the authored Chapter 4 lure/trap solution, and the Chapter 5 central Echo lure hold.
 
 ## Product contract
 
@@ -46,7 +46,7 @@ Two flat, parallel routes make the temporal relationship readable: the Echo carr
 
 ### 4. THE WATCHER'S GALLERY
 
-Record the safe bell route and leave the Echo in the Watcher's real sight lane. During replay, the present Player moves behind substantial cover, walks up one long gentle ramp without jumping, reaches the high rear flank, and uses one qualified directional strike so physical knockback carries the Watcher into the trap. The bell remains only an investigation stimulus; FOV, Rapier LOS, height, facing, and the trap decide the outcome.
+Record the safe bell route and leave the Echo in the Watcher's real sight lane. During replay, the present Player moves behind substantial cover, walks up one long gentle ramp without jumping, reaches the high rear flank, and uses one qualified directional strike so physical knockback carries the Watcher into the trap. The bell remains only an investigation stimulus; FOV, Rapier LOS, height, facing, and the trap decide the outcome. If a visible Player or last-known position lies around a cover corner, deterministic side probes steer chase/investigation around the obstruction instead of repeating a blocked straight step; strike knockback never uses that steering.
 
 ### 5. THE PARADOX WELL
 

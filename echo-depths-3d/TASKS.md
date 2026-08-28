@@ -1,8 +1,17 @@
 # ECHO DEPTHS Delivery Ledger
 
-Snapshot: 2026-08-27, Asia/Seoul.
+Snapshot: 2026-08-28, Asia/Seoul.
 
 This ledger separates implementation present in the source tree from verification, external release, and human judgment. A source-complete row does not by itself mean the game is production-released.
+
+## Chapter 3–5 deep-audit follow-up
+
+- [x] Reproduce the Chapter 4 Watcher remaining in `chase` while its position stays fixed at the center-cover corner.
+- [x] Add deterministic side-arc steering for chase, Echo-lure approach, and investigation while keeping patrol and physical knockback straight.
+- [x] Add unit and real-browser regressions proving the Watcher rounds the authored cover corner without fatal browser errors.
+- [x] Revalidate Chapter 3 same-Core transfer, one-way/shutter/return rules, Chapter 4 lure/ramp/trap completion, and Chapter 5 one-Core/platform/Guardian/live-seal completion on desktop and touch.
+- [x] Pass `npm ci`, 144/144 Vitest, strict production build, focused Chapter 3–5 browser acceptance 13/13, render smoke 2/2, and full Playwright 21/21.
+- [ ] Push the audited source and promote a verified candidate through the existing `echo-depths-3d` Vercel project.
 
 ## Current Chapter 5 stabilization
 

@@ -6,7 +6,10 @@ The game is a Vite static application written in strict TypeScript. Three.js ren
 
 ## Current release evidence
 
-Snapshot: 2026-08-27, Asia/Seoul.
+Snapshot: 2026-08-28, Asia/Seoul.
+
+- The Chapter 3–5 deep audit found and fixed a real Chapter 4 pursuit stall: when the center line of sight cleared a cover corner but a body-width clearance ray still touched the wall, the Watcher repeatedly retried the same blocked vector. Chase, lure, and investigation movement now choose a deterministic clear side arc with no random navigation state; physical attack knockback remains straight and cannot steer itself into the trap.
+- Current local gates pass: `npm ci` reports 0 vulnerabilities, Vitest passes 144/144 across 18 files, strict production build passes, and the full Playwright suite passes 21/21. The browser set includes Chapter 3–5 desktop/touch completion, Chapter 3 shortcut rejection, a real Chapter 4 Player chase around the center-cover corner, Chapter 4/5 puzzle completion, desktop/mobile rendering, and empty fatal browser-error collectors.
 
 - `main` contains the complete Chapter 1–5 rebuild. The current Chapter 5 safety pass widens the moving-platform landing, Guardian flank seam, final bridge, and boarding apron without joining the separate lower Player and Echo/Core lanes. Tall camera-facing outer walls now become lower containment plus upper parapets, and an overlapping upper-pillar prop was removed.
 - The Chapter 5 final door now slides east out of the quarter-view camera, becomes logically open only after its collider clears the passage, and starts the full 15-second escape at that physical-open moment. The occupied receiver is treated as a real obstacle in both desktop and touch walkthrough routes.

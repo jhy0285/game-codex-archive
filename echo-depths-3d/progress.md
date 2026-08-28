@@ -195,3 +195,10 @@ Production deployment `dpl_8AkqppynEF8urDfsXD6VSLuPfubD` is Ready at `https://ec
 
 
 
+## 2026-08-28 — Chapter 3–5 deep audit and Watcher navigation
+
+- Reproduced a Chapter 4 chase stall where the Watcher's center LOS remained clear around `gallery-cover-center` but one body-width movement ray touched the wall; the direct-only mover then retried the same blocked vector forever.
+- Added deterministic obstacle steering for chase, Echo-lure approach, and last-known-position investigation. Longer clearance probes choose a useful side arc, while patrol and physical strike knockback remain straight and deterministic.
+- Added both world-level and real-browser regressions for the exact cover corner. The browser capture shows the Watcher rounding the obstacle toward the live Player with no page/console errors.
+- Deep Chapter 3–5 acceptance found no further reproducible defect: Chapter 3 same-Core transfer and every shortcut rejection, Chapter 4 desktop/touch lure/trap completion, and Chapter 5 desktop/touch one-Core/platform/Guardian/live-seal completion all pass.
+- Final local gates: `npm ci` 0 vulnerabilities; Vitest 144/144; strict production build; focused Chapter 3–5 Playwright 13/13; render smoke 2/2; full Playwright 21/21 in 20.5 minutes.

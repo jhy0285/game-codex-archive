@@ -253,6 +253,18 @@ Even a clean Playwright run does not establish:
 
 Those claims require a person to play and record observations. No such human pass is represented here.
 
+## 2026-08-28 — Chapter 3–5 deep-audit evidence
+
+- Reproduction: a real Chapter 4 target at `(-5.8, 1.08, -2.3)` remained visible while the Watcher reached approximately `(-0.115, 0.98, -0.854)` and then repeated the same blocked chase step through tick 240. The failing trace established the center-cover corner stall before the fix.
+- Fix regression: `DungeonWorld` now chooses a deterministic clear side arc only for chase/lure/investigation. The same test proves the Watcher passes `x < -0.9` and `z < -1.05`; physical knockback keeps the direct-only collision path.
+- `npm ci`: PASS, 57 packages installed, 0 vulnerabilities.
+- Vitest: PASS, 18 files / 144 tests.
+- Strict production build: PASS, 38 modules; the existing large Three.js bundle warning remains non-fatal.
+- Focused Chapter 3–5 Playwright: PASS, 13/13 in 14.5 minutes. This includes desktop/touch completions, Chapter 3 shortcut rejection and recording lifecycle, and Chapter 4/5 full physical solutions.
+- New real-browser chase regression: PASS, 1/1 in 17.3 seconds; screenshot inspection shows the Watcher beyond the cover corner with no collected page/console errors.
+- Chapter 3–5 render smoke: PASS, 2/2 in 34.5 seconds. Desktop Chapter 3–5 and mobile Chapter 4–5 frames show the intended routes, continuous Chapter 4 floor, and bounded HUD/touch controls; console/page/request collectors are empty.
+- Full Playwright: PASS, 21/21 in 20.5 minutes, including Chapters 1–5, tutorial/UI, desktop/touch, shortcut rejection, rendering, and the new pursuit route.
+
 ## 2026-08-25 Chapter 3–5 level-design rebuild evidence
 
 The current feature branch is based directly on `origin/main` `410366f88ff3b935dc3137c161e886e3af523357`. The final verification set covers the rebuilt spatial routes rather than injecting facts or teleporting actors:

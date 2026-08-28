@@ -329,3 +329,9 @@ Source commit `65bcbfe25a17e29dd0c6c5bc974f30731b18c4ef` was pushed to `origin/f
 
 
 
+## 2026-08-28 — Chapter 3–5 deep audit and Watcher corner steering
+
+- Reproduced the reported Chapter 4 behavior rather than inferring it: the Watcher stayed in visible `chase` at a fixed center-cover corner because `moveEnemy` discarded every blocked direct step and had no alternate direction.
+- Split enemy movement intent from physical knockback. Chase, lure approach, and investigation now score deterministic left/right arcs by forward progress and clear look-ahead; knockback and patrol preserve their authored straight-line behavior.
+- Audited Chapter 3 and Chapter 5 state/physics contracts and ran their real desktop/touch completion paths. No additional Chapter 3 or Chapter 5 defect was reproduced.
+- Local evidence: `npm ci` 0 vulnerabilities; Vitest 144/144; strict build; focused Chapter 3–5 Playwright 13/13; new browser navigation regression 1/1; render smoke 2/2; full Playwright 21/21. Production release evidence is recorded after the candidate is verified and promoted.

@@ -2366,6 +2366,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
     }
     if (this.enemyKnock.lengthSq() > 0.0001) {
+      // Knockback must remain a physical straight-line impulse. It may stop at
+      // cover, but it must never pathfind around a wall into the spike trap.
       this.moveEnemy(enemy, this.enemyKnock)
       this.enemyKnock.multiplyScalar(0.92)
       this.enemyState = 'knocked'
@@ -2378,7 +2380,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
           const lurePosition = this.watcherLurePosition(visibleTarget.position)
           const lureDirection = lurePosition.sub(enemy.root.position).setY(0)
           if (lureDirection.length() > 0.18) {
-            this.moveEnemy(enemy, lureDirection.normalize().multiplyScalar(WATCHER_ECHO_LURE_SPEED))
+            this.moveEnemy(enemy, lureDirection.normalize().multiplyScalar(WATCHER_ECHO_LURE_SPEED), true)
           } else {
             // The Watcher wants the Echo, but will not voluntarily step onto
             // the spikes. This is the stable rear-strike window for the Player.
@@ -2386,7 +2388,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
           }
         } else {
           const speed = this.chapter === 5 ? GUARDIAN_CHASE_SPEED : WATCHER_CHASE_SPEED
-          this.moveEnemy(enemy, direction.normalize().multiplyScalar(speed))
+          this.moveEnemy(enemy, direction.normalize().multiplyScalar(speed), true)
         }
       }
       if (
@@ -2415,7 +2417,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         this.faceEnemy(enemy, direction)
       } else if (direction.length() > 0.28) {
         this.faceEnemy(enemy, direction)
-        this.moveEnemy(enemy, direction.normalize().multiplyScalar(0.021))
+        this.moveEnemy(enemy, direction.normalize().multiplyScalar(0.021), true)
       } else {
         this.enemyForward.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.018).normalize()
         enemy.root.rotation.y = Math.atan2(this.enemyForward.x, this.enemyForward.z)
@@ -2970,21 +2972,52 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     return trap.root.position.clone().add(awayFromEcho.normalize().multiplyScalar(WATCHER_TRAP_STANDOFF))
   }
 
-  private moveEnemy(enemy: DeviceRecord, displacement: THREE.Vector3): void {
+  private moveEnemy(enemy: DeviceRecord, displacement: THREE.Vector3, steerAroundObstacles = false): void {
     const distance = displacement.length()
     if (distance <= 0.0001) return
-    const direction = displacement.clone().normalize()
+    const desiredDirection = displacement.clone().normalize()
+    if (!this.enemyPathBlocked(enemy, desiredDirection, distance + 0.58)) {
+      enemy.root.position.add(displacement)
+      return
+    }
+    if (!steerAroundObstacles) return
+
+    // A visible target can sit just beyond a wall corner: the center LOS ray
+    // clears the corner while one of the body-width movement rays still clips
+    // it. The old direct-only move retried that blocked vector forever. Probe
+    // deterministic left/right arcs and prefer the route with useful forward
+    // progress plus the longest clear look-ahead. No random choice or hidden
+    // navigation state is introduced, so rewind/replay stays deterministic.
+    const candidates = [-Math.PI / 4, Math.PI / 4, -Math.PI / 2, Math.PI / 2]
+      .map((angle) => ({ angle, direction: desiredDirection.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), angle) }))
+      .filter(({ direction }) => !this.enemyPathBlocked(enemy, direction, distance + 0.58))
+      .map(({ angle, direction }) => {
+        const clearProbeCount = [0.9, 1.5, 2.2]
+          .filter((probeDistance) => !this.enemyPathBlocked(enemy, direction, probeDistance)).length
+        const progress = Math.max(0, direction.dot(desiredDirection))
+        return {
+          angle,
+          direction,
+          score: clearProbeCount * 0.6 + progress,
+        }
+      })
+      .sort((a, b) => b.score - a.score || Math.abs(a.angle) - Math.abs(b.angle) || a.angle - b.angle)
+
+    const steering = candidates[0]?.direction
+    if (!steering) return
+    enemy.root.position.addScaledVector(steering, distance)
+    this.faceEnemy(enemy, steering)
+  }
+
+  private enemyPathBlocked(enemy: DeviceRecord, direction: THREE.Vector3, maxToi: number): boolean {
     const side = new THREE.Vector3(-direction.z, 0, direction.x)
-    const blocked = [-0.46, 0, 0.46].some((offset) => this.physics.castRay(
+    return [-0.46, 0, 0.46].some((offset) => this.physics.castRay(
       this.vec(enemy.root.position.clone().add(new THREE.Vector3(0, 0.45, 0)).addScaledVector(side, offset)),
       this.vec(direction),
-      distance + 0.58,
+      maxToi,
       ENEMY_RAY_EXCLUSIONS,
       SOLID_SIGHT_KINDS,
     ) !== undefined)
-    if (!blocked) {
-      enemy.root.position.add(displacement)
-    }
   }
 
   /** Make the one-way rule legible from either side without changing physics. */
