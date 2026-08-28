@@ -264,6 +264,10 @@ Those claims require a person to play and record observations. No such human pas
 - New real-browser chase regression: PASS, 1/1 in 17.3 seconds; screenshot inspection shows the Watcher beyond the cover corner with no collected page/console errors.
 - Chapter 3–5 render smoke: PASS, 2/2 in 34.5 seconds. Desktop Chapter 3–5 and mobile Chapter 4–5 frames show the intended routes, continuous Chapter 4 floor, and bounded HUD/touch controls; console/page/request collectors are empty.
 - Full Playwright: PASS, 21/21 in 20.5 minutes, including Chapters 1–5, tutorial/UI, desktop/touch, shortcut rejection, rendering, and the new pursuit route.
+- Candidate `dpl_Bkdp37fWGdxnRV2LMu5FECTBcVzd`: Ready and HTTP 200. The first hosted smoke run passed 5/6; its Chapter 1 fixed movement sequence fell and reset before the exit, while the five UI/mobile/fullscreen/asset checks passed. The unchanged candidate rerun passed 6/6 in 1.0 minute, identifying the first result as the documented pre-existing hosted-path flake rather than a runtime regression.
+- Promoted production `dpl_BisUo1jHoNnXg73CANdkinMg96QN`: Ready at `https://echo-depths-3d.vercel.app`; public smoke PASS 6/6 in 1.1 minutes.
+- Direct public Chapter 3–5 audit: each returned HTTP 200 and entered `playing` with `assetStatus: kaykit`; Chapter Select exposed five enabled cards, Chapter 5 showed mobile controls at `844x390`, fixed ticks advanced, production debug remained absent, and page/console/request error arrays were empty. The public bundle is `index-DT-5l4KY.js`.
+- Vercel runtime-log review: no logs exist for the static production deployment; deployment/alias status is Ready.
 
 ## 2026-08-25 Chapter 3–5 level-design rebuild evidence
 

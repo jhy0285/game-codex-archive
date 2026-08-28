@@ -277,3 +277,14 @@ Source commit (not yet committed at this snapshot): descent-stair fix in src/lev
 | Production | `dpl_35J6WSrWsaVW1PnvgzXpjhrJDbjd` — `https://echo-depths-3d-1v1nzwuw9-ai-build3.vercel.app`, Ready; stable alias `https://echo-depths-3d.vercel.app` |
 | Public verification | Smoke 6/6 in 57.4 seconds; Chapter 4 card enabled and entered; `assetStatus: kaykit`; matching `index-BC8hbp0t.js`; production debug API absent; page/console errors empty |
 | Log review | Static production reported no runtime logs; Vercel build and deployment status Ready |
+
+## 2026-08-28 Chapter 3–5 deep-audit production
+
+| Record | Verified fact |
+| --- | --- |
+| Runtime source | `5d04c0897c810a261641d37a4f77181cda1364dd` (`fix(echo-depths-3d): route watcher around cover`), pushed to `origin/main`; remote SHA matched |
+| Local evidence | `npm ci` 0 vulnerabilities; Vitest 144/144; strict Vite build; focused Chapter 3–5 Playwright 13/13; pursuit regression 1/1; render smoke 2/2; full Playwright 21/21 in 20.5 minutes |
+| Candidate | `dpl_Bkdp37fWGdxnRV2LMu5FECTBcVzd` — `https://echo-depths-3d-m73bub1ud-ai-build3.vercel.app`, Ready; hosted smoke rerun PASS 6/6 in 1.0 minute |
+| Production | `dpl_BisUo1jHoNnXg73CANdkinMg96QN` — `https://echo-depths-3d-pf90fwwpq-ai-build3.vercel.app`, Ready; stable alias `https://echo-depths-3d.vercel.app` |
+| Public verification | HTTP 200; bundle `index-DT-5l4KY.js`; smoke 6/6 in 1.1 minutes; five Chapter cards enabled; Chapters 3–5 entered; KayKit active; Chapter 5 mobile controls visible; debug API absent; page/console/request errors empty |
+| Log review | Static production returned no runtime logs; final alias inspection resolves to `dpl_BisUo1jHoNnXg73CANdkinMg96QN` |

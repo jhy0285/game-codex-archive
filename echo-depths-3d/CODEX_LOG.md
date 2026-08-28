@@ -335,3 +335,10 @@ Source commit `65bcbfe25a17e29dd0c6c5bc974f30731b18c4ef` was pushed to `origin/f
 - Split enemy movement intent from physical knockback. Chase, lure approach, and investigation now score deterministic left/right arcs by forward progress and clear look-ahead; knockback and patrol preserve their authored straight-line behavior.
 - Audited Chapter 3 and Chapter 5 state/physics contracts and ran their real desktop/touch completion paths. No additional Chapter 3 or Chapter 5 defect was reproduced.
 - Local evidence: `npm ci` 0 vulnerabilities; Vitest 144/144; strict build; focused Chapter 3–5 Playwright 13/13; new browser navigation regression 1/1; render smoke 2/2; full Playwright 21/21. Production release evidence is recorded after the candidate is verified and promoted.
+
+### External release
+
+- Pushed source `5d04c0897c810a261641d37a4f77181cda1364dd` to `origin/main` and verified the remote SHA.
+- Existing project `ai-build3/echo-depths-3d` (`prj_s42Kw6wf1BRmonXJKpoyE29m1G9Z`) built Ready candidate `dpl_Bkdp37fWGdxnRV2LMu5FECTBcVzd`. One first-run Chapter 1 hosted route flaked by falling and resetting; the unchanged candidate rerun passed 6/6.
+- Promoted the exact candidate to Ready production `dpl_BisUo1jHoNnXg73CANdkinMg96QN`. Stable alias `https://echo-depths-3d.vercel.app` returned HTTP 200, served `index-DT-5l4KY.js`, and passed public smoke 6/6.
+- Direct public Chapter 3–5 desktop/mobile entry, five enabled cards, KayKit, fixed simulation, production-debug absence, and empty browser-error collectors passed. Static runtime logs were empty.

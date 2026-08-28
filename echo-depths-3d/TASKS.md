@@ -11,7 +11,7 @@ This ledger separates implementation present in the source tree from verificatio
 - [x] Add unit and real-browser regressions proving the Watcher rounds the authored cover corner without fatal browser errors.
 - [x] Revalidate Chapter 3 same-Core transfer, one-way/shutter/return rules, Chapter 4 lure/ramp/trap completion, and Chapter 5 one-Core/platform/Guardian/live-seal completion on desktop and touch.
 - [x] Pass `npm ci`, 144/144 Vitest, strict production build, focused Chapter 3–5 browser acceptance 13/13, render smoke 2/2, and full Playwright 21/21.
-- [ ] Push the audited source and promote a verified candidate through the existing `echo-depths-3d` Vercel project.
+- [x] Push source `5d04c08`, verify candidate `dpl_Bkdp37fWGdxnRV2LMu5FECTBcVzd`, and promote Ready production `dpl_BisUo1jHoNnXg73CANdkinMg96QN`; public smoke passes 6/6 and direct Chapter 3–5 entry passes.
 
 ## Current Chapter 5 stabilization
 
