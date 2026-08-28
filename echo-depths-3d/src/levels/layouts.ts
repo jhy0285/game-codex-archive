@@ -233,7 +233,9 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
     ],
     devices: [
       { id: 'lure-bell', kind: 'lever', position: [-1.9, 0.72, 3.0] },
-      { id: 'watcher', kind: 'enemy', position: [2.2, 0.98, -0.45], size: [0.48, 0.85, 0.48], to: [0.25, 0.98, -0.45] },
+      // Sweep the full east corridor instead of pacing beside the trap. The
+      // west endpoint still leaves the Watcher in reach of the Echo lure.
+      { id: 'watcher', kind: 'enemy', position: [5.9, 0.98, -0.45], size: [0.48, 0.85, 0.48], to: [0.25, 0.98, -0.45] },
       { id: 'spike-trap', kind: 'trap', position: [1.1, 0.52, 1.15], size: [0.7, 0.2, 0.7] },
       { id: 'gallery-door', kind: 'door', position: [7.75, 2.4, -0.7], size: [0.32, 2.0, 1.2] },
       { id: 'exit', kind: 'exit', position: [8.35, 1.08, -2.55] },
@@ -287,7 +289,9 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       { id: 'well-one-way', kind: 'one-way-wall', position: [1.45, 1.8, -2.55], size: [0.8, 3.6, 2.65] },
       { id: 'power-receiver', kind: 'receiver', position: [7.2, 0.88, 0.2] },
       { id: 'well-platform', kind: 'platform', position: [4.15, 0.5, -2.65], size: [0.8, 0.2, 0.85], to: [4.15, 3.25, -2.65] },
-      { id: 'guardian', kind: 'enemy', position: [0.8, 2.28, 0.85], size: [0.7, 0.9, 0.7], to: [-1.4, 2.28, 0.0] },
+      // Keep the whole Guardian collider on its dais and clear of the center
+      // divider. The old x=0.8 spawn intersected that wall by 0.35 units.
+      { id: 'guardian', kind: 'enemy', position: [0.1, 2.28, 0.85], size: [0.7, 0.9, 0.7], to: [-0.45, 2.28, 0.15] },
       { id: 'lower-seal', kind: 'plate', position: [-1.75, 0.52, -2.55], size: [1.05, 0.12, 1.05] },
       { id: 'upper-seal', kind: 'lever', position: [6.8, 3.72, -1.25] },
       { id: 'final-door', kind: 'door', position: [8.35, 5.0, 1.2], size: [0.32, 2.15, 1.2] },

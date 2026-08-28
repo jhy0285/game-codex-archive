@@ -11,6 +11,7 @@ type ProgressHandler = (loaded: number, total: number, label: string) => void
 type KayKitManifest = {
   character?: string
   watcherCharacter?: string
+  guardianCharacter?: string
   animations?: string[]
   environment: string[]
   resources?: string[]
@@ -36,13 +37,14 @@ export class AssetLibrary {
       const response = await fetch(MANIFEST_URL, { cache: 'no-store' })
       if (!response.ok) throw new Error(`manifest ${response.status}`)
       this.manifest = (await response.json()) as KayKitManifest
-      const urls = [
+      const urls = [...new Set([
         ...(this.manifest.character ? [this.manifest.character] : []),
         ...(this.manifest.watcherCharacter ? [this.manifest.watcherCharacter] : []),
+        ...(this.manifest.guardianCharacter ? [this.manifest.guardianCharacter] : []),
         ...(this.manifest.animations ?? []),
         ...this.manifest.environment,
         ...(this.manifest.resources ?? []),
-      ]
+      ])]
       if (urls.length === 0) throw new Error('empty manifest')
       let loadedCount = 0
       await Promise.all(urls.map(async (url) => {
@@ -77,7 +79,7 @@ export class AssetLibrary {
   }
 
   createGuardianCharacter(): CharacterAnimator {
-    return this.createKayKitCharacter(this.manifest.character, false, 'guardian')
+    return this.createKayKitCharacter(this.manifest.guardianCharacter, false, 'guardian')
       ?? createAnimatedActor({
         cloth: 0x24183c,
         armor: 0x6e5aa8,
@@ -118,7 +120,7 @@ export class AssetLibrary {
           } else if (style === 'guardian') {
             for (const next of cloned) {
               if ('color' in next && next.color instanceof THREE.Color) {
-                next.color.lerp(new THREE.Color(0x7459ad), 0.38)
+                next.color.lerp(new THREE.Color(0x5f36a8), 0.68)
               }
               if ('emissive' in next && next.emissive instanceof THREE.Color) next.emissive.set(0x2f174d)
               if ('emissiveIntensity' in next && typeof next.emissiveIntensity === 'number') {

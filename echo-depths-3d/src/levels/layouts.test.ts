@@ -54,6 +54,7 @@ describe('Chapter 3-5 authored level architecture', () => {
     expect(boxes.get('gallery-high-flank')?.occluder).toBe(true)
     expect(top(boxes.get('gallery-high-flank')!)).toBeGreaterThan((watcher?.position[1] ?? 0) + 0.9)
     expect(watcher?.to).toBeDefined()
+    expect(Math.abs((watcher?.position[0] ?? 0) - (watcher?.to?.[0] ?? 0))).toBeGreaterThanOrEqual(5.5)
   })
 
   it('uses one recording topology and exactly one powered moving device in Chapter 5', () => {
@@ -106,5 +107,16 @@ describe('Chapter 3-5 authored level architecture', () => {
     const playerLane = boxes.get('well-player-crossing')!
     const echoLane = boxes.get('well-transfer-ledge')!
     expect((echoLane.position[2] - echoLane.size[2]) - (playerLane.position[2] + playerLane.size[2])).toBeGreaterThan(2)
+
+    const guardian = devices.get('guardian')!
+    const divider = boxes.get('well-divider-center')!
+    const dais = boxes.get('guardian-dais')!
+    expect((divider.position[0] - divider.size[0]) - (guardian.position[0] + guardian.size![0])).toBeGreaterThanOrEqual(0.3)
+    for (const position of [guardian.position, guardian.to!]) {
+      expect(position[0] - guardian.size![0]).toBeGreaterThanOrEqual(dais.position[0] - dais.size[0])
+      expect(position[0] + guardian.size![0]).toBeLessThanOrEqual(dais.position[0] + dais.size[0])
+      expect(position[2] - guardian.size![2]).toBeGreaterThanOrEqual(dais.position[2] - dais.size[2])
+      expect(position[2] + guardian.size![2]).toBeLessThanOrEqual(dais.position[2] + dais.size[2])
+    }
   })
 })

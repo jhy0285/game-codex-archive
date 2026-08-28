@@ -600,22 +600,33 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(world.interact(echo)).toBe('lever')
       expect(world.debugState().facts).not.toContain('lured-by-echo')
       expect(world.debugState().enemies.watcher?.target).toBeUndefined()
-      stepWorld(world, physics, 1, [player, echo])
+      let tick = 1
+      while (world.debugState().enemies.watcher?.state !== 'lure-hold' && tick <= 480) {
+        stepWorld(world, physics, tick, [echo])
+        tick += 1
+      }
       expect(world.debugState().facts).toContain('lured-by-echo')
       const acquired = world.debugState().enemies.watcher
-      expect(acquired, JSON.stringify(acquired)).toMatchObject({ target: 'echo', targetVisible: true })
+      expect(acquired, JSON.stringify(acquired)).toMatchObject({ state: 'lure-hold', target: 'echo', targetVisible: true })
       const watcherPosition = acquired?.position
       if (!watcherPosition) throw new Error('Watcher position is missing')
+      const watcherForward = new THREE.Vector3(acquired.forward.x, 0, acquired.forward.z).normalize()
+      player.position.set(
+        watcherPosition.x - watcherForward.x * 1.4,
+        watcherPosition.y + 1.5,
+        watcherPosition.z - watcherForward.z * 1.4,
+      )
       const strikeDirection = new THREE.Vector3()
         .subVectors(new THREE.Vector3(watcherPosition.x, watcherPosition.y, watcherPosition.z), player.position)
         .setY(0)
         .normalize()
       expect(world.attack(player, strikeDirection), JSON.stringify({ player: player.position, state: world.debugState() })).toBe('watcher')
 
-      for (let tick = 2; tick < 90 && !world.debugState().enemies.watcher?.defeated; tick += 1) {
+      const trapDeadline = tick + 90
+      for (; tick < trapDeadline && !world.debugState().enemies.watcher?.defeated; tick += 1) {
         stepWorld(world, physics, tick, [player, echo])
       }
-      stepWorld(world, physics, 90, [player, echo])
+      stepWorld(world, physics, tick, [player, echo])
 
       const trapped = world.debugState()
       expect(trapped.facts).toEqual(expect.arrayContaining(['lured-by-echo', 'watcher-trapped']))
@@ -667,16 +678,21 @@ describe('DungeonWorld authored runtime contracts', () => {
     const { physics, world } = await createWorld(4)
     try {
       const echo = actor('echo', 'echo', [-1.9, 1.08, 3.0])
-      stepWorld(world, physics, 1, [echo])
+      let tick = 1
+      while (world.debugState().enemies.watcher?.target !== 'echo' && tick <= 360) {
+        stepWorld(world, physics, tick, [echo])
+        tick += 1
+      }
       expect(world.debugState().enemies.watcher).toMatchObject({ state: 'alert', target: 'echo', targetVisible: true })
-      for (let tick = 2; tick <= 24; tick += 1) stepWorld(world, physics, tick, [echo])
+      for (let elapsed = 0; elapsed < 24; elapsed += 1, tick += 1) stepWorld(world, physics, tick, [echo])
       expect(world.debugState().enemies.watcher).toMatchObject({ state: 'chase', target: 'echo', targetVisible: true })
 
-      stepWorld(world, physics, 25, [])
+      stepWorld(world, physics, tick, [])
+      tick += 1
       expect(world.debugState().enemies.watcher).toMatchObject({ state: 'investigate', targetVisible: false })
-      for (let tick = 26; tick <= 176; tick += 1) stepWorld(world, physics, tick, [])
+      for (let elapsed = 0; elapsed < 151; elapsed += 1, tick += 1) stepWorld(world, physics, tick, [])
       expect(['investigate', 'recovery']).toContain(world.debugState().enemies.watcher?.state)
-      for (let tick = 177; tick <= 260; tick += 1) stepWorld(world, physics, tick, [])
+      for (let elapsed = 0; elapsed < 84; elapsed += 1, tick += 1) stepWorld(world, physics, tick, [])
       expect(world.debugState().enemies.watcher).toMatchObject({ state: 'patrol', targetVisible: false })
     } finally {
       world.dispose()
@@ -688,7 +704,7 @@ describe('DungeonWorld authored runtime contracts', () => {
     const { physics, world } = await createWorld(4)
     try {
       const positions: number[] = []
-      for (let tick = 1; tick <= 260; tick += 1) {
+      for (let tick = 1; tick <= 600; tick += 1) {
         stepWorld(world, physics, tick, [])
         const x = world.debugState().enemies.watcher?.position.x
         if (x !== undefined) positions.push(x)
@@ -697,8 +713,8 @@ describe('DungeonWorld authored runtime contracts', () => {
       const maximum = Math.max(...positions)
       const minimumIndex = positions.indexOf(minimum)
       const returnMaximum = Math.max(...positions.slice(minimumIndex))
-      expect(maximum - minimum).toBeGreaterThan(1.5)
-      expect(returnMaximum - minimum).toBeGreaterThan(1.4)
+      expect(maximum - minimum).toBeGreaterThan(5.2)
+      expect(returnMaximum - minimum).toBeGreaterThan(5.1)
       expect(world.debugState().enemies.watcher?.state).toBe('patrol')
     } finally {
       world.dispose()
@@ -714,7 +730,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       // only chase therefore used to repeat the same blocked step forever.
       const player = actor('player', 'player', [-5.8, 1.08, -2.3])
       const trace: Array<{ tick: number; x: number; z: number; state: string; visible: boolean }> = []
-      for (let tick = 1; tick <= 240; tick += 1) {
+      for (let tick = 1; tick <= 360; tick += 1) {
         stepWorld(world, physics, tick, [player])
         if (tick % 30 === 0) {
           const watcher = world.debugState().enemies.watcher
@@ -743,7 +759,9 @@ describe('DungeonWorld authored runtime contracts', () => {
     const { physics, world } = await createWorld(4)
     try {
       const echo = actor('echo', 'echo', [-1.9, 0.72, 3.0])
-      for (let tick = 1; tick <= 90; tick += 1) stepWorld(world, physics, tick, [echo])
+      for (let tick = 1; tick <= 480 && world.debugState().enemies.watcher?.state !== 'lure-hold'; tick += 1) {
+        stepWorld(world, physics, tick, [echo])
+      }
 
       const watcher = world.debugState().enemies.watcher
       const trap = CHAPTER_LAYOUTS[4].devices.find((device) => device.id === 'spike-trap')
@@ -786,9 +804,13 @@ describe('DungeonWorld authored runtime contracts', () => {
     const { physics, world } = await createWorld(4)
     try {
       const echo = actor('echo', 'echo', [-1.9, 1.08, 3.0])
-      stepWorld(world, physics, 1, [echo])
+      let tick = 1
+      while (world.debugState().enemies.watcher?.target !== 'echo' && tick <= 360) {
+        stepWorld(world, physics, tick, [echo])
+        tick += 1
+      }
       const snapshot = world.captureSnapshot()
-      for (let tick = 2; tick <= 220; tick += 1) stepWorld(world, physics, tick, [])
+      for (let elapsed = 0; elapsed < 240; elapsed += 1, tick += 1) stepWorld(world, physics, tick, [])
       expect(world.debugState().enemies.watcher?.target).toBeUndefined()
 
       world.restoreSnapshot(snapshot, false)
@@ -819,15 +841,30 @@ describe('DungeonWorld authored runtime contracts', () => {
     const { physics, world } = await createWorld(4)
     try {
       const echo = actor('echo', 'echo', [-1.9, 1.08, 3.0])
-      stepWorld(world, physics, 1, [echo])
-      const frontalPlayer = actor('player', 'player', [0.8, 1.08, 1.4])
-      expect(world.attack(frontalPlayer, new THREE.Vector3(1.4, 0, -0.95).normalize())).toBe('shield')
+      let tick = 1
+      while (world.debugState().enemies.watcher?.state !== 'lure-hold' && tick <= 480) {
+        stepWorld(world, physics, tick, [echo])
+        tick += 1
+      }
+      const watcher = world.debugState().enemies.watcher
+      if (!watcher) throw new Error('Watcher state is missing')
+      const forward = new THREE.Vector3(watcher.forward.x, 0, watcher.forward.z).normalize()
+      const frontalPlayer = actor('player', 'player', [
+        watcher.position.x + forward.x * 1.4,
+        watcher.position.y,
+        watcher.position.z + forward.z * 1.4,
+      ])
+      expect(world.attack(frontalPlayer, new THREE.Vector3(
+        watcher.position.x - frontalPlayer.position.x,
+        0,
+        watcher.position.z - frontalPlayer.position.z,
+      ).normalize())).toBe('shield')
       expect(world.debugState().facts).not.toContain('watcher-trapped')
       expect(world.debugState().doors['gallery-door']?.open).toBe(false)
 
       const exitPlayer = actor('player', 'player', [8.35, 1.08, -2.55])
       expect(world.interact(exitPlayer)).toBe('exit')
-      stepWorld(world, physics, 2, [exitPlayer, echo])
+      stepWorld(world, physics, tick, [exitPlayer, echo])
       expect(world.complete).toBe(false)
     } finally {
       world.dispose()
@@ -861,7 +898,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(world.debugState().enemies.guardian).toMatchObject({ target: 'echo', targetVisible: true })
       const guardianPosition = world.debugState().enemies.guardian?.position
       if (!guardianPosition) throw new Error('Guardian position is missing')
-      expect(guardianPosition.x).toBeCloseTo(0.8, 1)
+      expect(guardianPosition.x).toBeCloseTo(0.1, 1)
       expect(guardianPosition.z).toBeCloseTo(0.85, 1)
       expect(world.attack(player, new THREE.Vector3(
         guardianPosition.x - player.position.x,
@@ -1002,9 +1039,16 @@ describe('DungeonWorld authored runtime contracts', () => {
     try {
       const echo = actor('echo', 'echo', [-1.9, 1.08, 3.0])
       const player = actor('player', 'player', [2.8, 3.45, -1.1])
-      stepWorld(world, physics, 1, [player, echo])
-      const watcher = world.debugState().enemies.watcher?.position
-      if (!watcher) throw new Error('Watcher position is missing')
+      let tick = 1
+      while (world.debugState().enemies.watcher?.state !== 'lure-hold' && tick <= 480) {
+        stepWorld(world, physics, tick, [echo])
+        tick += 1
+      }
+      const watcherState = world.debugState().enemies.watcher
+      if (!watcherState) throw new Error('Watcher position is missing')
+      const watcher = watcherState.position
+      const forward = new THREE.Vector3(watcherState.forward.x, 0, watcherState.forward.z).normalize()
+      player.position.set(watcher.x - forward.x * 1.4, watcher.y + 1.5, watcher.z - forward.z * 1.4)
       expect(world.attack(player, new THREE.Vector3(
         watcher.x - player.position.x,
         0,
@@ -1368,7 +1412,9 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(rightAngle - leftAngle).toBeCloseTo(Math.PI * 0.62, 4)
 
       const echo = actor('echo', 'echo', [-1.9, 1.08, 3.0])
-      stepWorld(world, physics, 1, [echo])
+      for (let tick = 1; tick <= 360 && world.debugState().enemies.watcher?.target !== 'echo'; tick += 1) {
+        stepWorld(world, physics, tick, [echo])
+      }
       expect(world.debugState().enemies.watcher).toMatchObject({ targetVisible: true, target: 'echo' })
       expect(sector.material.color.getHex()).toBe(0xff4f6d)
       expect(boundary.material.color.getHex()).toBe(0xff4f6d)

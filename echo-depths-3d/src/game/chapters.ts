@@ -274,7 +274,7 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     trapIds: ['spike-trap', 'gallery-void'],
     crates: [],
     cores: [],
-    enemies: [{ id: 'watcher', spawn: v(2.2, 0.98, 0.45), role: 'watcher' }],
+    enemies: [{ id: 'watcher', spawn: v(5.9, 0.98, -0.45), role: 'watcher' }],
     objectives: [
       {
         id: 'defeat-with-hazard',
@@ -323,7 +323,7 @@ export const CHAPTERS: readonly ChapterDefinition[] = [
     trapIds: ['well-void'],
     crates: [],
     cores: [{ id: 'paradox-core', spawn: v(-6.2, 1.1, 2.55) }],
-    enemies: [{ id: 'guardian', spawn: v(0.8, 2.28, 0.85), role: 'guardian' }],
+    enemies: [{ id: 'guardian', spawn: v(0.1, 2.28, 0.85), role: 'guardian' }],
     objectives: [
       {
         id: 'power-well',
