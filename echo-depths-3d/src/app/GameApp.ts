@@ -874,6 +874,9 @@ export class GameApp {
     this.activeObjective = objective
     this.hud.setObjectiveId(objective)
     if (previous !== undefined && objective === 'reach-exit') this.hud.showFeedbackKey('feedbackDoorOpen', 'success')
+    if (previous === 'paradox-core' && objective === 'paradox-guardian') {
+      this.hud.showFeedbackKey('feedbackGuardianOpen', 'success', 3_600)
+    }
   }
 
   private updateTutorialProgress(player: ActorRuntime, input: UiInputFrame): void {

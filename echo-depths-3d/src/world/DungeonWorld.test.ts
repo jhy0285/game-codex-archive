@@ -953,7 +953,8 @@ describe('DungeonWorld authored runtime contracts', () => {
       core.body.setTranslation({ x: receiver[0], y: receiver[1], z: receiver[2] }, true)
       physics.step()
       world.afterPhysics([])
-      const echo = actor('echo', 'echo', [lowerSeal[0], 1.08, lowerSeal[2]])
+      physics.createActor('guardian-shield-echo', 'echo', { x: lowerSeal[0], y: 1.08, z: lowerSeal[2] })
+      const echo = actor('guardian-shield-echo', 'echo', [lowerSeal[0], 1.08, lowerSeal[2]])
       for (let tick = 1; tick < 180 && world.debugState().enemies.guardian?.target !== 'echo'; tick += 1) {
         stepWorld(world, physics, tick, [echo])
       }
@@ -1434,15 +1435,12 @@ describe('DungeonWorld authored runtime contracts', () => {
       const beam = guardian?.getObjectByName('GuardianTargetBeam') as THREE.Line
       const shield = guardian?.getObjectByName('GuardianFrontShield') as THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial>
       const rearSeal = guardian?.getObjectByName('GuardianRearSeal') as THREE.Mesh<THREE.CircleGeometry, THREE.MeshStandardMaterial>
-      expect(sector.visible).toBe(false)
-      expect(boundary.visible).toBe(false)
+      expect(sector.visible).toBe(true)
+      expect(boundary.visible).toBe(true)
       expect(beam.visible).toBe(false)
 
-      const receiver = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'power-receiver')?.position
       const lowerSeal = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'lower-seal')?.position
-      const core = physics.record('paradox-core')
-      if (!receiver || !lowerSeal || !core) throw new Error('Chapter 5 activation devices are missing')
-      core.body.setTranslation({ x: receiver[0], y: receiver[1], z: receiver[2] }, true)
+      if (!lowerSeal) throw new Error('Chapter 5 lower seal is missing')
       physics.createActor('guardian-echo', 'echo', { x: lowerSeal[0], y: 1.08, z: lowerSeal[2] })
       const echo = actor('guardian-echo', 'echo', [lowerSeal[0], 1.08, lowerSeal[2]])
       for (let tick = 1; tick <= 60; tick += 1) stepWorld(world, physics, tick, [echo])
@@ -1456,6 +1454,7 @@ describe('DungeonWorld authored runtime contracts', () => {
       const rightAngle = Math.atan2(points.at(-1)?.x ?? 0, points.at(-1)?.z ?? 1)
       expect(rightAngle - leftAngle).toBeCloseTo(Math.PI * 0.94, 4)
       expect(world.debugState().enemies.guardian).toMatchObject({ state: 'lure-hold', target: 'echo', targetVisible: true })
+      expect(world.debugState().facts).not.toContain('core-receiver')
       expect(sector.visible).toBe(true)
       expect(sector.material.color.getHex()).toBe(0xd66bff)
       expect(beam.visible).toBe(true)
@@ -1467,26 +1466,19 @@ describe('DungeonWorld authored runtime contracts', () => {
     }
   })
 
-  it('keeps the Guardian dormant before Core power and requires real vertical contact after activation', async () => {
+  it('patrols from the start, ignores lower routes, and catches a Player who climbs onto its arena', async () => {
     const { physics, world } = await createWorld(5)
     try {
       const belowDais = actor('player', 'player', [0.9, 1.08, 1.15])
       for (let tick = 1; tick <= 180; tick += 1) stepWorld(world, physics, tick, [belowDais])
-      expect(world.debugState().enemies.guardian).toMatchObject({ state: 'dormant', targetVisible: false })
+      expect(world.debugState().enemies.guardian).toMatchObject({ state: 'patrol', targetVisible: false })
       expect(world.failed).toBe(false)
 
-      const receiver = CHAPTER_LAYOUTS[5].devices.find((device) => device.id === 'power-receiver')?.position
-      const core = physics.record('paradox-core')
-      if (!receiver || !core) throw new Error('Chapter 5 Core receiver is missing')
-      core.body.setTranslation({ x: receiver[0], y: receiver[1], z: receiver[2] }, true)
-      physics.step()
-      world.afterPhysics([belowDais])
-      for (let tick = 181; tick <= 300; tick += 1) stepWorld(world, physics, tick, [belowDais])
+      // The slab is a raised enemy arena, not a switch: entering it puts the
+      // live Player on the Guardian's level and makes contact lethal.
+      belowDais.position.set(-0.35, 2.28, 0.0)
+      for (let tick = 181; tick <= 480 && !world.failed; tick += 1) stepWorld(world, physics, tick, [belowDais])
       expect(world.debugState().enemies.guardian?.target).toBe('player')
-      expect(world.failed).toBe(false)
-
-      belowDais.position.y = 2.28
-      for (let tick = 301; tick <= 360 && !world.failed; tick += 1) stepWorld(world, physics, tick, [belowDais])
       expect(world.failed).toBe(true)
       expect(world.failureReason).toBe('guardian')
     } finally {

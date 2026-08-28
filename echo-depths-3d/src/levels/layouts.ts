@@ -262,7 +262,10 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       floor('well-core-basin', [4.7, 0.12, 2.55], [2.1, 0.12, 1.25], 'echo'),
       wall('well-transfer-rail-south', [1.0, 0.55, 1.2], [1.4, 0.55, 0.14]),
       wall('well-transfer-rail-north', [0.1, 0.55, 3.85], [3.1, 0.55, 0.14]),
-      occludingFloor('guardian-dais', [0.9, 1.15, 0.9], [2.2, 0.3, 1.55], 'danger'),
+      // This is the Guardian's raised patrol arena, not a pressure plate. Keep
+      // it neutral so the animated arena ring and vision cone communicate the
+      // hazard instead of making the whole slab look like an inert switch.
+      occludingFloor('guardian-dais', [0.9, 1.15, 0.9], [2.2, 0.3, 1.55], 'stone'),
       // The upper route deliberately stays isolated from both lower lanes, but its
       // playable seams need enough overlap for a real controller or touch input.
       occludingFloor('well-upper', [6.65, 3.0, -0.7], [2.35, 0.45, 3.4], 'safe'),

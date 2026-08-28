@@ -159,7 +159,7 @@ const ENEMY_SEARCH_TICKS = 150
 const ENEMY_RECOVERY_TICKS = 72
 const ENEMY_STIMULUS_TICKS = 180
 const WATCHER_TARGET_LOCK_TICKS = 120
-const WATCHER_CHASE_SPEED = 0.041
+const WATCHER_CHASE_SPEED = 0.047
 const WATCHER_ECHO_LURE_SPEED = 0.032
 const WATCHER_CONTACT_DISTANCE = 1.12
 const WATCHER_CONTACT_VERTICAL_DELTA = 1.15
@@ -169,6 +169,10 @@ const GUARDIAN_REAR_DOT_MAX = -0.45
 const GUARDIAN_CONTACT_DISTANCE = 1.12
 const GUARDIAN_CONTACT_VERTICAL_DELTA = 0.82
 const GUARDIAN_CHASE_SPEED = 0.026
+// The Guardian owns the raised arena. Actors on the lower Core routes must not
+// pull it off the dais, while an Echo actually holding the lower seal remains
+// the authored cross-level lure.
+const GUARDIAN_ARENA_VERTICAL_DELTA = 0.9
 
 export const canActorRequestExit = (actor: ActorKind): boolean => actor === 'player'
 
@@ -244,7 +248,6 @@ export class DungeonWorld {
     this.root.add(this.playerInteractionOutline, this.echoInteractionOutline)
     this.scene.add(this.root)
     this.build()
-    if (chapter === 5) this.enemyState = 'dormant'
     const enemy = this.devices.get(chapter === 5 ? 'guardian' : 'watcher')
     const attentionLandmark = this.devices.get(chapter === 5 ? 'lower-seal' : 'lure-bell')
     if (enemy && attentionLandmark) {
@@ -2264,37 +2267,20 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
       return
     }
-    if (this.chapter === 5 && !this.facts.has('core-receiver')) {
-      this.enemyState = 'dormant'
-      this.enemyTarget = undefined
-      this.enemyTargetVisible = false
-      this.enemyTargetLockTicks = 0
-      this.enemyDetection = 0
-      this.enemyAlertTicks = 0
-      this.enemySearchTicks = 0
-      this.enemyRecoveryTicks = 0
-      this.enemyStimulusTicks = 0
-      enemy.root.position.copy(enemy.basePosition)
-      const lowerSeal = this.devices.get('lower-seal')
-      if (lowerSeal) this.faceEnemy(enemy, lowerSeal.root.position.clone().sub(enemy.root.position).setY(0))
-      enemy.body.body.setNextKinematicTranslation(this.vec(enemy.root.position))
-      enemy.body.body.setNextKinematicRotation({
-        x: enemy.root.quaternion.x,
-        y: enemy.root.quaternion.y,
-        z: enemy.root.quaternion.z,
-        w: enemy.root.quaternion.w,
-      })
-      this.updateEnemyPresentation(enemy)
-      return
-    }
-    if (this.chapter === 5 && this.enemyState === 'dormant') {
-      this.enemyState = 'alert'
-      this.enemyAlertTicks = ENEMY_ALERT_TICKS
-    }
     const echo = actors.find((actor) => actor.kind === 'echo')
     const player = actors.find((actor) => actor.kind === 'player')
-    const seesEcho = echo ? this.hasLineOfSight(enemy.root.position, echo.position) : false
-    const seesPlayer = player ? this.hasLineOfSight(enemy.root.position, player.position) : false
+    const echoHoldsLowerSeal = this.chapter === 5
+      && echo !== undefined
+      && this.deviceHeldBy('lower-seal', 'echo')
+    const guardianCanAcquire = (actor: ActorContext): boolean => this.chapter !== 5
+      || Math.abs(actor.position.y - enemy.root.position.y) <= GUARDIAN_ARENA_VERTICAL_DELTA
+      || (actor.kind === 'echo' && echoHoldsLowerSeal)
+    const seesEcho = echo
+      ? guardianCanAcquire(echo) && this.hasLineOfSight(enemy.root.position, echo.position)
+      : false
+    const seesPlayer = player
+      ? guardianCanAcquire(player) && this.hasLineOfSight(enemy.root.position, player.position)
+      : false
     const visibleActors = [
       ...(echo && seesEcho ? [echo] : []),
       ...(player && seesPlayer ? [player] : []),
@@ -2306,7 +2292,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const lowerSealEcho = this.chapter === 5
       && echo
       && seesEcho
-      && this.deviceHeldBy('lower-seal', 'echo')
+      && echoHoldsLowerSeal
       ? echo
       : undefined
     const visibleTarget = lowerSealEcho ?? retainedTarget ?? (targetLockActive
