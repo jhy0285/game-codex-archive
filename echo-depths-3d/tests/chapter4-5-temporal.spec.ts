@@ -10,6 +10,15 @@ import {
   waitForState,
 } from './runtime-helpers'
 
+async function jumpWithKeys(page: Page, keys: readonly string[], ticks = 22): Promise<void> {
+  for (const key of keys) await page.keyboard.down(key)
+  await page.keyboard.down('Space')
+  await advanceTicks(page, ticks)
+  await page.keyboard.up('Space')
+  for (const key of keys) await page.keyboard.up(key)
+  await advanceTicks(page, 4)
+}
+
 async function faceHorizontalTarget(
   page: Page,
   from: { x: number; z: number },
@@ -33,48 +42,56 @@ async function attachSuccessScreenshot(page: Page, testInfo: TestInfo, name: str
 }
 
 test.describe('Chapters 4 and 5 temporal mastery', () => {
-  test('Chapter 4 completes through the bell, cover, walkable ramp, high rear strike, and trap', async ({ page }, testInfo) => {
-    test.setTimeout(360_000)
+  test('Chapter 4 completes through real Echo attention, rear height strike, trap, door, and exit', async ({ page }, testInfo) => {
+    test.setTimeout(300_000)
     await startChapter(page, 4)
-    await attachSuccessScreenshot(page, testInfo, 'chapter-4-desktop-start-overview')
     await rotateCameraCardinal(page)
 
+    // The tape contains only ordinary movement and E/R actions. The Echo rings
+    // the physical bell, then finishes where the Watcher can really see it.
     await pressKey(page, 'r')
-    await moveAxis(page, 'x', -1.9, 'record the safe bell route')
-    await moveAxis(page, 'z', 3.0, 'stand at the lure bell')
+    await moveAxis(page, 'z', 0.5, 'take the covered gallery approach')
+    await moveAxis(page, 'x', -3.45, 'reach the west side of gallery cover')
+    await moveAxis(page, 'z', 2.5, 'round the north edge of gallery cover')
+    await moveAxis(page, 'z', 3.1, 'reach the gallery bell lane')
+    await moveAxis(page, 'x', -0.8, 'reach the gallery bell')
     await pressKey(page, 'e')
     await pressKey(page, 'r')
 
-    await moveAxis(page, 'x', -4.6, 'return behind the west cover')
-    await moveAxis(page, 'z', 0.0, 'break the present Player sight line')
+    // The present Player breaks sight behind authored cover while the replay
+    // becomes the Watcher's visible target.
+    await moveAxis(page, 'x', -3.45, 'reach gallery cover')
+    await moveAxis(page, 'z', 1.0, 'settle behind gallery cover')
     const distracted = await waitForState(
       page,
       (current) => current.enemies?.watcher?.target === 'echo'
         && current.enemies.watcher.targetVisible === true,
       480,
-      'the Watcher never acquired the real bell Echo',
+      'Watcher never acquired the real Echo',
     )
     expect(distracted.objectives.facts).toContain('lured-by-echo')
-    await attachSuccessScreenshot(page, testInfo, 'chapter-4-desktop-cover-and-watcher')
 
-    // No Space input: the common motor walks up the authored ramp.
-    await moveAxis(page, 'z', -3.05, 'reach the low end of the gallery ramp')
-    await advanceTicks(page, 20)
-    await moveAxis(page, 'x', 2.8, 'walk up the gallery ramp', 1_200)
+    // Take the real stair/ledge route to the rear high flank.
+    await moveAxis(page, 'z', -3.0, 'reach the gallery flank stairs', 900)
+    await moveAxis(page, 'x', 0.15, 'step onto the first flank stair', 900)
+    await jumpWithKeys(page, ['d'], 22)
+    await jumpWithKeys(page, ['d'], 22)
+    await jumpWithKeys(page, ['d'], 28)
     await waitForState(
       page,
-      (current) => (current.player?.position.y ?? 0) > 2.6,
-      180,
-      'the Player did not walk onto the high rear flank',
+      (current) => (current.player?.position.y ?? 0) > 2.8,
+      240,
+      'Player did not reach the upper flank',
     )
-    await moveAxis(page, 'z', -1.7, 'approach the Watcher from the high rear edge')
+    await moveAxis(page, 'x', 2.9, 'align the high rear strike')
+    await moveAxis(page, 'z', -1.2, 'approach the high rear strike')
 
     const beforeStrike = await readState(page)
     const watcher = beforeStrike.enemies?.watcher
     const player = beforeStrike.player
     if (!watcher || !player) throw new Error(`strike actors unavailable: ${JSON.stringify(beforeStrike)}`)
     expect(watcher.target).toBe('echo')
-    await attachSuccessScreenshot(page, testInfo, 'chapter-4-desktop-high-flank')
+    expect(watcher.targetVisible).toBe(true)
     await faceHorizontalTarget(page, player.position, watcher.position)
     await pressKey(page, 'j')
 
@@ -87,132 +104,129 @@ test.describe('Chapters 4 and 5 temporal mastery', () => {
     )
     expect(neutralized.doors?.['gallery-door']?.open).toBe(true)
     await attachSuccessScreenshot(page, testInfo, 'chapter-4-desktop-neutralized')
-
-    await moveAxis(page, 'z', -3.05, 'return to the walkable ramp')
-    await moveAxis(page, 'x', -4.6, 'walk down from the high flank', 1_200)
-    await waitForState(page, (current) => (current.player?.position.y ?? 99) < 1.5, 180, 'the Player did not descend the ramp')
-    await moveAxis(page, 'z', -2.55, 'line up the gallery exit')
-    await moveAxis(page, 'x', 8.35, 'cross the neutralized corridor', 1_800)
+    await moveAxis(page, 'x', 8.35, 'cross the neutralized gallery', 1_800)
+    await moveAxis(page, 'z', -1.8, 'line up the gallery exit')
     await pressKey(page, 'e')
     const complete = await waitForState(page, (current) => current.mode === 'chapter-complete', 90, 'Chapter 4 did not complete')
     expect(complete.objectives.required).toEqual(['watcher-trapped'])
+    expect(complete.objectives.complete).toBe(true)
   })
 
-  test('Chapter 5 completes with one recording, one Core, one platform, Guardian attention, and live seals', async ({ page }, testInfo) => {
+  test('Chapter 5 completes with one real Core, Guardian attention switch, live seals, and exit', async ({ page }, testInfo) => {
     test.setTimeout(600_000)
     await startChapter(page, 5)
-    await attachSuccessScreenshot(page, testInfo, 'chapter-5-desktop-start-overview')
     await rotateCameraCardinal(page)
 
-    // One tape performs both past duties: transfer the Core, then hold lower seal.
+    // Tape one uses the same physical Core: pickup, carry up the real ramp,
+    // then a westward throw into the lower receiver.
     await pressKey(page, 'r')
-    await moveAxis(page, 'z', 2.55, 'reach the Paradox Core lane')
-    await moveAxis(page, 'x', -6.2, 'reach the Paradox Core')
+    await moveAxis(page, 'z', 2.0, 'reach the Paradox Core lane')
+    await moveAxis(page, 'x', -5.7, 'reach the Paradox Core')
     await pressKey(page, 'e')
     await expect.poll(async () => (await readState(page)).cores['paradox-core']?.carriedBy).toBe('player')
-    await moveAxis(page, 'x', 0.0, 'carry the Core to the north transfer ledge')
-    await page.keyboard.down('d')
+    await moveAxis(page, 'z', -0.8, 'carry the Core to the ramp')
+    await moveAxis(page, 'x', -1.0, 'carry the Core up the real ramp', 1_200)
+    await waitForState(page, (current) => (current.player?.position.y ?? 0) > 3.3, 180, 'Player did not crest the Core ramp')
+    await holdKey(page, 'a', 1)
     await pressKey(page, 'k')
-    await page.keyboard.up('d')
-    await moveAxis(page, 'x', -1.75, 'return west after the transfer throw')
-    await moveAxis(page, 'z', -2.55, 'finish the same recording on the lower seal')
     await pressKey(page, 'r')
 
-    // Present time uses the flat player-only south passage to open the shutter.
-    await moveAxis(page, 'x', 3.2, 'cross the south passage and open the Core shutter')
-    await waitForState(
-      page,
-      (current) => current.barriers?.['well-transfer-shutter']?.open === true,
-      120,
-      'the present Player did not open the Chapter 5 transfer shutter',
-    )
-    const landed = await waitForState(
-      page,
-      (current) => current.echo.mode === 'holding'
-        && current.pressurePlates?.['lower-seal']?.actor === 'echo'
-        && current.cores['paradox-core']?.carriedBy === undefined
-        && (current.cores['paradox-core']?.position.x ?? 0) > 2.7,
-      720,
-      'the one Echo did not transfer the Core and continue to the lower seal',
-    )
-    expect(Object.keys(landed.cores)).toEqual(['paradox-core'])
-    expect(landed.objectives.facts).toContain('lower-seal-echo')
-    await attachSuccessScreenshot(page, testInfo, 'chapter-5-desktop-transfer-and-lower-seal')
-
-    const core = landed.cores['paradox-core']!
-    await moveAxis(page, 'x', core.position.x, 'line up with the east Core basin')
-    await moveAxis(page, 'z', core.position.z, 'pick up the same Core')
-    await pressKey(page, 'e')
-    await expect.poll(async () => (await readState(page)).cores['paradox-core']?.carriedBy).toBe('player')
-    await moveAxis(page, 'z', 0.2, 'carry the Core toward the receiver')
-    await moveAxis(page, 'x', 6.4, 'place the Core beside the east receiver')
-    await pressKey(page, 'e')
     const received = await waitForState(
       page,
       (current) => current.cores['paradox-core']?.receiver === true,
-      180,
-      'the same Core did not power the receiver',
+      600,
+      'Echo did not deliver the same real Core to the receiver',
     )
-    expect(received.objectives.facts).toContain('core-receiver')
-    expect(received.objectives.facts).not.toContain('core-thrown-down')
-    await attachSuccessScreenshot(page, testInfo, 'chapter-5-desktop-receiver-powered')
+    expect(received.cores['paradox-core']?.carriedBy).toBeUndefined()
+    expect(received.objectives.facts).toEqual(expect.arrayContaining(['core-thrown-down', 'core-receiver']))
+    expect(Object.keys(received.cores)).toEqual(['paradox-core'])
 
-    await moveAxis(page, 'x', 5.75, 'clear the occupied receiver')
-    await moveAxis(page, 'z', -2.65, 'reach the powered platform lane')
-    await moveAxis(page, 'x', 4.15, 'wait at the single moving platform')
-    await waitForState(page, (current) => (current.elevators?.['well-platform']?.y ?? 99) < 0.9, 720, 'the platform did not return low')
-    await moveAxis(page, 'x', 4.0, 'step beside the low platform')
-    await moveAxis(page, 'x', 4.15, 'board the low platform')
+    // Tape two walks the present Player down the same traversable ramp and
+    // finishes on the lower physical seal. Its Echo will hold that occupancy.
+    await pressKey(page, 'r')
+    await moveAxis(page, 'x', -5.7, 'descend the well ramp', 1_200)
+    await moveAxis(page, 'z', 3.6, 'reach the lower seal lane')
+    await moveAxis(page, 'x', -3.1, 'finish the lower seal route')
+    await pressKey(page, 'r')
+
+    const lowerHeld = await waitForState(
+      page,
+      (current) => current.pressurePlates?.['lower-seal']?.active === true
+        && current.pressurePlates['lower-seal']?.actor === 'echo',
+      720,
+      'Echo did not occupy the live lower seal',
+    )
+    expect(lowerHeld.objectives.facts).toContain('lower-seal-echo')
+
+    // Present time climbs back to the powered moving platform and reaches the
+    // authored high flank while the Guardian must truly see the Echo.
+    await moveAxis(page, 'x', -5.7, 'return to the west ramp approach')
+    await moveAxis(page, 'z', -0.8, 'return to the powered ramp')
+    await moveAxis(page, 'x', -0.9, 'climb back to the middle floor', 1_200)
+    await waitForState(page, (current) => (current.player?.position.y ?? 0) > 3.3, 180, 'Player did not return to the middle floor')
+    await moveAxis(page, 'z', -1.8, 'line up the moving platform')
+    await moveAxis(page, 'x', 2.55, 'wait beside the moving platform dock')
     await waitForState(
       page,
-      (current) => (current.elevators?.['well-platform']?.y ?? 0) > 3.0
-        && (current.player?.position.y ?? 0) > 3.8,
-      1_200,
-      'the single powered platform did not carry the Player upstairs',
+      (current) => (current.elevators?.['well-platform']?.y ?? 99) < 2.9,
+      480,
+      'moving platform did not return to its dock',
     )
-    await moveAxis(page, 'x', 5.3, 'step directly onto the upper floor')
-    await moveAxis(page, 'x', 4.5, 'enter the high Guardian flank')
-    await moveAxis(page, 'z', 2.2, 'take the exposed rear side of the Guardian')
-    await moveAxis(page, 'x', 2.2, 'enter the Guardian rear strike range')
+    await moveAxis(page, 'x', 3.05, 'board the docked moving platform', 180)
+    await waitForState(
+      page,
+      (current) => (current.elevators?.['well-platform']?.y ?? 0) > 4.45
+        && (current.player?.position.y ?? 0) > 5.0,
+      1_200,
+      'powered platform did not carry the Player to the upper floor',
+    )
+    await jumpWithKeys(page, ['d'], 20)
+    await moveAxis(page, 'x', 5.4, 'step onto the upper floor')
+    await moveAxis(page, 'z', 1.35, 'approach the Guardian flank from cover')
+    await moveAxis(page, 'x', 3.0, 'take the authored high Guardian flank')
+    await moveAxis(page, 'z', 1.8, 'close on the rear edge of the Guardian flank')
+    await moveAxis(page, 'x', 2.25, 'enter the Guardian strike range')
 
-    const distracted = await waitForState(
+    const distractedGuardian = await waitForState(
       page,
       (current) => current.enemies?.guardian?.target === 'echo'
         && current.enemies.guardian.targetVisible === true,
-      600,
-      'the Guardian never committed to the lower Echo',
+      480,
+      'Guardian never switched to the visible Echo',
     )
-    const guardian = distracted.enemies?.guardian
-    const upperPlayer = distracted.player
-    if (!guardian || !upperPlayer) throw new Error(`Guardian actors unavailable: ${JSON.stringify(distracted)}`)
-    await attachSuccessScreenshot(page, testInfo, 'chapter-5-desktop-upper-flank')
+    const guardian = distractedGuardian.enemies?.guardian
+    const upperPlayer = distractedGuardian.player
+    if (!guardian || !upperPlayer) throw new Error(`Guardian strike actors unavailable: ${JSON.stringify(distractedGuardian)}`)
     await faceHorizontalTarget(page, upperPlayer.position, guardian.position)
     await pressKey(page, 'j')
     await waitForState(
       page,
       (current) => current.enemies?.guardian?.defeated === true
         && current.objectives.facts.includes('guardian-defeated'),
-      120,
-      'the high rear Guardian strike did not break the seal',
+      90,
+      'high rear Guardian strike did not break the seal',
     )
 
-    await moveAxis(page, 'x', 6.8, 'walk to the upper seal')
-    await moveAxis(page, 'z', -1.25, 'align with the upper seal')
+    // Only simultaneous live lower occupancy and upper E-hold release the door.
+    await jumpWithKeys(page, ['d'], 20)
+    await moveAxis(page, 'x', 5.2, 'leave the Guardian flank')
+    await moveAxis(page, 'z', -1.7, 'reach the upper seal lane')
+    await moveAxis(page, 'x', 6.2, 'reach the upper seal')
     await holdKey(page, 'e', 30)
     const released = await waitForState(
       page,
       (current) => current.doors?.['final-door']?.open === true
         && current.objectives.facts.includes('final-door-opened'),
       120,
-      'the simultaneous live seals did not release the final door',
+      'live dual seal did not release the final door',
     )
     expect(released.escapeSeconds).toBeGreaterThan(0)
     await attachSuccessScreenshot(page, testInfo, 'chapter-5-desktop-final-door')
-
-    await moveAxis(page, 'z', 2.65, 'cross the final upper bridge')
-    await moveAxis(page, 'x', 8.25, 'reach the final exit')
+    await moveAxis(page, 'z', 0.3, 'line up the final passage')
+    await moveAxis(page, 'x', 8.85, 'cross the final passage')
     await pressKey(page, 'e')
     const complete = await waitForState(page, (current) => current.mode === 'chapter-complete', 90, 'Chapter 5 did not complete')
     expect(complete.objectives.required).toEqual(['core-receiver', 'guardian-defeated', 'final-door-opened'])
+    expect(complete.objectives.complete).toBe(true)
   })
 })

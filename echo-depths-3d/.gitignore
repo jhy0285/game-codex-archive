@@ -1,6 +1,8 @@
 *.tsbuildinfo
 
 .vercel
+.wrangler
+.dev.vars*
 .env*
 
 

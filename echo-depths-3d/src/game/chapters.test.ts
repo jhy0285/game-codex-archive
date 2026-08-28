@@ -54,17 +54,10 @@ describe('authored chapter objectives', () => {
     ])
   })
 
-  it('authors a 20-second final Echo tape and a readable 15-second collapse escape', () => {
-    expect(CHAPTERS.map((chapter) => chapter.echoMaxTicks)).toEqual([
-      12 * 60, 15 * 60, 18 * 60, 18 * 60, 20 * 60,
-    ])
-    expect(CHAPTERS[4]?.escapeTimeTicks).toBe(15 * 60)
-  })
-
   it('does not require an internal throw-history fact after the real Core reaches its receiver', () => {
     const chapter = CHAPTERS[4]
     if (!chapter) throw new Error('Paradox Well definition is missing')
-    expect(chapter.victoryFacts).not.toContain('core-thrown-down-well')
+    expect(chapter.victoryFacts).not.toContain(ObjectiveFacts.CoreThrownDownWell)
     expect(chapter.victoryFacts).not.toContain(ObjectiveFacts.GuardianDistractedByEcho)
     expect(chapter.victoryFacts).toEqual([
       ObjectiveFacts.CoreInWellReceiver,

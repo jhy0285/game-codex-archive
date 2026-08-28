@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "verifiedAt": "2026-08-26",
+  "verifiedAt": "2026-08-14",
   "author": "Kay Lousberg",
   "acquisition": {
     "method": "Official itch.io anonymous 'No thanks, just take me to the downloads' flow",
@@ -17,8 +17,8 @@
     "archiveWording": "This content is free to use in personal, educational and commercial projects."
   },
   "productionSelection": {
-    "fileCount": 51,
-    "totalBytes": 6085295,
+    "fileCount": 50,
+    "totalBytes": 5703863,
     "textureOptimization": "The two shared 1024x1024 PNG color maps were downscaled to 512x512 with high-quality bicubic resampling for the mobile runtime. Geometry, animation data, UVs, and source style were not altered."
   },
   "animationStateCoverage": {
@@ -91,12 +91,6 @@
           "publicUrl": "/assets/kaykit/characters/Knight.glb",
           "bytes": 341688,
           "sha256": "e484370733824a0740683e7f6040aae0d20e5efd4107dde1175d6a2ad7e2f199"
-        },
-        {
-          "sourcePath": "KayKit_Adventurers_2.0_FREE/Characters/gltf/Rogue_Hooded.glb",
-          "publicUrl": "/assets/kaykit/characters/Rogue_Hooded.glb",
-          "bytes": 381432,
-          "sha256": "e8f3233c6db190506fbef3ad855683e6cb8bd7350de637d923e14a08aef088dc"
         },
         {
           "sourcePath": "KayKit_Adventurers_2.0_FREE/License.txt",

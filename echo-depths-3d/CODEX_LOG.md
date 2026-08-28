@@ -2,16 +2,6 @@
 
 All entries use Asia/Seoul dates.
 
-## 2026-08-27 — Chapter 5 safety, readability, and physical-open timing
-
-- Audited the canonical one-recording Chapter 5 route on desktop and touch. Kept the lower Player and Echo/Core lanes physically separated while widening the powered-platform landing, Guardian flank seam, boarding apron, and timed final bridge.
-- Removed an overlapping solid upper-pillar prop, moved the remaining corner pillars outward, and split tall north/south/east camera-facing walls into lower containment and upper route parapets.
-- Changed `final-door` from an overhead lift to a lateral east-side retraction. `final-door-opened` and the 15-second escape now begin only after the live collider has cleared the passage.
-- Added structural overlap/separation assertions and a world regression proving the dual seal alone does not prematurely open the door or consume escape time.
-- Corrected the desktop/touch canonical route to sidestep the occupied physical receiver before entering the platform lane, and changed the Vite Playwright server arguments to unambiguous `--host=` / `--port=` syntax.
-- `npm ci` found 0 vulnerabilities; Vitest passed 143/143 across 18 files; production build passed. The complete browser run passed 19 unaffected cases and exposed only the straight-line receiver collision; the corrected Chapter 5 desktop/touch pair then passed 2/2, with final captures visually inspected.
-- Pushed source `9dd9e6ca444a42df3ddcd6d144f56b513924746a`. Candidate `dpl_GhFLxjcg12jgC2kXYdKh1c3HHko1` passed smoke 6/6 after the hosted Chapter 1 keyboard path was made position-aware without debug APIs. The exact candidate promoted as Ready production `dpl_Hf9RE2xVSnJETE9ki9kW4h3drFjh`; public smoke passed 6/6 and direct Chapter 5 desktop/mobile entry collected no errors.
-
 ## 2026-08-14 — Repository intake
 
 - Read the repository-root agent instructions and migration, project-index, machine-setup, and deployment records.
@@ -255,90 +245,16 @@ Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLA
 - Final local evidence: `npm ci` 0 vulnerabilities; strict Vite build PASS (38 modules); Vitest 17 files / 126 tests PASS; Playwright 25/25 PASS in 24.6 minutes; focused success-capture rerun 4/4 PASS in 6.9 minutes. Four PNGs were visually inspected for visible gameplay, HUD, and touch controls.
 - No KayKit or other asset changed. No sibling project, `main`, base repair branch, Vercel project, deployment, alias, or production site changed.
 
-## 2026-08-25 — Chapter 3–5 spatial level-design rebuild
+## 2026-08-28 — opencode 세션 이어받음 + 전체 재검증
 
-- Created `feat/ch3-ch5-level-design-rebuild` directly from fetched `origin/main` `410366f88ff3b935dc3137c161e886e3af523357` and kept all work within `echo-depths-3d/`.
-- Replaced Chapter 3's overlapping multi-floor/drop-step blockout with distinct flat WEST/EAST rooms, separate north Core and south Player lanes, a directional Player-only one-way passage, a live east-triggered physical transfer shutter, and a wide low-railed landing basin. The Echo replays the pickup and sends the same rewound `memory-core`; the live Player retrieves it and completes the real receiver intersection.
-- Rebuilt Chapter 4 into linked entry, bell/patrol, covered flank, walkable-ramp, high-rear, trap, and exit spaces. Watcher attention comes from actual FOV/LOS and cover; no jump input is used by either desktop or mobile completion.
-- Rebuilt Chapter 5 around a single 15-second recording and the single `paradox-core`. The same tape transfers the Core and continues to the lower seal; the live Player crosses separately, receives that Core, powers the only moving platform, reaches the Guardian's exposed rear while it sees the Echo, and holds the upper seal concurrently to release the final door.
-- Removed the hidden `upperThrowArmed`, `core-thrown-down`, and downward-velocity receiver requirements and removed the unused `well-elevator`. Receiver, enemy, seal, and victory state now derive from current collision, visibility, position, and live occupancy outcomes.
-- Added chapter-specific camera profiles, mobile-aware framing, raised-floor/platform obstruction candidates, exact player ray checks, and camera-side perimeter cutaways for Chapters 3–5. Chapter 1–2 retain their previous profile.
-- Rewrote Korean/English objectives and guidance for the new routes and added fast layout, camera, physics/world, shortcut-negative, render, desktop, mobile, and production-bundle coverage.
-- Final local evidence: Vitest 130/130; strict build PASS; render/framing 2/2 in 25.5 seconds; focused Chapter 3–5 completion 6/6 in 8.3 minutes; production-bundle smoke 6/6 in 47.6 seconds; full Playwright 20/20 in 12.6 minutes. Seventeen current screenshots were captured and representative frames inspected.
-- No asset, sibling project, `main`, Vercel production deployment, domain, or alias was changed.
-
-## 2026-08-25 — One-way portal visual correction
-
-- Replaced the Chapter 3/5 one-way wall's small opaque visual slab with a full-height portal treatment. The real Rapier collider and CharacterMotor's Player WEST → EAST exception are unchanged.
-- West-side traversal is now marked by cyan top-facing arrows; the opposite face carries red lock bars and a no-return sigil. The local Player side controls emphasis only, never the physical access rule.
-- Enlarged the portal dimensions, clarified Korean/English hints, and added visual-state/dimension regressions. Vitest 131/131, Vite build, and local Chapter 3 browser capture passed.
-
-## 2026-08-25 — Receiver-gated Chapter 3 return gate
-
-- Added `atrium-return-gate` as a separate middle corridor device; it does not alter the existing `atrium-one-way` collider, arrows, or red lock face.
-- The gate reads only `core-receiver.active`, not a recording/provenance fact. Closed/open visual states use red/cyan fields, lights, status rings, and panel retraction; Rapier continues to block Echo and Core while `CharacterMotor` admits only the live Player when active.
-- Snapshot restore recomputes the gate from the restored receiver state. Targeted physics tests and the production build pass.
-
-## 2026-08-25 — Chapter 3 transfer shutter actor seal
-
-- Diagnosed the east shutter leak: `CharacterMotor` ignored every `shutter` collider, so Player and Echo could traverse the north lane despite its closed Core collider.
-- Preserved the physical Core shutter and added a Chapter 3-only static actor barrier with an always-readable cyan field and rails. The retracting shutter now controls Core transfer only; Player/Echo remain blocked before and after opening.
-- Added a regression proving closed Core denial, open same-Core delivery, Player EAST→WEST denial, and Echo WEST→EAST denial. Targeted tests, strict production build, and local Chapter 3 browser/console verification pass.
-
-## 2026-08-26 — KayKit Chapter 4 Watcher
-
-- Reacquired the official `KayKit_Adventurers_2.0_FREE.zip` through Kay Lousberg's itch.io anonymous download flow and verified its existing recorded archive identity: 13,024,345 bytes, SHA-256 `abe48f4763fba0896bab486ee9e6d08ca6b5b3884b9601f235c8847ae94dc479`.
-- Added the unmodified `Rogue_Hooded.glb` selection (381,432 bytes, SHA-256 `e8f3233c6db190506fbef3ad855683e6cb8bd7350de637d923e14a08aef088dc`) and updated manifest, provenance totals, and asset credits.
-- Replaced Chapter 4's primitive drone with the hooded Rogue character and shared KayKit animations. Chapter 5's armored procedural Guardian remains unchanged.
-- Replaced the approximate floating cone with an exact ground sector driven by the same live FOV/range helpers used by detection. Patrol, search, acquired target, and defeat states now update fill, boundary, sensor, ring, beam, and animation without changing physics or puzzle facts.
-- Targeted Vitest 55/55, strict build, real Chapter 4 completion 1/1, and desktop/mobile local visual/error review pass.
-- Pushed source commit `d8623493c31270438ed3685f364ea238c220e2f6` to `origin/feat/ch3-ch5-level-design-rebuild`, deployed the verified bundle as Vercel production `dpl_8AkqppynEF8urDfsXD6VSLuPfubD`, and verified `https://echo-depths-playtest.vercel.app` on desktop and mobile landscape with no page/console errors or production debug API.
-
-## 2026-08-26 — Chapter 4 pursuit and spike-trap gameplay pass
-
-The Watcher now performs the authored east/west patrol instead of being reset to its starting transform by the generic moving-platform loop. Its patrol line sits south of the spike bed, so the character does not appear to stroll harmlessly across the intended kill device.
-
-Player detection is now readable warning and pursuit: after the short alert the Watcher runs toward the present Player, and failure occurs only when horizontal and vertical catch volumes overlap. A visible Echo remains the stable lure. The Watcher pursues it to a computed standoff on the near side of the physical spike trap, faces the Echo, and holds an attack pose; it neither consumes the Echo nor steps voluntarily into the kill zone. The existing Player-only high/rear strike and knocked-body trap intersection still own the clear.
-
-The trap gained a pulsing red target ring, translucent beacon, and local light. Korean/English objectives now state that the Watcher must be knocked into the spikes. Target commitment is snapshot-restored so recording rewind remains deterministic. Targeted Vitest, strict build, desktop completion, touch-only completion, and local visual/console checks pass.
-
-Source commit `65bcbfe25a17e29dd0c6c5bc974f30731b18c4ef` was pushed to `origin/feat/ch3-ch5-level-design-rebuild`. The verified static bundle was deployed as isolated Vercel production `dpl_CnusTWnFjMNBrWYt9WnGe1RHjrvT` and aliased to `https://echo-depths-playtest.vercel.app`. The public alias serves the new bundle, Chapter 4 renders on desktop, the production smoke set passes after using the workstation system CA for the asset request, console/page errors are empty, and the development debug API is absent.
-
-## 2026-08-26 — Chapter 5 final-difficulty and Guardian fairness pass
-
-- Replaced the procedural Chapter 5 sentry with a runtime-tinted clone of the existing official KayKit Knight rig. Added an animated front shield, rear weak seal, sensor/status ring, target beam, and ground sight sector generated from the same live range/FOV used by detection. No asset binary or provenance hash changed.
-- Made `power-receiver` the Guardian's real activation authority. Before the same physical Core is seated, the Guardian remains dormant and cannot detect, chase, or defeat the Player. After activation, a visible Echo physically holding `lower-seal` has priority and the Guardian faces it from the central dais instead of chasing it out of attack range.
-- Added vertical overlap to Guardian contact so floors separate danger correctly. Preserved the Player-only high/rear strike, actual LOS, same-Core transfer, single moving platform, live dual seal, and rewind snapshot behavior.
-- Wired the authored Chapter 1–5 Echo capacities (12/15/18/18/20 seconds) into `GameApp`, reduced the final escape to 15 seconds, prevented timer restart, and added non-colliding dual-route/cable/tether/exit-beacon guidance.
-- Local acceptance: Vitest 18 files / 142 tests PASS; strict production build PASS; real Chapter 5 desktop completion PASS 1/1 in 3.0 minutes; real touch-only Chapter 5 completion PASS 1/1 (test body 5.2 minutes). A first desktop rerun revealed that newly added collision rails blocked the side-entry exit path; those rails were removed and the same story passed. The inherited machine-level `PLAYWRIGHT_BASE_URL` also initially pointed at production without debug API; explicitly removing it selected the intended local server.
-
-## 2026-08-27 — Chapter 4 gallery floor-safety pass
-
-- Confirmed that the authored Chapter 4 solution was complete, but broad empty regions inside the outer walls were real fall/reset spaces rather than decoration. The canonical route avoided them, yet exploratory movement made the room feel unfinished.
-- Added a thin continuous `gallery-foundation` covering the complete inner wall bounds. Existing safe, Echo, patrol, ramp, high-flank, and exit slabs remain slightly raised, preserving route colors, cover, sight, and attack height while removing unrelated interior falls.
-- Changed the foundation from dark stone to the muted safe-floor material after the first desktop/mobile captures showed that a physically solid dark slab could still read as a void.
-- Added two real `CharacterMotor` probes through the former west-perimeter and cover-to-patrol holes. Both must remain grounded and above the fall region; existing ramp, Watcher, trap, and exit regressions remain unchanged.
-- Local acceptance passed: `npm ci` with 0 vulnerabilities, Vitest 143/143, strict Vite build, focused Chapter 4 touch/desktop completion, final desktop visual rerun, and full Playwright 20/20 in 17.7 minutes. No asset or sibling project changed.
-
-## 2026-08-27 — Chapter 4 floor-safety production release
-
-- Committed source as `29b2c461fd1fcbe6c21fc352929aa4b2b074981d`, pushed it to `origin/main`, and verified the remote branch SHA. The pre-existing untracked `marketing/` directory remained excluded.
-- Deployed preview `dpl_7mTPt7rKgsLs1fYB6gynK28FLhtn` at `https://echo-depths-3d-eknwa5z11-ai-build3.vercel.app`. Vercel's `npm ci` found 0 vulnerabilities, the 38-module Vite build completed, and candidate smoke passed 6/6 in 1.2 minutes.
-- Direct candidate Chapter 4 inspection confirmed the new `index-BC8hbp0t.js` bundle, enabled Chapter 4 card, active KayKit runtime, continuous gallery floor, absent production debug API, and empty page/console error collectors.
-- Promoted the verified candidate to production `dpl_35J6WSrWsaVW1PnvgzXpjhrJDbjd` at `https://echo-depths-3d-1v1nzwuw9-ai-build3.vercel.app`. The stable alias `https://echo-depths-3d.vercel.app` points to it and passed public smoke 6/6 in 57.4 seconds plus direct Chapter 4 inspection. The static deployment reported no runtime logs.
+- Codex 세션(2026-08-25 한도 만료)을 opencode가 이어받음. 이 로컬 소스(`main` 브랜치, 작업 트리 깨끗, `node_modules` 설치됨)가 유일한 기준.
+- 진단: Chapter 4(`watchers-gallery`), Chapter 5(`paradox-well`) 코드 존재 및 구현 완료 확인. `npm` 은 PowerShell 실행정책으로 차단되어 `cmd /c` 우회 사용.
+- 재검증(2026-08-28):
+  - `npm test -- --run` → Vitest **126/126** (17 파일) 통과.
+  - `npm run build` → strict TypeScript + Vite 프로덕션 빌드 통과.
+  - 브라우저 e2e → Playwright **25/25** 통과 (18.9분). 단, **이 Windows PC에서는 `npm run test:e2e`(Playwright 자동 webServer)가 실패**함. Playwright 런처가 기동한 Vite에서 게임이 초기화되지 않아 `window.echoDepthsDebug` 가 노출되지 않음. 게임 코드 자체는 정상(수동 Vite 기동 시 OK 확인). 따라서 e2e는 Vite를 수동 기동하고 `PLAYWRIGHT_BASE_URL=http://127.0.0.1:4537` 로 외부 서버를 지정해 실행. 상세는 `HANDOFF.md` §4.
+- 배포: Vercel 토큰/로그인 없음 → 신규 배포 미수행. 기존 production URL https://echo-depths-3d.vercel.app 유지.
+- 결과: 코드 구현·빌드·단위/브라우저 테스트 전부 통과. 남은 작업은 human-review(자동화 불가)와 선택적 재배포. 진행 상황은 `progress.md`, 남은 작업은 `TASKS.md` 참조.
 
 
 
-## 2026-08-28 — Chapter 3–5 deep audit and Watcher corner steering
-
-- Reproduced the reported Chapter 4 behavior rather than inferring it: the Watcher stayed in visible `chase` at a fixed center-cover corner because `moveEnemy` discarded every blocked direct step and had no alternate direction.
-- Split enemy movement intent from physical knockback. Chase, lure approach, and investigation now score deterministic left/right arcs by forward progress and clear look-ahead; knockback and patrol preserve their authored straight-line behavior.
-- Audited Chapter 3 and Chapter 5 state/physics contracts and ran their real desktop/touch completion paths. No additional Chapter 3 or Chapter 5 defect was reproduced.
-- Local evidence: `npm ci` 0 vulnerabilities; Vitest 144/144; strict build; focused Chapter 3–5 Playwright 13/13; new browser navigation regression 1/1; render smoke 2/2; full Playwright 21/21. Production release evidence is recorded after the candidate is verified and promoted.
-
-### External release
-
-- Pushed source `5d04c0897c810a261641d37a4f77181cda1364dd` to `origin/main` and verified the remote SHA.
-- Existing project `ai-build3/echo-depths-3d` (`prj_s42Kw6wf1BRmonXJKpoyE29m1G9Z`) built Ready candidate `dpl_Bkdp37fWGdxnRV2LMu5FECTBcVzd`. One first-run Chapter 1 hosted route flaked by falling and resetting; the unchanged candidate rerun passed 6/6.
-- Promoted the exact candidate to Ready production `dpl_BisUo1jHoNnXg73CANdkinMg96QN`. Stable alias `https://echo-depths-3d.vercel.app` returned HTTP 200, served `index-DT-5l4KY.js`, and passed public smoke 6/6.
-- Direct public Chapter 3–5 desktop/mobile entry, five enabled cards, KayKit, fixed simulation, production-debug absence, and empty browser-error collectors passed. Static runtime logs were empty.

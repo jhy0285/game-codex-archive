@@ -91,13 +91,13 @@ test.describe('Echo Depths keyboard runtime', () => {
     await waitForState(page, (current) => current.levers?.['lift-lever']?.actor === 'echo' && current.levers['lift-lever']?.active === true, 900, 'second Echo did not hold the live lever')
     await moveAxis(page, 'x', 0.2, 'align with the elevator for the original exit')
     await moveAxis(page, 'z', -0.7, 'board the elevator for the original exit')
-    await waitForState(
-      page,
-      (current) => (current.elevators?.['counter-elevator']?.y ?? 0) > 3
-        && (current.player?.position.y ?? 0) > 4.5,
-      900,
-      'counterweight elevator did not carry the Player to the original exit',
-    )
+    await page.keyboard.down('d')
+    await page.keyboard.down('Space')
+    await advanceTicks(page, 18)
+    await page.keyboard.up('Space')
+    await page.keyboard.up('d')
+    await advanceTicks(page, 2)
+    await waitForState(page, (current) => (current.elevators?.['counter-elevator']?.y ?? 0) > 3, 900, 'counterweight elevator did not rise for the original exit')
     await moveAxis(page, 'x', 8.45, 'walk to the original upper counterweight exit', 1_800)
     await moveAxis(page, 'z', -0.5, 'line up the original upper counterweight exit')
     await expect.poll(async () => (await readState(page)).doors?.['counter-door']?.open).toBe(true)

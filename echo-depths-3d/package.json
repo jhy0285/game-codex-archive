@@ -17,10 +17,13 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.37.1",
+    "@openai/sites-vite-plugin": "^0.1.0",
     "@playwright/test": "^1.62.1",
     "@types/three": "^0.185.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.92.0"
   }
 }

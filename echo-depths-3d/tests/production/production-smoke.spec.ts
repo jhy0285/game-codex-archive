@@ -141,38 +141,6 @@ async function holdProductionKeys(page: Page, keys: readonly string[], ticks: nu
   }
 }
 
-async function moveProductionToward(page: Page, target: Vector3, maximumTicks = 180): Promise<void> {
-  const directions = [
-    { keys: ['d'], x: 1, z: -1 },
-    { keys: ['s'], x: 1, z: 1 },
-    { keys: ['a'], x: -1, z: 1 },
-    { keys: ['w'], x: -1, z: -1 },
-    { keys: ['d', 's'], x: 1, z: 0 },
-    { keys: ['a', 'w'], x: -1, z: 0 },
-    { keys: ['s', 'a'], x: 0, z: 1 },
-    { keys: ['w', 'd'], x: 0, z: -1 },
-  ] as const
-
-  let previousDistance = Number.POSITIVE_INFINITY
-  let stalledSteps = 0
-  for (let elapsed = 0; elapsed < maximumTicks; elapsed += 4) {
-    const player = (await gameState(page)).player
-    if (!player) throw new Error('Production Player is unavailable')
-    const deltaX = target.x - player.position.x
-    const deltaZ = target.z - player.position.z
-    const distance = Math.hypot(deltaX, deltaZ)
-    if (distance < 1.25) return
-    stalledSteps = distance < previousDistance - 0.03 ? 0 : stalledSteps + 1
-    previousDistance = distance
-    const direction = directions.reduce((best, candidate) => (
-      deltaX * candidate.x + deltaZ * candidate.z > deltaX * best.x + deltaZ * best.z ? candidate : best
-    ))
-    await holdProductionKeys(page, stalledSteps >= 2 ? [...direction.keys, 'Space'] : direction.keys, 4)
-    if (stalledSteps >= 2) stalledSteps = 0
-  }
-  throw new Error(`Production Player did not reach target ${JSON.stringify(target)}; state=${JSON.stringify(await gameState(page))}`)
-}
-
 async function assertNoDocumentOverflow(page: Page): Promise<void> {
   const dimensions = await page.evaluate(() => {
     const root = document.documentElement
@@ -269,7 +237,7 @@ test('English language gate, title, start, and real keyboard movement work in pr
 })
 
 test('Chapter 1 PC keyboard route opens the live echo gate and completes in production', async ({ page }) => {
-  test.setTimeout(180_000)
+  test.setTimeout(90_000)
   await page.setViewportSize({ width: 1_440, height: 900 })
   const initial = await openProductionGame(page)
   expect(initial.mode).toBe('language')
@@ -306,7 +274,9 @@ test('Chapter 1 PC keyboard route opens the live echo gate and completes in prod
   await holdProductionKeys(page, ['d', 's'], 42)
   await holdProductionKeys(page, ['d', 's', 'Space'], 28)
   await advanceProductionTime(page, 30 * (1000 / 60))
-  await moveProductionToward(page, { x: 8.6, y: 3.08, z: -1.2 })
+  for (let attempt = 0; attempt < 6 && await page.locator('#interact-prompt').textContent() !== 'E · Enter passage'; attempt += 1) {
+    await holdProductionKeys(page, ['d'], 4)
+  }
   await expect(page.locator('#interact-prompt')).toHaveText('E · Enter passage')
   await page.keyboard.press('e')
   await advanceProductionTime(page, 2 * (1000 / 60))

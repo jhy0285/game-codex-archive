@@ -21,15 +21,12 @@ export type PhysicsEntityKind =
   | 'gate'
   | 'shutter'
   | 'one-way-wall'
-  | 'return-gate'
 
 export type PhysicsTag = {
   id: string
   kind: PhysicsEntityKind
   carried?: boolean
   nonBlocking?: boolean
-  playerPassDirectionX?: 1 | -1
-  playerReturnPassOpen?: boolean
 }
 
 // Rapier collision groups are encoded as `(membership | (filter << 16))`.
@@ -42,11 +39,6 @@ const ACTOR_COLLISION_GROUPS = GROUP_ACTOR | ((GROUP_WORLD | GROUP_DYNAMIC) << 1
 const DYNAMIC_COLLISION_GROUPS = GROUP_DYNAMIC | ((GROUP_WORLD | GROUP_ACTOR | GROUP_DYNAMIC) << 16)
 const CARRIED_DYNAMIC_COLLISION_GROUPS = GROUP_DYNAMIC | (GROUP_WORLD << 16)
 const CORE_BARRIER_COLLISION_GROUPS = GROUP_WORLD | (GROUP_DYNAMIC << 16)
-// A transfer shutter needs a permanent actor seal even when its physical Core
-// slab retracts. This lets the Core use the lane without turning it into a
-// Player/Echo return shortcut.
-const ACTOR_BARRIER_COLLISION_GROUPS = GROUP_WORLD | (GROUP_ACTOR << 16)
-const CLOSED_ONE_WAY_COLLISION_GROUPS = GROUP_WORLD | ((GROUP_ACTOR | GROUP_DYNAMIC) << 16)
 
 export type BodyRecord = {
   tag: PhysicsTag
@@ -177,18 +169,7 @@ export class RapierWorld {
       RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setFriction(0.92).setRestitution(0.18),
       body,
     )
-    collider.setCollisionGroups(CORE_BARRIER_COLLISION_GROUPS)
     return this.register({ tag: { id, kind: 'shutter' }, body, collider })
-  }
-
-  /**
-   * Fixed, actor-only transfer-lane seal. The Core shutter can lower without
-   * letting Player or Echo bodies cross the north lane.
-   */
-  createShutterActorBarrier(id: string, center: Vec3, half: Vec3): BodyRecord {
-    const record = this.createStaticBox(id, 'shutter', center, half)
-    record.collider.setCollisionGroups(ACTOR_BARRIER_COLLISION_GROUPS)
-    return record
   }
 
   /**
@@ -204,28 +185,7 @@ export class RapierWorld {
       RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setFriction(0.92),
       body,
     )
-    collider.setCollisionGroups(CLOSED_ONE_WAY_COLLISION_GROUPS)
-    return this.register({ tag: { id, kind: 'one-way-wall', playerPassDirectionX: 1 }, body, collider })
-  }
-
-  /**
-   * Separate Chapter 3 return gate. Its collider always blocks Echo and puzzle
-   * objects; CharacterMotor only ignores it for the live Player once the world
-   * derives `playerReturnPassOpen` from the receiver's active state.
-   */
-  createReturnGate(id: string, center: Vec3, half: Vec3): BodyRecord {
-    const record = this.createStaticBox(id, 'return-gate', center, half)
-    record.collider.setCollisionGroups(CLOSED_ONE_WAY_COLLISION_GROUPS)
-    record.tag.playerReturnPassOpen = false
-    return record
-  }
-
-  setOneWayWallOpen(collider: RAPIER.Collider, open: boolean): void {
-    collider.setCollisionGroups(open ? CORE_BARRIER_COLLISION_GROUPS : CLOSED_ONE_WAY_COLLISION_GROUPS)
-  }
-
-  setShutterOpen(collider: RAPIER.Collider, open: boolean): void {
-    collider.setCollisionGroups(open ? 0 : CORE_BARRIER_COLLISION_GROUPS)
+    return this.register({ tag: { id, kind: 'one-way-wall' }, body, collider })
   }
 
   remove(id: string): void {

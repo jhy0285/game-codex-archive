@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { AssetLibrary } from './AssetLibrary'
 
 type AssetInternals = {
-  manifest: { character?: string; watcherCharacter?: string; guardianCharacter?: string; animations?: string[]; environment: string[] }
+  manifest: { character?: string; animations?: string[]; environment: string[] }
   loaded: Map<string, GLTF>
 }
 
@@ -59,68 +59,6 @@ describe('AssetLibrary active character status', () => {
     expect(assets.status).toBe('kaykit')
 
     actor.dispose()
-    assets.dispose()
-  })
-
-  it('builds the Watcher from its distinct manifest character with shared rig clips', () => {
-    const assets = new AssetLibrary()
-    const internals = assets as unknown as AssetInternals
-    const watcherUrl = '/rogue-hooded.glb'
-    const clipNames = [
-      'idle_a', 'walking_a', 'running_a', 'jump_start', 'jump_idle', 'jump_land',
-      'holding_a', 'throw', 'interact', 'melee_1h_attack_slice_horizontal',
-      'dodge_forward', 'hit_a', 'death_a',
-    ]
-    const scene = new THREE.Group()
-    scene.name = 'RogueHoodedSource'
-    internals.manifest = { watcherCharacter: watcherUrl, environment: [] }
-    internals.loaded.set(watcherUrl, {
-      animations: clipNames.map((name) => new THREE.AnimationClip(name, 1, [])),
-      scene,
-      scenes: [],
-      cameras: [],
-      asset: { version: '2.0' },
-      parser: {} as GLTF['parser'],
-      userData: {},
-    })
-
-    const watcher = assets.createWatcherCharacter()
-
-    expect(watcher.root.name).toBe('RogueHoodedSource')
-    expect(watcher.state()).toBe('Idle')
-
-    watcher.dispose()
-    assets.dispose()
-  })
-
-  it('builds the Chapter 5 Guardian from a distinct enemy character instead of the Player Knight', () => {
-    const assets = new AssetLibrary()
-    const internals = assets as unknown as AssetInternals
-    const guardianUrl = '/guardian.glb'
-    const clipNames = [
-      'idle_a', 'walking_a', 'running_a', 'jump_start', 'jump_idle', 'jump_land',
-      'holding_a', 'throw', 'interact', 'melee_1h_attack_slice_horizontal',
-      'dodge_forward', 'hit_a', 'death_a',
-    ]
-    const scene = new THREE.Group()
-    scene.name = 'GuardianSource'
-    internals.manifest = { guardianCharacter: guardianUrl, environment: [] }
-    internals.loaded.set(guardianUrl, {
-      animations: clipNames.map((name) => new THREE.AnimationClip(name, 1, [])),
-      scene,
-      scenes: [],
-      cameras: [],
-      asset: { version: '2.0' },
-      parser: {} as GLTF['parser'],
-      userData: {},
-    })
-
-    const guardian = assets.createGuardianCharacter()
-
-    expect(guardian.root.name).toBe('GuardianSource')
-    expect(guardian.state()).toBe('Idle')
-
-    guardian.dispose()
     assets.dispose()
   })
 })

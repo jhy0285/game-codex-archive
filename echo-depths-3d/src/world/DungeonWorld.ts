@@ -1,10 +1,9 @@
 import * as THREE from 'three'
 import type { AssetLibrary } from '../render/AssetLibrary'
-import { createAnimatedActor, type CharacterAnimator, type CharacterState } from '../render/CharacterAnimator'
 import type { BodyRecord, PhysicsEntityKind, RapierWorld, Vec3 } from '../physics/RapierWorld'
 import { RAPIER } from '../physics/RapierWorld'
 import { CHAPTER_LAYOUTS, type StageNumber, type DeviceDefinition } from '../levels/layouts'
-import { CHAPTERS, canSeeTarget, computeKnockback, evaluatePressurePlate, isWithinCatchVolume, redirectVelocity } from '../game'
+import { canSeeTarget, computeKnockback, evaluatePressurePlate, isWithinCatchVolume, redirectVelocity } from '../game'
 import type { PlateOccupant } from '../game'
 
 export type ActorKind = 'player' | 'echo'
@@ -43,6 +42,8 @@ type DynamicRecord = {
   body: BodyRecord
   mesh: THREE.Object3D
   carriedBy: ActorKind | undefined
+  upperThrowArmed: boolean
+  postCatchFlightArmed: boolean
   redirectedCurrentFlight: boolean
   carryPosition: THREE.Vector3
   carryTarget: THREE.Vector3
@@ -67,7 +68,7 @@ export type WorldDebugState = {
   levers: Record<string, { active: boolean; actor?: ActorKind }>
   doors: Record<string, { open: boolean }>
   elevators: Record<string, { y: number; active: boolean }>
-  cores: Record<string, { position: Vec3; velocity: Vec3; carriedBy?: ActorKind; receiver: boolean }>
+  cores: Record<string, { position: Vec3; carriedBy?: ActorKind; receiver: boolean }>
   crates: Record<string, { position: Vec3; carriedBy?: ActorKind }>
   enemies: Record<string, {
     position: Vec3
@@ -81,7 +82,6 @@ export type WorldDebugState = {
   barriers: Record<string, { position: Vec3; open?: boolean }>
   objectiveFacts: string[]
   complete: boolean
-  failureReason: string
   escapeSeconds: number
 }
 
@@ -101,6 +101,8 @@ type DynamicSnapshot = TransformSnapshot & {
   velocity: Vec3
   angularVelocity: Vec3
   kinematic: boolean
+  upperThrowArmed: boolean
+  postCatchFlightArmed: boolean
   redirectedCurrentFlight: boolean
   carriedBy?: ActorKind
 }
@@ -118,7 +120,6 @@ export type DungeonWorldSnapshot = {
   enemyKnock: Vec3
   enemyDetection: number
   enemyTargetVisible: boolean
-  enemyTargetLockTicks: number
   enemyLastKnown: Vec3
   enemyAlertTicks: number
   enemySearchTicks: number
@@ -136,11 +137,12 @@ const CORE_KIND: ReadonlySet<PhysicsEntityKind> = new Set(['core'])
 const TRAP_OCCUPANT_KINDS: ReadonlySet<PhysicsEntityKind> = new Set(['player', 'echo', 'enemy'])
 const ENEMY_RAY_EXCLUSIONS: ReadonlySet<string> = new Set(['watcher', 'guardian'])
 const SOLID_SIGHT_KINDS: ReadonlySet<PhysicsEntityKind> = new Set(['wall', 'door'])
-const WELL_THROW_UPWARD_SPEED = 2.4
-// The recorded throw clears the shuttered lane and lands in the protected basin.
-// It deliberately stops short of the receiver so the live Player must deliver
-// this same physical Core.
-const ATRIUM_THROW_SPEED = 7.2
+const WELL_MIN_THROW_DROP = 2.2
+const WELL_THROW_UPWARD_SPEED = 3.4
+// Ch3's recorded throw clears the shuttered lane, then lands in the east-side
+// catch basin. It deliberately stops short of the receiver so the live Player
+// must pick up this same physical Core and make the final delivery.
+const ATRIUM_THROW_SPEED = 5.2
 const ATRIUM_THROW_UPWARD_SPEED = 1.4
 const CORE_LOST_Y = -4
 const TRAJECTORY_STEP_SECONDS = 0.075
@@ -158,21 +160,8 @@ const ENEMY_ALERT_TICKS = 18
 const ENEMY_SEARCH_TICKS = 150
 const ENEMY_RECOVERY_TICKS = 72
 const ENEMY_STIMULUS_TICKS = 180
-const WATCHER_TARGET_LOCK_TICKS = 120
-const WATCHER_CHASE_SPEED = 0.047
-const WATCHER_ECHO_LURE_SPEED = 0.032
-const WATCHER_CONTACT_DISTANCE = 1.12
-const WATCHER_CONTACT_VERTICAL_DELTA = 1.15
-const WATCHER_TRAP_STANDOFF = 0.95
 const WATCHER_REAR_DOT_MAX = -0.25
 const GUARDIAN_REAR_DOT_MAX = -0.45
-const GUARDIAN_CONTACT_DISTANCE = 1.12
-const GUARDIAN_CONTACT_VERTICAL_DELTA = 0.82
-const GUARDIAN_CHASE_SPEED = 0.026
-// The Guardian owns the raised arena. Actors on the lower Core routes must not
-// pull it off the dais, while an Echo actually holding the lower seal remains
-// the authored cross-level lure.
-const GUARDIAN_ARENA_VERTICAL_DELTA = 0.9
 
 export const canActorRequestExit = (actor: ActorKind): boolean => actor === 'player'
 
@@ -192,8 +181,12 @@ export class DungeonWorld {
   private readonly root = new THREE.Group()
   private readonly devices = new Map<string, DeviceRecord>()
   private readonly dynamics = new Map<string, DynamicRecord>()
-  /** Live open/closed state per spatial Core-transfer shutter. */
+  /** Live open/closed state per shutter device id (chapter 3 transfer lane). */
   private readonly shutters = new Map<string, boolean>()
+  /** A player can open a one-way crossing only from its west approach. */
+  private readonly oneWayOpening = new Map<string, boolean>()
+  /** Last known actor position per actor id, used to enforce one-way gate traversal. */
+  private readonly actorPreviousX = new Map<string, number>()
   private readonly materials: THREE.Material[] = []
   private readonly geometries: THREE.BufferGeometry[] = []
   private readonly effects: EffectRecord[] = []
@@ -208,25 +201,12 @@ export class DungeonWorld {
   private enemyKnock = new THREE.Vector3()
   private enemyDetection = 0
   private enemyTargetVisible = false
-  private enemyTargetLockTicks = 0
   private readonly enemyLastKnown = new THREE.Vector3()
   private enemyAlertTicks = 0
   private enemySearchTicks = 0
   private enemyRecoveryTicks = 0
   private enemyStimulusTicks = 0
   private readonly enemyStimulusPosition = new THREE.Vector3()
-  private enemyAnimator: CharacterAnimator | undefined
-  private watcherVisionSector: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | undefined
-  private watcherVisionBoundary: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial> | undefined
-  private watcherTargetBeam: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial> | undefined
-  private watcherStatusRing: THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial> | undefined
-  private watcherSensorEye: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial> | undefined
-  private watcherVisionFov = -1
-  private guardianFrontShield: THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial> | undefined
-  private guardianRearSeal: THREE.Mesh<THREE.CircleGeometry, THREE.MeshStandardMaterial> | undefined
-  private guardianRearSealRing: THREE.Mesh<THREE.TorusGeometry, THREE.MeshStandardMaterial> | undefined
-  private guardianLowerTether: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial> | undefined
-  private finalEscapeGuide: THREE.Group | undefined
   private receiverFilled = false
   private currentTick = 0
   private platformPhaseOffset = 0
@@ -253,16 +233,16 @@ export class DungeonWorld {
     if (enemy && attentionLandmark) {
       this.faceEnemy(enemy, attentionLandmark.root.position.clone().sub(enemy.root.position).setY(0))
     }
-    if (enemy) this.updateEnemyPresentation(enemy, this.enemyTargetVisible ? this.enemyLastKnown : undefined)
   }
 
   beforePhysics(tick: number, actors: readonly ActorContext[]): void {
+    // Snapshot actor x-positions so updateTemporalGates can detect the direction of crossing.
+    for (const actor of actors) this.actorPreviousX.set(actor.id, actor.position.x)
     this.currentTick = tick
     this.updateHeldLevers(actors)
     this.updatePlatforms(tick, actors)
     this.updateCarriedObjects(actors)
     this.updateDoors()
-    this.updateReturnGates()
     if (this.chapter === 5 && this.escapeTicks > 0) {
       this.escapeTicks -= 1
       if (this.escapeTicks === 0 && !this.complete) {
@@ -274,19 +254,12 @@ export class DungeonWorld {
 
   afterPhysics(actors: readonly ActorContext[]): void {
     for (const dynamic of this.dynamics.values()) {
-      if (dynamic.recentlyDropped > 0) {
-        dynamic.recentlyDropped -= 1
-        if (dynamic.recentlyDropped === 0 && !dynamic.carriedBy) {
-          this.physics.setDynamicCollisionMode(dynamic.body.collider, false)
-        }
-      }
+      if (dynamic.recentlyDropped > 0) dynamic.recentlyDropped -= 1
     }
     this.syncDynamics()
     this.updatePlates(actors)
     this.updateCoreReceiver(actors)
-    this.updateReturnGates()
     this.updateEnemy(actors)
-    this.enemyAnimator?.update(1 / 60)
     this.updateTrapHazards()
     this.updateTemporalGates()
     this.updateShutters(actors)
@@ -359,22 +332,23 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     carried.carriedBy = undefined
     carried.body.tag.carried = false
     carried.body.collider.setSensor(false)
-    // A short actor-collision grace period prevents the thrower's reversing
-    // capsule from batting its own projectile sideways. World geometry and
-    // puzzle barriers remain solid throughout the physical flight.
-    this.physics.setDynamicCollisionMode(carried.body.collider, true)
+    this.physics.setDynamicCollisionMode(carried.body.collider, false)
     carried.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
     const effectiveDir = direction.clone().normalize()
     const origin = actor.position.clone().add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(effectiveDir, 0.72)
     carried.body.body.setTranslation(origin, true)
     const isCore = carried.body.tag.kind === 'core'
-    const coreThrowSpeed = this.chapter === 3 || this.chapter === 5 ? ATRIUM_THROW_SPEED : 7.2
+    const coreThrowSpeed = this.chapter === 3 ? ATRIUM_THROW_SPEED : 7.2
     const impulse = effectiveDir.clone().multiplyScalar(isCore ? coreThrowSpeed : 3.8)
     impulse.y = isCore
       ? this.chapter === 3 ? ATRIUM_THROW_UPWARD_SPEED : this.chapter === 5 ? WELL_THROW_UPWARD_SPEED : 5.8
       : 2.4
     carried.body.body.setLinvel(impulse, true)
-    carried.recentlyDropped = 30
+    if (this.chapter === 5 && isCore) {
+      const receiver = this.devices.get('power-receiver')
+      carried.upperThrowArmed = Boolean(receiver && origin.y - receiver.root.position.y >= WELL_MIN_THROW_DROP)
+      if (carried.upperThrowArmed) this.facts.add('core-thrown-down')
+    }
     return carried.body.tag.kind
   }
 
@@ -404,8 +378,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
     }
     const enemy = this.devices.get(this.chapter === 5 ? 'guardian' : 'watcher')
-    const strikeRange = this.chapter >= 4 ? 3.5 : 2.6
-    if (enemy && !this.enemyDefeated && enemy.root.position.distanceTo(actor.position) < strikeRange) {
+    if (enemy && !this.enemyDefeated && enemy.root.position.distanceTo(actor.position) < 2.6) {
       const horizontalToActor = actor.position.clone().sub(enemy.root.position).setY(0)
       const actorSideDot = horizontalToActor.lengthSq() > 0.0001
         ? horizontalToActor.normalize().dot(this.enemyForward)
@@ -435,18 +408,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         return 'shield'
       }
       const heightAdvantage = actor.position.y - enemy.root.position.y
-      if (
-        actor.kind !== 'player'
-        || this.enemyTarget !== 'echo'
-        || !this.enemyTargetVisible
-        || actorSideDot > WATCHER_REAR_DOT_MAX
-        || heightAdvantage < 0.8
-      ) {
+      if (actor.kind !== 'player' || actorSideDot > WATCHER_REAR_DOT_MAX || heightAdvantage < 0.8) {
         this.failureReason = 'watcher-facing'
         return 'shield'
       }
       const result = computeKnockback({
-        position: this.vec(actor.position), forward: this.vec(direction), range: strikeRange, halfAngleRadians: Math.PI * 0.42,
+        position: this.vec(actor.position), forward: this.vec(direction), range: 2.6, halfAngleRadians: Math.PI * 0.42,
         baseStrength: 0.24, upwardStrength: 0, heightAdvantageThreshold: 1.3, heightAdvantageMultiplier: 1.55,
       }, { position: this.vec(enemy.root.position), mass: 1, radius: 0.55 })
       if (!result.hit) return undefined
@@ -560,11 +527,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
           ? { ...shared, target }
           : shared
       }
-      if (device.definition.kind === 'gate' || device.definition.kind === 'shutter' || device.definition.kind === 'one-way-wall' || device.definition.kind === 'return-gate') {
+      if (device.definition.kind === 'gate' || device.definition.kind === 'shutter' || device.definition.kind === 'one-way-wall') {
         const position = device.body?.body.translation() ?? device.root.position
-        const open = device.definition.kind === 'shutter'
-          ? this.shutters.get(device.definition.id)
-          : device.definition.kind === 'return-gate' ? device.active : undefined
+        const open = device.definition.kind === 'shutter' ? this.shutters.get(device.definition.id) : undefined
         barriers[device.definition.id] = open === undefined
           ? { position: { x: position.x, y: position.y, z: position.z } }
           : { position: { x: position.x, y: position.y, z: position.z }, open }
@@ -579,20 +544,13 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         continue
       }
       if (dynamic.body.tag.kind !== 'core') continue
-      const velocity = dynamic.body.body.linvel()
-      const shared = {
-        position: { x: p.x, y: p.y, z: p.z },
-        velocity: { x: velocity.x, y: velocity.y, z: velocity.z },
-        receiver: this.receiverFilled,
-      }
       cores[id] = dynamic.carriedBy
-        ? { ...shared, carriedBy: dynamic.carriedBy }
-        : shared
+        ? { position: { x: p.x, y: p.y, z: p.z }, carriedBy: dynamic.carriedBy, receiver: this.receiverFilled }
+        : { position: { x: p.x, y: p.y, z: p.z }, receiver: this.receiverFilled }
     }
     return {
       facts: [...this.facts].sort(), pressurePlates, levers, doors, elevators, cores, crates, enemies, barriers,
-      objectiveFacts: this.requiredFacts(), complete: this.complete, failureReason: this.failureReason,
-      escapeSeconds: Number((this.escapeTicks / 60).toFixed(1)),
+      objectiveFacts: this.requiredFacts(), complete: this.complete, escapeSeconds: Number((this.escapeTicks / 60).toFixed(1)),
     }
   }
 
@@ -610,8 +568,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       if (
         Math.abs(position.x - device.root.position.x) <= size[0] + 0.32 &&
         Math.abs(position.z - device.root.position.z) <= size[2] + 0.32 &&
-        Math.abs(actorBottom - platformTop) <= 0.65
-      ) return { delta: device.delta.clone(), supported: true }
+        Math.abs(actorBottom - platformTop) <= 0.42
+      ) return { delta: device.delta.clone(), supported: device.body.tag.nonBlocking === true }
     }
     return { delta: new THREE.Vector3(), supported: false }
   }
@@ -645,6 +603,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         velocity: { x: velocity.x, y: velocity.y, z: velocity.z },
         angularVelocity: { x: angularVelocity.x, y: angularVelocity.y, z: angularVelocity.z },
         kinematic: dynamic.body.body.bodyType() === RAPIER.RigidBodyType.KinematicPositionBased,
+        upperThrowArmed: dynamic.upperThrowArmed,
+        postCatchFlightArmed: dynamic.postCatchFlightArmed,
         redirectedCurrentFlight: dynamic.redirectedCurrentFlight,
       }
       dynamics[id] = dynamic.carriedBy ? { ...base, carriedBy: dynamic.carriedBy } : base
@@ -661,7 +621,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       enemyKnock: this.vec(this.enemyKnock),
       enemyDetection: this.enemyDetection,
       enemyTargetVisible: this.enemyTargetVisible,
-      enemyTargetLockTicks: this.enemyTargetLockTicks,
       enemyLastKnown: this.vec(this.enemyLastKnown),
       enemyAlertTicks: this.enemyAlertTicks,
       enemySearchTicks: this.enemySearchTicks,
@@ -689,7 +648,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     this.enemyKnock.set(snapshot.enemyKnock.x, snapshot.enemyKnock.y, snapshot.enemyKnock.z)
     this.enemyDetection = snapshot.enemyDetection
     this.enemyTargetVisible = snapshot.enemyTargetVisible
-    this.enemyTargetLockTicks = snapshot.enemyTargetLockTicks
     this.enemyLastKnown.set(snapshot.enemyLastKnown.x, snapshot.enemyLastKnown.y, snapshot.enemyLastKnown.z)
     this.enemyAlertTicks = snapshot.enemyAlertTicks
     this.enemySearchTicks = snapshot.enemySearchTicks
@@ -722,10 +680,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
           || device.definition.kind === 'platform'
           || device.definition.kind === 'bridge'
         if (movingSurface) {
-          const nonBlocking = (this.chapter === 2
-            && device.definition.kind === 'elevator'
-            && saved.motionProgress > 0)
-            || (this.chapter === 5 && device.definition.kind === 'platform')
+          const nonBlocking = (this.chapter === 2 && device.definition.kind === 'elevator' && saved.motionProgress > 0)
+            || (this.chapter === 5
+              && (device.definition.kind === 'elevator' || device.definition.kind === 'platform')
+              && saved.active)
           device.body.tag.nonBlocking = nonBlocking
           device.body.collider.setSensor(nonBlocking)
         }
@@ -741,11 +699,11 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       if (!dynamic) continue
       dynamic.carriedBy = remapActor(saved.carriedBy)
       dynamic.body.tag.carried = Boolean(dynamic.carriedBy)
-      const physicalCoreCarry = (this.chapter === 3 || this.chapter === 5)
-        && dynamic.body.tag.kind === 'core'
-        && Boolean(dynamic.carriedBy)
+      const physicalCoreCarry = this.chapter === 3 && dynamic.body.tag.kind === 'core' && Boolean(dynamic.carriedBy)
       dynamic.body.collider.setSensor(Boolean(dynamic.carriedBy) && !physicalCoreCarry)
       this.physics.setDynamicCollisionMode(dynamic.body.collider, physicalCoreCarry)
+      dynamic.upperThrowArmed = saved.upperThrowArmed
+      dynamic.postCatchFlightArmed = saved.postCatchFlightArmed
       dynamic.redirectedCurrentFlight = saved.redirectedCurrentFlight
       const kinematic = Boolean(dynamic.carriedBy) || saved.kinematic
       dynamic.body.body.setBodyType(
@@ -765,11 +723,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       dynamic.carryPosition.set(saved.position.x, saved.position.y, saved.position.z)
       dynamic.carryTarget.copy(dynamic.carryPosition)
     }
-    // The return gate has no independent saved puzzle condition. It always
-    // derives from the restored receiver's live active state.
-    this.updateReturnGates(true)
-    const enemy = this.devices.get(this.chapter === 5 ? 'guardian' : 'watcher')
-    if (enemy) this.updateEnemyPresentation(enemy, this.enemyTargetVisible ? this.enemyLastKnown : undefined)
   }
 
   releaseActor(actor: ActorKind): void {
@@ -792,15 +745,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (this.enemyTarget === actor) {
       this.enemyTarget = undefined
       this.enemyTargetVisible = false
-      this.enemyTargetLockTicks = 0
       if (!this.enemyDefeated) this.enemyState = 'patrol'
       this.enemyDetection = 0
     }
   }
 
   dispose(): void {
-    this.enemyAnimator?.dispose()
-    this.enemyAnimator = undefined
     for (const effect of this.effects) this.disposeEffect(effect)
     this.effects.length = 0
     this.scene.remove(this.root)
@@ -819,22 +769,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const stone = this.material(0x2b3440, 0.84, 0.12)
     const trim = this.material(0x5f5962, 0.72, 0.22)
     const wood = this.material(0x473a35, 0.9, 0.02)
-    const safe = this.material(0x29454c, 0.78, 0.18)
-    const echoRoute = this.material(0x463758, 0.72, 0.24, layout.accent, 0.08)
-    const danger = this.material(0x4a2932, 0.76, 0.16, 0x7a2638, 0.08)
     for (const box of layout.boxes) {
-      const baseMaterial = box.tone === 'trim'
-        ? trim
-        : box.tone === 'wood'
-          ? wood
-          : box.tone === 'safe'
-            ? safe
-            : box.tone === 'echo'
-              ? echoRoute
-              : box.tone === 'danger'
-                ? danger
-                : stone
-      const material = box.wall || box.occluder ? this.cloneMaterial(baseMaterial) : baseMaterial
+      const material = box.tone === 'trim' ? trim : box.tone === 'wood' ? wood : stone
       const mesh = this.boxMesh(box.size, material)
       mesh.name = box.id
       mesh.position.set(...box.position)
@@ -843,14 +779,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.physics.createStaticBox(box.id, box.wall ? 'wall' : 'floor', this.vec(mesh.position), {
         x: box.size[0], y: box.size[1], z: box.size[2],
       }, false, { x: mesh.quaternion.x, y: mesh.quaternion.y, z: mesh.quaternion.z, w: mesh.quaternion.w })
-      if (box.wall || box.occluder) this.staticObstructions.push(mesh)
+      if (box.wall) this.staticObstructions.push(mesh)
       this.addEdgeGlow(mesh, layout.accent)
     }
 
     const columnGeometry = this.geometry(new THREE.CylinderGeometry(0.42, 0.56, 3.6, 8))
     const columnMaterial = this.material(0x34323b, 0.86, 0.18)
     for (const [index, point] of layout.pillars.entries()) {
-      const mesh = new THREE.Mesh(columnGeometry, this.cloneMaterial(columnMaterial))
+      const mesh = new THREE.Mesh(columnGeometry, columnMaterial)
       mesh.name = `pillar-${index}`
       mesh.position.set(point[0], point[1] + 1.3, point[2])
       mesh.castShadow = true
@@ -862,7 +798,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
 
     for (const definition of layout.devices) this.buildDevice(definition, layout.accent)
-    if (this.chapter === 5) this.buildParadoxGuidance()
     this.addDecor(layout.accent)
   }
 
@@ -872,7 +807,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const glow = this.material(accent, 0.42, 0.42, accent)
     let root: THREE.Object3D
     let body: BodyRecord | undefined
-    let staticSeal: THREE.Object3D | undefined
     if (definition.kind === 'plate') {
       root = new THREE.Group()
       const scannerWidth = Math.max(1.05, size[0] * 1.5)
@@ -942,320 +876,60 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       body = this.physics.createSensor(definition.id, 'lever', this.vec(position), { x: 0.7, y: 0.8, z: 0.7 })
     } else if (definition.kind === 'gate') {
       root = new THREE.Group()
-      root.name = 'TemporalGate'
-      // The barrier blocks movement along X, so its visible opening must span
-      // Z. The old gate was built across X and twice as tall as its collider,
-      // which made it read as a clipped purple block instead of a passage.
-      const height = size[1]
-      const span = size[2]
-      const depth = 0.18
-      const postMat = this.material(0x24152f, 0.38, 0.76, 0x7f4de8)
-      const trimMat = this.material(0x9067df, 0.24, 0.74, 0xc15bf2)
-      const baseMat = this.material(0x181325, 0.62, 0.62, 0x3c245c)
-      const membraneMat = new THREE.MeshBasicMaterial({
-        color: 0x9c6cff,
-        transparent: true,
-        opacity: 0.18,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      })
-      this.materials.push(membraneMat)
-      const postGeometry = this.geometry(new THREE.BoxGeometry(depth, height, 0.18))
-      const topGeometry = this.geometry(new THREE.BoxGeometry(depth, 0.18, span))
-      const railGeometry = this.geometry(new THREE.BoxGeometry(0.055, 0.055, span * 0.74))
-      const baseGeometry = this.geometry(new THREE.BoxGeometry(depth + 0.14, 0.12, span + 0.28))
-      const leftPost = new THREE.Mesh(postGeometry, postMat)
-      leftPost.name = 'TemporalGatePost'
-      leftPost.position.set(0, 0, -span * 0.5 + 0.09)
-      const rightPost = new THREE.Mesh(postGeometry, this.cloneMaterial(postMat))
-      rightPost.name = 'TemporalGatePostSouth'
-      rightPost.position.set(0, 0, span * 0.5 - 0.09)
-      const crown = new THREE.Mesh(topGeometry, trimMat)
-      crown.name = 'TemporalGateCrown'
-      crown.position.set(0, height * 0.5 - 0.09, 0)
-      const base = new THREE.Mesh(baseGeometry, baseMat)
-      base.name = 'TemporalGateBase'
-      base.position.set(0, -height * 0.5 + 0.06, 0)
-      const membrane = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.78, height * 0.76)), membraneMat)
-      membrane.name = 'TemporalGateMembrane'
-      membrane.rotation.y = Math.PI / 2
-      membrane.renderOrder = 2
-      const rails = new THREE.Group()
-      rails.name = 'TemporalGateScanRails'
-      for (const [index, y] of [-height * 0.24, 0, height * 0.24].entries()) {
-        const rail = new THREE.Mesh(railGeometry, this.cloneMaterial(trimMat))
-        rail.name = index === 1 ? 'TemporalGateBeam' : 'TemporalGateScanRail'
-        rail.position.set(-depth * 0.62, y, 0)
-        rail.renderOrder = 3
-        rails.add(rail)
-      }
-      const halo = new THREE.Mesh(
-        this.geometry(new THREE.TorusGeometry(0.54, 0.032, 8, 28)),
-        this.cloneMaterial(trimMat),
-      )
-      halo.name = 'TemporalGateHalo'
-      halo.rotation.y = Math.PI / 2
-      halo.scale.set(1, height * 0.3, span * 0.45)
-      halo.renderOrder = 3
-      const light = new THREE.PointLight(0xc15bf2, 2.3, 4.8)
-      light.name = 'TemporalGateLight'
-      root.add(leftPost, rightPost, crown, base, membrane, rails, halo, light)
-      for (const part of [leftPost, rightPost, crown, base]) {
-        part.castShadow = true
-        part.receiveShadow = true
-        this.addEdgeGlow(part, accent)
-      }
+      // Two glowing posts + scanner beam + base
+      const postGeo = this.geometry(new THREE.BoxGeometry(0.18, size[1] * 2, 0.18))
+      const postMat = this.material(0x5a3a78, 0.5, 0.7, 0x8d62ff)
+      const leftPost = new THREE.Mesh(postGeo, postMat); leftPost.name = 'TemporalGatePost'
+      leftPost.position.set(-size[0] / 2, 0, 0)
+      leftPost.castShadow = true
+      const rightPost = new THREE.Mesh(postGeo, postMat); rightPost.name = 'TemporalGatePost'
+      rightPost.position.set(size[0] / 2, 0, 0)
+      rightPost.castShadow = true
+      const beamGeo = this.geometry(new THREE.BoxGeometry(size[0] * 2, 0.06, 0.06))
+      const beamMat = this.material(0x8d62ff, 0.3, 0.4, 0xc15bf2)
+      const beam = new THREE.Mesh(beamGeo, beamMat); beam.name = 'TemporalGateBeam'
+      beam.position.set(0, size[1] * 0.7, 0)
+      beam.castShadow = true
+      const baseMat = this.material(0x2a1a3a, 0.6, 0.5, 0x4a2a5a)
+      const base = this.boxMesh([size[0], 0.06, size[2] * 0.5], baseMat); base.name = 'TemporalGateBase'
+      base.position.y = -size[1]
+      root.add(leftPost, rightPost, beam, base)
       // The gate is a real collider. Rapier collision groups make it solid to
       // dynamic puzzle objects while Player/Echo capsules pass through.
       body = this.physics.createCoreBarrier(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
     } else if (definition.kind === 'shutter') {
-      // Physical shutter for Ch3's Core transfer lane. The retracting shutter
-      // itself blocks the Core while closed; a separate actor-only seal stays
-      // in the lane so Player/Echo can never use this as a return shortcut.
+      // Physical shutter for Ch3 core transfer lane. Closed by default (blocks
+      // dynamic cores/crates). Opens when the live Player is in EAST (so the
+      // recorded-timeline shutter state never leaks across rebuilds).
       root = new THREE.Group()
       const slatMat = this.material(0xc15bf2, 0.34, 0.6, 0x6b3a92)
       for (let i = 0; i < 4; i += 1) {
-        const slat = this.boxMesh([size[0] * 0.76, size[1] * 0.18, size[2] * 0.88], slatMat.clone())
+        const slat = this.boxMesh([size[0] * 0.42, size[1] * 0.18, 0.05], slatMat.clone())
         slat.name = 'TransferShutterSlat'
         slat.position.set(0, -size[1] * 0.5 + (i + 0.5) * (size[1] * 0.25), 0)
         root.add(slat)
       }
       const frameMat = this.material(0x2a1a3a, 0.5, 0.5, 0x4a2a5a)
-      const top = this.boxMesh([size[0] * 0.9, 0.1, size[2] * 0.98], frameMat); top.name = 'TransferShutterFrame'
+      const top = this.boxMesh([size[0] * 0.46, 0.04, 0.04], frameMat); top.name = 'TransferShutterFrame'
       top.position.y = size[1] * 0.5 + 0.02
       root.add(top)
       body = this.physics.createShutter(definition.id, this.vec(position), { x: size[0] / 2, y: size[1] / 2, z: size[2] / 2 })
-      if (this.chapter === 3) {
-        this.physics.createShutterActorBarrier(`${definition.id}-actor-seal`, this.vec(position), {
-          x: size[0] / 2,
-          y: size[1] / 2,
-          z: size[2] / 2,
-        })
-        staticSeal = new THREE.Group()
-        staticSeal.name = `${definition.id}-actor-seal`
-        staticSeal.position.copy(position)
-        const sealMat = new THREE.MeshBasicMaterial({
-          color: 0x68eaff,
-          transparent: true,
-          opacity: 0.28,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-        })
-        this.materials.push(sealMat)
-        const sealField = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(size[2] * 0.88, size[1] * 0.78)), sealMat)
-        sealField.name = 'TransferShutterActorSeal'
-        sealField.rotation.y = Math.PI / 2
-        sealField.position.x = -size[0] * 0.53
-        sealField.renderOrder = 4
-        staticSeal.add(sealField)
-        for (const y of [-size[1] * 0.24, 0, size[1] * 0.24]) {
-          const lockRail = this.boxMesh([size[0] * 0.16, 0.045, size[2] * 0.82], this.cloneMaterial(slatMat))
-          lockRail.name = 'TransferShutterActorSealRail'
-          lockRail.position.set(-size[0] * 0.58, y, 0)
-          staticSeal.add(lockRail)
-        }
-      }
     } else if (definition.kind === 'one-way-wall') {
+      // Ch3 one-way physical wall. Collider is always present (real collision);
+      // the body translates DOWN by `openOffsetY` when an actor approaches from
+      // the WEST side, and UP back to closed position otherwise. No actor
+      // position mutation — the motor collides naturally with the body.
       root = new THREE.Group()
-      root.name = 'OneWayPassagePortal'
-      // The collider is deliberately as substantial as the visible portal. A
-      // small, thin slab made the rule look like a broken prop instead of an
-      // authored crossing in the quarter-view camera.
-      const height = size[1]
-      const span = size[2]
-      const depth = size[0]
-      // The solid Rapier barrier must not render as a solid purple monolith.
-      // Its volume stays as a faint silhouette behind the directional surfaces.
-      const slabMat = this.material(0x171424, 0.38, 0.78, 0x44266b, 0.12)
-      const frameMat = this.material(0x8e6af0, 0.2, 0.82, 0xc15bf2)
-      const passMat = this.material(0x7be9ff, 0.2, 0.58, 0x7be9ff)
-      const lockMat = this.material(0xff5c79, 0.28, 0.62, 0xff5c79)
-      const westFieldMat = new THREE.MeshBasicMaterial({
-        color: 0x5ee4ff,
-        transparent: true,
-        opacity: 0.18,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      })
-      const eastFieldMat = new THREE.MeshBasicMaterial({
-        color: 0x7f244a,
-        transparent: true,
-        opacity: 0.52,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      })
-      this.materials.push(westFieldMat, eastFieldMat)
-      const slab = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(depth, height, span)), slabMat)
-      slab.name = 'OneWayWall'
-      const northFrame = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(depth + 0.14, height + 0.22, 0.12)), frameMat)
-      northFrame.name = 'OneWayWallNorthFrame'
-      northFrame.position.z = -span * 0.5
-      const southFrame = new THREE.Mesh(
-        this.geometry(new THREE.BoxGeometry(depth + 0.14, height + 0.22, 0.12)),
-        this.cloneMaterial(frameMat),
-      )
-      southFrame.name = 'OneWayWallSouthFrame'
-      southFrame.position.z = span * 0.5
-      const crown = new THREE.Mesh(
-        this.geometry(new THREE.BoxGeometry(depth + 0.14, 0.14, span + 0.22)),
-        this.cloneMaterial(frameMat),
-      )
-      crown.name = 'OneWayWallCrown'
-      crown.position.y = height * 0.5
-      const westField = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.84, height * 0.84)), westFieldMat)
-      westField.name = 'OneWayWallWestField'
-      westField.rotation.y = Math.PI / 2
-      westField.position.x = -depth * 0.5 - 0.012
-      westField.renderOrder = 2
-      const eastField = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.84, height * 0.84)), eastFieldMat)
-      eastField.name = 'OneWayWallEastField'
-      eastField.rotation.y = -Math.PI / 2
-      eastField.position.x = depth * 0.5 + 0.012
-      eastField.renderOrder = 2
-
-      // A top-facing row of bright arrows remains visible from the quarter-view
-      // camera even when that camera is looking at the portal's locked face.
-      const arrowGeometry = this.geometry(new THREE.ConeGeometry(0.22, 0.54, 4))
-      const arrowShaftGeometry = this.geometry(new THREE.BoxGeometry(0.34, 0.06, 0.11))
-      const arrows = new THREE.Group()
-      arrows.name = 'OneWayWallPassArrows'
-      for (const z of [-span * 0.27, 0, span * 0.27]) {
-        const shaft = new THREE.Mesh(arrowShaftGeometry, this.cloneMaterial(passMat))
-        shaft.name = 'OneWayWallPassShaft'
-        shaft.position.set(-0.22, height * 0.5 + 0.16, z)
-        arrows.add(shaft)
-        const arrow = new THREE.Mesh(arrowGeometry, this.cloneMaterial(passMat))
-        arrow.name = 'OneWayWallPassArrow'
-        arrow.rotation.z = -Math.PI / 2
-        arrow.position.set(0.14, height * 0.5 + 0.16, z)
-        arrow.renderOrder = 4
-        arrows.add(arrow)
-      }
-      arrows.userData.role = 'player-west-to-east-only'
-
-      const lockBars = new THREE.Group()
-      lockBars.name = 'OneWayWallLockBars'
-      const lockBarGeometry = this.geometry(new THREE.BoxGeometry(0.055, 0.08, span * 0.7))
-      for (const y of [-height * 0.23, 0, height * 0.23]) {
-        const lockBar = new THREE.Mesh(lockBarGeometry, this.cloneMaterial(lockMat))
-        lockBar.name = 'OneWayWallLockBar'
-        lockBar.position.set(depth * 0.58, y, 0)
-        lockBar.renderOrder = 4
-        lockBars.add(lockBar)
-      }
-      const lockRing = new THREE.Mesh(
-        this.geometry(new THREE.TorusGeometry(0.34, 0.045, 8, 20)),
-        this.cloneMaterial(lockMat),
-      )
-      lockRing.name = 'OneWayWallLockSigil'
-      lockRing.rotation.y = Math.PI / 2
-      lockRing.position.x = depth * 0.58
-      lockBars.add(lockRing)
-      const lockCross = new THREE.Mesh(
-        this.geometry(new THREE.BoxGeometry(0.05, 0.48, 0.055)),
-        this.cloneMaterial(lockMat),
-      )
-      lockCross.name = 'OneWayWallLockCross'
-      lockCross.rotation.x = Math.PI / 4
-      lockCross.position.x = depth * 0.59
-      lockBars.add(lockCross)
-
-      const beaconGeometry = this.geometry(new THREE.OctahedronGeometry(0.15, 0))
-      const beacons = new THREE.Group()
-      beacons.name = 'OneWayWallBeacons'
-      for (const z of [-span * 0.38, span * 0.38]) {
-        const beacon = new THREE.Mesh(beaconGeometry, this.cloneMaterial(frameMat))
-        beacon.position.set(0, height * 0.39, z)
-        beacons.add(beacon)
-      }
-      const light = new THREE.PointLight(0x7be9ff, 2.4, 5.2)
-      light.name = 'OneWayWallLight'
-      light.position.x = -depth * 0.45
-      root.add(slab, northFrame, southFrame, crown, westField, eastField, arrows, lockBars, beacons, light)
-      for (const part of [slab, northFrame, southFrame, crown]) {
-        part.castShadow = true
-        part.receiveShadow = true
-        this.addEdgeGlow(part, accent)
-      }
+      const wallMat = this.material(0x4a3a78, 0.5, 0.7, 0x8d62ff)
+      const wall = this.boxMesh(size, wallMat)
+      wall.name = 'OneWayWall'
+      wall.castShadow = true
+      const stripeMat = this.material(accent, 0.3, 0.55, accent)
+      const stripe = this.boxMesh([size[0] * 0.6, 0.08, size[2] * 0.05], stripeMat)
+      stripe.name = 'OneWayWallStripe'
+      stripe.position.y = size[1] * 0.6
+      root.add(wall, stripe)
       body = this.physics.createOneWayWall(definition.id, this.vec(position), {
-        x: size[0] / 2,
-        y: size[1] / 2,
-        z: size[2] / 2,
-      })
-    } else if (definition.kind === 'return-gate') {
-      root = new THREE.Group()
-      root.name = 'PlayerReturnGate'
-      const height = size[1]
-      const span = size[2]
-      const depth = size[0]
-      const frameMat = this.material(0x222936, 0.48, 0.72, 0xff5c79)
-      const panelMat = this.material(0x4d1d32, 0.34, 0.62, 0xff5c79)
-      const trimMat = this.material(0x742445, 0.28, 0.56, 0xff5c79)
-      const closedFieldMat = new THREE.MeshBasicMaterial({
-        color: 0xff5c79,
-        transparent: true,
-        opacity: 0.56,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      })
-      const openFieldMat = new THREE.MeshBasicMaterial({
-        color: 0x63ffd5,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      })
-      this.materials.push(closedFieldMat, openFieldMat)
-      const northFrame = this.boxMesh([depth + 0.1, height, 0.1], frameMat)
-      northFrame.name = 'ReturnGateNorthFrame'
-      northFrame.position.z = -span * 0.5
-      const southFrame = this.boxMesh([depth + 0.1, height, 0.1], this.cloneMaterial(frameMat))
-      southFrame.name = 'ReturnGateSouthFrame'
-      southFrame.position.z = span * 0.5
-      const crown = this.boxMesh([depth + 0.1, 0.14, span + 0.16], this.cloneMaterial(trimMat))
-      crown.name = 'ReturnGateCrown'
-      crown.position.y = height * 0.5 - 0.07
-      const base = this.boxMesh([depth + 0.12, 0.12, span + 0.16], this.cloneMaterial(trimMat))
-      base.name = 'ReturnGateBase'
-      base.position.y = -height * 0.5 + 0.06
-      const panels = new THREE.Group()
-      panels.name = 'ReturnGateDoorPanels'
-      for (const direction of [-1, 1]) {
-        const panel = this.boxMesh([depth * 0.8, height * 0.78, span * 0.39], this.cloneMaterial(panelMat))
-        panel.name = 'ReturnGateDoorPanel'
-        panel.position.z = direction * span * 0.22
-        panel.userData.closedZ = direction * span * 0.22
-        panel.userData.openZ = direction * span * 0.64
-        panels.add(panel)
-      }
-      const closedField = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.76, height * 0.7)), closedFieldMat)
-      closedField.name = 'ReturnGateClosedField'
-      closedField.rotation.y = Math.PI / 2
-      closedField.position.x = -depth * 0.52
-      closedField.renderOrder = 3
-      const openField = new THREE.Mesh(this.geometry(new THREE.PlaneGeometry(span * 0.7, height * 0.68)), openFieldMat)
-      openField.name = 'ReturnGateOpenField'
-      openField.rotation.y = Math.PI / 2
-      openField.position.x = -depth * 0.54
-      openField.renderOrder = 4
-      const rings = new THREE.Group()
-      rings.name = 'ReturnGateStatusRings'
-      for (const y of [-height * 0.22, 0, height * 0.22]) {
-        const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(0.16, 0.025, 8, 16)), this.cloneMaterial(trimMat))
-        ring.rotation.y = Math.PI / 2
-        ring.position.set(-depth * 0.6, y, 0)
-        rings.add(ring)
-      }
-      const light = new THREE.PointLight(0xff5c79, 2.3, 5.2)
-      light.name = 'ReturnGateLight'
-      light.position.x = -depth * 0.72
-      root.add(northFrame, southFrame, crown, base, panels, closedField, openField, rings, light)
-      for (const part of [northFrame, southFrame, crown, base]) {
-        part.castShadow = true
-        part.receiveShadow = true
-        this.addEdgeGlow(part, accent)
-      }
-      body = this.physics.createReturnGate(definition.id, this.vec(position), {
         x: size[0] / 2,
         y: size[1] / 2,
         z: size[2] / 2,
@@ -1390,23 +1064,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         spikes.setMatrixAt(i, spikeMatrix)
       }
       spikes.instanceMatrix.needsUpdate = true
-      const targetRing = new THREE.Mesh(
-        this.geometry(new THREE.TorusGeometry(size[0] * 1.22, 0.055, 8, 32)),
-        this.material(0xe95757, 0.24, 0.18, 0xe95757, 0.82),
-      )
-      targetRing.name = 'TrapTargetRing'
-      targetRing.position.y = 0.19
-      targetRing.rotation.x = Math.PI / 2
-      const lureBeacon = new THREE.Mesh(
-        this.geometry(new THREE.CylinderGeometry(0.1, size[0] * 0.5, 1.35, 18, 1, true)),
-        this.material(0xe95757, 0.32, 0.08, 0xe95757, 0.14),
-      )
-      lureBeacon.name = 'TrapLureBeacon'
-      lureBeacon.position.y = 0.82
-      const trapLight = new THREE.PointLight(0xe95757, 1.3, 4.5)
-      trapLight.name = 'TrapTargetLight'
-      trapLight.position.y = 0.75
-      root.add(housing, warnings, spikes, targetRing, lureBeacon, trapLight)
+      root.add(housing, warnings, spikes)
       body = this.physics.createSensor(definition.id, 'trap', this.vec(position), { x: size[0], y: 0.65, z: size[2] })
     } else if (definition.kind === 'exit') {
       root = new THREE.Group()
@@ -1455,29 +1113,48 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       body = this.physics.createSensor(definition.id, 'plate', this.vec(position), { x: 0.9, y: 1.4, z: 0.9 })
     } else {
       root = new THREE.Group()
+      const base = new THREE.Mesh(this.geometry(new THREE.CylinderGeometry(this.chapter === 5 ? 0.7 : 0.52, this.chapter === 5 ? 0.8 : 0.62, 0.22, 10)), this.material(0x221c29, 0.54, 0.65))
+      base.name = 'SentryBase'
+      base.position.y = 0.15
+      const shell = new THREE.Mesh(this.geometry(new THREE.DodecahedronGeometry(this.chapter === 5 ? 0.78 : 0.56, 1)), this.material(0x5f2635, 0.58, 0.32, accent))
+      shell.name = 'SentryShell'
+      shell.position.y = 0.63
+      const eye = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(0.12, 12, 8)), glow)
+      eye.name = 'SentryEye'
+      eye.position.set(0, 0.72, this.chapter === 5 ? 0.72 : 0.53)
+      const ring = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(this.chapter === 5 ? 0.82 : 0.6, 0.035, 8, 20)), this.material(accent, 0.28, 0.7, accent))
+      ring.name = 'SentryHalo'
+      ring.rotation.x = Math.PI / 2
+      ring.position.y = 0.65
+      const finGeometry = this.geometry(new THREE.BoxGeometry(0.11, 0.36, 0.3))
+      const fins = new THREE.InstancedMesh(finGeometry, this.material(0x25323b, 0.5, 0.72), 2)
+      fins.name = 'SentryFins'
+      const finMatrix = new THREE.Matrix4()
+      finMatrix.makeTranslation(-0.62, 0.62, 0)
+      fins.setMatrixAt(0, finMatrix)
+      finMatrix.makeTranslation(0.62, 0.62, 0)
+      fins.setMatrixAt(1, finMatrix)
+      fins.instanceMatrix.needsUpdate = true
+      root.add(base, shell, eye, ring, fins)
       body = this.physics.createKinematicBox(definition.id, 'enemy', this.vec(position), { x: size[0], y: size[1], z: size[2] })
-      if (this.chapter === 4) this.buildWatcherCharacter(root)
-      else this.buildGuardianCharacter(root)
+      const cone = new THREE.Mesh(
+        this.geometry(new THREE.ConeGeometry(2.6, 5.5, 24, 1, true, -Math.PI / 4, Math.PI / 2)),
+        this.material(0xe95757, 0.5, 0, 0xe95757, 0.13),
+      )
+      cone.name = 'SightCone'
+      cone.rotation.x = Math.PI / 2
+      cone.rotation.z = -Math.PI / 2
+      cone.position.set(0, 0.35, 2.2)
+      root.add(cone)
     }
     root.name = definition.id
     root.position.copy(position)
-    const cameraOccludingDevice = this.chapter >= 3
-      && (definition.kind === 'elevator' || definition.kind === 'platform' || definition.kind === 'bridge')
     root.traverse((object) => {
       if (object instanceof THREE.Mesh) {
-        const presentationOverlay = object.userData.presentationOverlay === true
-        object.castShadow = !presentationOverlay
-        object.receiveShadow = !presentationOverlay
-        if (cameraOccludingDevice
-          && (object.name === 'IndustrialPlatformDeck' || object.name === 'IndustrialPlatformInset')) {
-          object.material = Array.isArray(object.material)
-            ? object.material.map((material) => this.cloneMaterial(material))
-            : this.cloneMaterial(object.material)
-          this.staticObstructions.push(object)
-        }
+        object.castShadow = true
+        object.receiveShadow = true
       }
     })
-    if (staticSeal) this.root.add(staticSeal)
     this.root.add(root)
     const record: DeviceRecord = {
       definition,
@@ -1498,6 +1175,8 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       body,
       mesh: root,
       carriedBy: undefined,
+      upperThrowArmed: false,
+      postCatchFlightArmed: false,
       redirectedCurrentFlight: false,
       carryPosition: position.clone(),
       carryTarget: position.clone(),
@@ -1572,12 +1251,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       z: size.z / 2,
     })
     model.traverse((object) => {
-      if (object instanceof THREE.Mesh) {
-        object.material = Array.isArray(object.material)
-          ? object.material.map((material) => this.cloneMaterial(material))
-          : this.cloneMaterial(object.material)
-        this.staticObstructions.push(object)
-      }
+      if (object instanceof THREE.Mesh) this.staticObstructions.push(object)
     })
   }
 
@@ -1598,13 +1272,11 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     }
   }
 
-  private updatePlatforms(_tick: number, actors: readonly ActorContext[]): void {
+  private updatePlatforms(tick: number, actors: readonly ActorContext[]): void {
+    const phaseTick = tick + this.platformPhaseOffset
     for (const device of this.devices.values()) {
       const { definition } = device
       if (!definition.to || !device.body) continue
-      // Enemy patrol endpoints also use `to`; only authored moving surfaces
-      // belong in this platform reset/interpolation loop.
-      if (definition.kind !== 'elevator' && definition.kind !== 'platform') continue
       let amount = 0
       if (definition.kind === 'elevator') {
         const powered = this.chapter === 2
@@ -1616,23 +1288,16 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         amount = device.motionProgress
       } else if (definition.kind === 'platform') {
         device.active = this.facts.has('core-receiver')
-        const boarded = device.active && this.playerBoardedPlatform(device, actors)
-        const ascending = boarded || (device.motionProgress > 0 && device.motionProgress < 1)
-        device.motionProgress = THREE.MathUtils.clamp(
-          device.motionProgress + (device.active && ascending ? 0.008 : -0.008),
-          0,
-          1,
-        )
-        amount = device.motionProgress
+        amount = device.active ? (Math.sin(phaseTick * 0.018 - Math.PI / 2) + 1) / 2 : 0
       }
       const target = positionOf(definition.to)
       const next = device.basePosition.clone().lerp(target, amount)
       device.delta.copy(next).sub(device.root.position)
       device.root.position.copy(next)
-      const nonBlocking = (this.chapter === 2
-        && definition.kind === 'elevator'
-        && device.motionProgress > 0)
-        || (this.chapter === 5 && definition.kind === 'platform')
+      const nonBlocking = (this.chapter === 2 && definition.kind === 'elevator' && device.motionProgress > 0)
+        || (this.chapter === 5
+          && (definition.kind === 'elevator' || definition.kind === 'platform')
+          && device.active)
       device.body.tag.nonBlocking = nonBlocking
       device.body.collider.setSensor(nonBlocking)
       if (device.body.body.bodyType() !== RAPIER.RigidBodyType.KinematicPositionBased) {
@@ -1679,28 +1344,16 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   }
 
   private updateDoors(): void {
-    const requestedOpen = this.chapter === 5
-      ? this.chapterFiveDoorReleased() && (!this.facts.has('final-door-opened') || this.escapeTicks > 0)
-      : this.doorCondition()
+    const open = this.doorCondition()
     for (const device of this.devices.values()) {
       if (device.definition.kind !== 'door' || !device.body) continue
       const wasOpen = device.active
-      if (this.chapter === 5) {
-        const targetX = device.basePosition.x + (requestedOpen ? 2.8 : 0)
-        device.root.position.x = THREE.MathUtils.lerp(device.root.position.x, targetX, requestedOpen ? 0.18 : 0.1)
-        device.root.position.y = device.basePosition.y
-      } else {
-        const targetY = device.basePosition.y + (requestedOpen ? 4.8 : 0)
-        device.root.position.y = THREE.MathUtils.lerp(device.root.position.y, targetY, 0.1)
-      }
-      const open = requestedOpen && (this.chapter !== 5 || device.root.position.x >= device.basePosition.x + 2.25)
       device.active = open
-      if (this.chapter === 5 && open && !this.facts.has('final-door-opened')) {
-        this.facts.add('final-door-opened')
-        this.escapeTicks = CHAPTERS[4]?.escapeTimeTicks ?? 15 * 60
-      }
+      if (this.chapter === 5 && open) this.facts.add('final-door-opened')
       if (wasOpen !== open) this.emitAudio({ type: 'door', id: device.definition.id, open })
-      device.body.body.setNextKinematicTranslation({ x: device.root.position.x, y: device.root.position.y, z: device.basePosition.z })
+      const targetY = device.basePosition.y + (open ? 4.8 : 0)
+      device.root.position.y = THREE.MathUtils.lerp(device.root.position.y, targetY, 0.1)
+      device.body.body.setNextKinematicTranslation({ x: device.basePosition.x, y: device.root.position.y, z: device.basePosition.z })
       this.setEmissiveIntensity(device.root.getObjectByName('VaultDoorStatusStripes'), open ? 1.8 : 0.35)
     }
   }
@@ -1836,7 +1489,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   }
 
   /**
-   * Spatial transfer-lane shutter. The shutter is closed by default and physically
+   * Ch3 transfer-lane shutter. The shutter is closed by default and physically
    * blocks dynamic cores/crates (it has a real collider, not a sensor). It opens
    * only when the live Player is currently located on the EAST side of the
    * shutter (the `openZone` field of the device definition, or any position east
@@ -1847,19 +1500,18 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
    * etc.) so the shutter state never leaks from a previous recording timeline.
    */
   private updateShutters(actors: readonly ActorContext[]): void {
-    if (this.chapter !== 3 && this.chapter !== 5) return
+    if (this.chapter !== 3) return
     for (const [, device] of this.devices) {
       if (device.definition.kind !== 'shutter' || !device.body) continue
       const size = device.definition.size ?? [1.4, 1.4, 1.6]
       const openAtX = device.definition.openAtX ?? 0
       const player = actors.find((a) => a.kind === 'player')
       const isOpen = !!player && player.position.x >= openAtX
-      this.physics.setShutterOpen(device.body.collider, isOpen)
       // The authored transform is immutable. Opening lowers the full collider
       // beneath the lower floor instead of stacking offsets every tick or
       // raising it into the Core's flight path.
       const closedY = device.basePosition.y
-      const openY = -size[1] - 0.5
+      const openY = closedY - (size[1] + size[1] / 2 + 0.1)
       const target = {
         x: device.basePosition.x,
         y: isOpen ? openY : closedY,
@@ -1873,432 +1525,58 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
       const wasOpen = this.shutters.get(device.definition.id)
       this.shutters.set(device.definition.id, isOpen)
-      const spatialFact = `${device.definition.id}:player-east`
-      if (isOpen) this.facts.add(spatialFact)
-      else this.facts.delete(spatialFact)
-      // A rewind can place the live Player directly on the east side. Treat an
-      // uninitialized-but-open shutter as a real opening so the HUD feedback
-      // is tied to its physical state rather than a hard-coded player X value.
-      if (isOpen && wasOpen !== true) this.emitAudio({ type: 'shutter', id: device.definition.id, open: true })
-      else if (!isOpen && wasOpen === true) this.emitAudio({ type: 'shutter', id: device.definition.id, open: false })
+      if (wasOpen === false && isOpen) this.emitAudio({ type: 'shutter', id: device.definition.id, open: true })
     }
   }
 
   private updateOneWayWalls(actors: readonly ActorContext[]): void {
     for (const [, device] of this.devices) {
       if (device.definition.kind !== 'one-way-wall' || !device.body) continue
-      // This is never an opening door. CharacterMotor ignores its collider only
-      // for a live Player moving WEST→EAST. Echo and physical Core bodies always
-      // collide, and a Player on the east side cannot return through it.
+      const size = device.definition.size ?? [1.0, 1.6, 1.6]
+      // Player-only trigger: echo and carried dynamic cores/crates must NOT
+      // open the wall. Opening latches only long enough for the current player
+      // to clear the passage, then cannot be reopened from the east side.
       const player = actors.find((actor) => actor.kind === 'player')
-      const playerOnWestSide = player !== undefined && player.position.x < device.basePosition.x - 0.05
-      const playerOnEastSide = player !== undefined && player.position.x > device.basePosition.x + 0.05
-      this.physics.setOneWayWallOpen(device.body.collider, false)
-      device.body.tag.nonBlocking = false
-      const target = this.vec(device.basePosition)
+      const wasOpening = this.oneWayOpening.get(device.definition.id) === true
+      const clearedEastEdge = player !== undefined
+        && player.position.x > device.basePosition.x + size[0] / 2 + 0.45
+      const playerCanOpenFromWest = player !== undefined && player.position.x < device.basePosition.x
+      const isOpen = wasOpening ? !clearedEastEdge : playerCanOpenFromWest
+      this.oneWayOpening.set(device.definition.id, isOpen)
+      const closedY = device.basePosition.y
+      // Lower the collider until even its top is below the walkable lower-floor
+      // surface. A player cannot jump over a partially lowered wall.
+      const openY = closedY - (size[1] + size[1] / 2 + 0.12)
+      const target = {
+        x: device.basePosition.x,
+        y: isOpen ? openY : closedY,
+        z: device.basePosition.z,
+      }
       const t = device.body.body.translation()
       if (Math.abs(t.x - target.x) > 0.01 || Math.abs(t.y - target.y) > 0.01 || Math.abs(t.z - target.z) > 0.01) {
         device.body.body.setNextKinematicTranslation(target)
         if (device.root) device.root.position.set(target.x, target.y, target.z)
       }
-      this.setOneWayWallPresentation(device.root, playerOnWestSide, playerOnEastSide)
-    }
-  }
-
-  private buildWatcherCharacter(root: THREE.Object3D): void {
-    const animator = this.assets.createWatcherCharacter?.() ?? createAnimatedActor({
-      cloth: 0x16483e,
-      armor: 0x27333d,
-      glow: 0xff5c79,
-      skin: 0xeadcc5,
-    })
-    this.enemyAnimator = animator
-    animator.root.name = 'WatcherCharacter'
-    animator.root.scale.setScalar(1.04)
-    root.add(animator.root)
-
-    const eyeMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8cecff,
-      emissive: 0x49d9ff,
-      emissiveIntensity: 2.6,
-      roughness: 0.22,
-      metalness: 0.28,
-    })
-    this.materials.push(eyeMaterial)
-    const sensorEye = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(0.075, 14, 10)), eyeMaterial)
-    sensorEye.name = 'WatcherSensorEye'
-    sensorEye.position.set(0, 0.72, 0.5)
-    sensorEye.userData.presentationOverlay = true
-    this.watcherSensorEye = sensorEye
-
-    const statusMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8cecff,
-      emissive: 0x49d9ff,
-      emissiveIntensity: 1.9,
-      transparent: true,
-      opacity: 0.86,
-      roughness: 0.2,
-      metalness: 0.34,
-      depthWrite: false,
-    })
-    this.materials.push(statusMaterial)
-    const statusRing = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(0.31, 0.035, 8, 28)), statusMaterial)
-    statusRing.name = 'WatcherStatusRing'
-    statusRing.position.y = 1.34
-    statusRing.rotation.x = Math.PI / 2
-    statusRing.userData.presentationOverlay = true
-    this.watcherStatusRing = statusRing
-
-    const sectorMaterial = new THREE.MeshBasicMaterial({
-      color: 0x49d9ff,
-      transparent: true,
-      opacity: 0.12,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    })
-    this.materials.push(sectorMaterial)
-    const sector = new THREE.Mesh(this.createWatcherSectorGeometry(), sectorMaterial)
-    sector.name = 'WatcherVisionSector'
-    sector.position.y = -0.88
-    sector.renderOrder = 2
-    sector.userData.presentationOverlay = true
-    this.watcherVisionSector = sector
-
-    const boundaryMaterial = new THREE.LineBasicMaterial({
-      color: 0x8cecff,
-      transparent: true,
-      opacity: 0.78,
-      depthWrite: false,
-    })
-    this.materials.push(boundaryMaterial)
-    const boundary = new THREE.LineSegments(this.createWatcherBoundaryGeometry(), boundaryMaterial)
-    boundary.name = 'WatcherVisionBoundary'
-    boundary.position.y = -0.865
-    boundary.renderOrder = 3
-    boundary.userData.presentationOverlay = true
-    this.watcherVisionBoundary = boundary
-
-    const beamMaterial = new THREE.LineBasicMaterial({
-      color: 0xff5c79,
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
-    })
-    this.materials.push(beamMaterial)
-    const beamGeometry = this.geometry(new THREE.BufferGeometry())
-    beamGeometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(6), 3))
-    const targetBeam = new THREE.Line(beamGeometry, beamMaterial)
-    targetBeam.name = 'WatcherTargetBeam'
-    targetBeam.visible = false
-    targetBeam.frustumCulled = false
-    targetBeam.userData.presentationOverlay = true
-    this.watcherTargetBeam = targetBeam
-
-    root.add(sector, boundary, targetBeam, sensorEye, statusRing)
-    this.updateWatcherVisionGeometry(this.enemyFovRadians())
-  }
-
-  private buildGuardianCharacter(root: THREE.Object3D): void {
-    const animator = this.assets.createGuardianCharacter?.() ?? createAnimatedActor({
-      cloth: 0x24183c,
-      armor: 0x6e5aa8,
-      glow: 0xc881ff,
-      skin: 0xd7c9b5,
-    })
-    this.enemyAnimator = animator
-    animator.root.name = 'GuardianCharacter'
-    animator.root.scale.setScalar(1.16)
-    root.add(animator.root)
-
-    const eyeMaterial = new THREE.MeshStandardMaterial({
-      color: 0xc98cff,
-      emissive: 0x9e52ec,
-      emissiveIntensity: 2.4,
-      roughness: 0.2,
-      metalness: 0.35,
-    })
-    this.materials.push(eyeMaterial)
-    const sensorEye = new THREE.Mesh(this.geometry(new THREE.SphereGeometry(0.085, 14, 10)), eyeMaterial)
-    sensorEye.name = 'GuardianSensorEye'
-    sensorEye.position.set(0, 0.78, 0.54)
-    sensorEye.userData.presentationOverlay = true
-    this.watcherSensorEye = sensorEye
-
-    const statusMaterial = new THREE.MeshStandardMaterial({
-      color: 0xa96fff,
-      emissive: 0x7439c2,
-      emissiveIntensity: 1.8,
-      transparent: true,
-      opacity: 0.9,
-      roughness: 0.2,
-      metalness: 0.42,
-      depthWrite: false,
-    })
-    this.materials.push(statusMaterial)
-    const statusRing = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(0.37, 0.042, 8, 30)), statusMaterial)
-    statusRing.name = 'GuardianStatusRing'
-    statusRing.position.y = 1.48
-    statusRing.rotation.x = Math.PI / 2
-    statusRing.userData.presentationOverlay = true
-    this.watcherStatusRing = statusRing
-
-    const shieldMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff5e7a,
-      emissive: 0xb21f49,
-      emissiveIntensity: 2.4,
-      transparent: true,
-      opacity: 0.82,
-      roughness: 0.22,
-      metalness: 0.62,
-      depthWrite: false,
-    })
-    this.materials.push(shieldMaterial)
-    const frontShield = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(0.54, 0.065, 8, 32)), shieldMaterial)
-    frontShield.name = 'GuardianFrontShield'
-    frontShield.position.set(0, 0.82, 0.5)
-    frontShield.userData.presentationOverlay = true
-    this.guardianFrontShield = frontShield
-
-    const sealMaterial = new THREE.MeshStandardMaterial({
-      color: 0xc881ff,
-      emissive: 0x8e3fd9,
-      emissiveIntensity: 2.5,
-      transparent: true,
-      opacity: 0.92,
-      roughness: 0.18,
-      metalness: 0.22,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    })
-    this.materials.push(sealMaterial)
-    const rearSeal = new THREE.Mesh(this.geometry(new THREE.CircleGeometry(0.22, 6)), sealMaterial)
-    rearSeal.name = 'GuardianRearSeal'
-    rearSeal.position.set(0, 0.86, -0.48)
-    rearSeal.rotation.y = Math.PI
-    rearSeal.userData.presentationOverlay = true
-    this.guardianRearSeal = rearSeal
-    const rearSealRingMaterial = sealMaterial.clone()
-    this.materials.push(rearSealRingMaterial)
-    const rearSealRing = new THREE.Mesh(
-      this.geometry(new THREE.TorusGeometry(0.29, 0.04, 8, 24)),
-      rearSealRingMaterial,
-    )
-    rearSealRing.name = 'GuardianRearSealRing'
-    rearSealRing.position.copy(rearSeal.position)
-    rearSealRing.rotation.y = Math.PI
-    rearSealRing.userData.presentationOverlay = true
-    this.guardianRearSealRing = rearSealRing
-
-    const sectorMaterial = new THREE.MeshBasicMaterial({
-      color: 0x8e6dff,
-      transparent: true,
-      opacity: 0.08,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    })
-    this.materials.push(sectorMaterial)
-    const sector = new THREE.Mesh(this.createWatcherSectorGeometry(), sectorMaterial)
-    sector.name = 'GuardianVisionSector'
-    sector.position.y = -0.83
-    sector.renderOrder = 2
-    sector.userData.presentationOverlay = true
-    this.watcherVisionSector = sector
-
-    const boundaryMaterial = new THREE.LineBasicMaterial({
-      color: 0xb995ff,
-      transparent: true,
-      opacity: 0.75,
-      depthWrite: false,
-    })
-    this.materials.push(boundaryMaterial)
-    const boundary = new THREE.LineSegments(this.createWatcherBoundaryGeometry(), boundaryMaterial)
-    boundary.name = 'GuardianVisionBoundary'
-    boundary.position.y = -0.815
-    boundary.renderOrder = 3
-    boundary.userData.presentationOverlay = true
-    this.watcherVisionBoundary = boundary
-
-    const beamMaterial = new THREE.LineBasicMaterial({
-      color: 0xd66bff,
-      transparent: true,
-      opacity: 0.92,
-      depthWrite: false,
-    })
-    this.materials.push(beamMaterial)
-    const beamGeometry = this.geometry(new THREE.BufferGeometry())
-    beamGeometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(6), 3))
-    const targetBeam = new THREE.Line(beamGeometry, beamMaterial)
-    targetBeam.name = 'GuardianTargetBeam'
-    targetBeam.visible = false
-    targetBeam.frustumCulled = false
-    targetBeam.userData.presentationOverlay = true
-    this.watcherTargetBeam = targetBeam
-
-    root.add(sector, boundary, targetBeam, sensorEye, statusRing, frontShield, rearSeal, rearSealRing)
-    this.updateWatcherVisionGeometry(this.enemyFovRadians())
-  }
-
-  private buildParadoxGuidance(): void {
-    const addRoute = (
-      name: string,
-      points: THREE.Vector3[],
-      color: number,
-      opacity: number,
-    ): THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial> => {
-      const geometry = this.geometry(new THREE.BufferGeometry().setFromPoints(points))
-      const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false })
-      this.materials.push(material)
-      const line = new THREE.Line(geometry, material)
-      line.name = name
-      line.renderOrder = 2
-      line.userData.presentationOverlay = true
-      this.root.add(line)
-      return line
-    }
-
-    addRoute('ParadoxEchoRoute', [
-      new THREE.Vector3(-7.4, 0.49, 2.7),
-      new THREE.Vector3(-6.2, 0.49, 2.55),
-      new THREE.Vector3(0.9, 0.49, 2.55),
-      new THREE.Vector3(-3.7, 0.5, 1.1),
-      new THREE.Vector3(-1.75, 0.5, -2.55),
-    ], 0xa56dff, 0.58)
-    addRoute('ParadoxPlayerRoute', [
-      new THREE.Vector3(-7.4, 0.5, 2.25),
-      new THREE.Vector3(-5.1, 0.5, -2.55),
-      new THREE.Vector3(3.2, 0.5, -2.55),
-      new THREE.Vector3(4.7, 0.5, 2.55),
-      new THREE.Vector3(7.2, 0.5, 0.2),
-      new THREE.Vector3(5.15, 0.53, -2.65),
-    ], 0x61e7ff, 0.5)
-    addRoute('ReceiverPlatformCable', [
-      new THREE.Vector3(7.2, 0.56, 0.2),
-      new THREE.Vector3(6.3, 0.56, -1.1),
-      new THREE.Vector3(5.15, 0.56, -2.65),
-      new THREE.Vector3(4.15, 0.56, -2.65),
-    ], 0x5effc7, 0.68)
-    this.guardianLowerTether = addRoute('GuardianLowerSealTether', [
-      new THREE.Vector3(-1.75, 0.78, -2.55),
-      new THREE.Vector3(0.8, 2.76, 0.85),
-    ], 0xc15bf2, 0.08)
-
-    const arenaMaterial = new THREE.MeshBasicMaterial({
-      color: 0xc15bf2,
-      transparent: true,
-      opacity: 0.18,
-      depthWrite: false,
-    })
-    this.materials.push(arenaMaterial)
-    const arena = new THREE.Mesh(this.geometry(new THREE.TorusGeometry(1.45, 0.035, 8, 48)), arenaMaterial)
-    arena.name = 'GuardianArenaRing'
-    arena.position.set(0.8, 1.48, 0.85)
-    arena.rotation.x = Math.PI / 2
-    arena.userData.presentationOverlay = true
-    this.root.add(arena)
-
-    const finalGuide = new THREE.Group()
-    finalGuide.name = 'FinalEscapeGuide'
-    const beaconGeometry = this.geometry(new THREE.OctahedronGeometry(0.1, 0))
-    const beaconMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffd47a,
-      emissive: 0xff8a3d,
-      emissiveIntensity: 1.8,
-      transparent: true,
-      opacity: 0.32,
-      roughness: 0.22,
-      metalness: 0.25,
-      depthWrite: false,
-    })
-    this.materials.push(beaconMaterial)
-    for (let index = 0; index < 6; index += 1) {
-      const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial)
-      beacon.name = `FinalEscapeBeacon${index + 1}`
-      beacon.position.set(8.25, 3.54, 0.15 + index * 0.5)
-      beacon.userData.presentationOverlay = true
-      finalGuide.add(beacon)
-    }
-    finalGuide.visible = false
-    this.finalEscapeGuide = finalGuide
-    this.root.add(finalGuide)
-  }
-
-  private createWatcherSectorGeometry(): THREE.BufferGeometry {
-    const segments = 32
-    const geometry = this.geometry(new THREE.BufferGeometry())
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array((segments + 2) * 3), 3))
-    const indices: number[] = []
-    for (let index = 0; index < segments; index += 1) indices.push(0, index + 1, index + 2)
-    geometry.setIndex(indices)
-    return geometry
-  }
-
-  private createWatcherBoundaryGeometry(): THREE.BufferGeometry {
-    const segments = 32
-    const geometry = this.geometry(new THREE.BufferGeometry())
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array((segments + 2) * 2 * 3), 3))
-    return geometry
-  }
-
-  /**
-   * Chapter 3's middle passage is deliberately independent of the southern
-   * one-way wall. Its only authority is the actual receiver device: once the
-   * Core is seated, the live Player may pass, while Echo and Core collision
-   * remains enabled even though the visible panels retract.
-   */
-  private updateReturnGates(silent = false): void {
-    const receiver = this.devices.get('core-receiver')
-    const open = receiver?.active === true
-    for (const device of this.devices.values()) {
-      if (device.definition.kind !== 'return-gate' || !device.body) continue
-      const wasOpen = device.active
-      device.active = open
-      device.body.tag.playerReturnPassOpen = open
-      this.setReturnGatePresentation(device.root, open)
-      if (!silent && wasOpen !== open) this.emitAudio({ type: 'door', id: device.definition.id, open })
     }
   }
   private updateEnemy(actors: readonly ActorContext[]): void {
     const id = this.chapter === 5 ? 'guardian' : 'watcher'
     const enemy = this.devices.get(id)
     if (!enemy?.body || this.enemyDefeated) {
-      if (enemy && this.enemyDefeated) {
-        if (this.chapter === 4) enemy.root.rotation.z = THREE.MathUtils.lerp(enemy.root.rotation.z, Math.PI / 2, 0.08)
-        this.updateEnemyPresentation(enemy)
-      }
+      if (enemy && this.enemyDefeated) enemy.root.rotation.z = THREE.MathUtils.lerp(enemy.root.rotation.z, Math.PI / 2, 0.08)
       return
     }
     const echo = actors.find((actor) => actor.kind === 'echo')
     const player = actors.find((actor) => actor.kind === 'player')
-    const echoHoldsLowerSeal = this.chapter === 5
-      && echo !== undefined
-      && this.deviceHeldBy('lower-seal', 'echo')
-    const guardianCanAcquire = (actor: ActorContext): boolean => this.chapter !== 5
-      || Math.abs(actor.position.y - enemy.root.position.y) <= GUARDIAN_ARENA_VERTICAL_DELTA
-      || (actor.kind === 'echo' && echoHoldsLowerSeal)
-    const seesEcho = echo
-      ? guardianCanAcquire(echo) && this.hasLineOfSight(enemy.root.position, echo.position)
-      : false
-    const seesPlayer = player
-      ? guardianCanAcquire(player) && this.hasLineOfSight(enemy.root.position, player.position)
-      : false
+    const seesEcho = echo ? this.hasLineOfSight(enemy.root.position, echo.position) : false
+    const seesPlayer = player ? this.hasLineOfSight(enemy.root.position, player.position) : false
     const visibleActors = [
       ...(echo && seesEcho ? [echo] : []),
       ...(player && seesPlayer ? [player] : []),
     ]
     const retainedTarget = visibleActors.find((actor) => actor.kind === this.enemyTarget)
-    const targetLockActive = this.chapter === 4
-      && this.enemyTarget !== undefined
-      && this.enemyTargetLockTicks > 0
-    const lowerSealEcho = this.chapter === 5
-      && echo
-      && seesEcho
-      && echoHoldsLowerSeal
-      ? echo
-      : undefined
-    const visibleTarget = lowerSealEcho ?? retainedTarget ?? (targetLockActive
-      ? undefined
-      : visibleActors
-          .sort((a, b) => a.position.distanceToSquared(enemy.root.position) - b.position.distanceToSquared(enemy.root.position))[0])
+    const visibleTarget = retainedTarget ?? visibleActors
+      .sort((a, b) => a.position.distanceToSquared(enemy.root.position) - b.position.distanceToSquared(enemy.root.position))[0]
 
     if (visibleTarget) {
       const changedTarget = this.enemyTarget !== visibleTarget.kind
@@ -2308,15 +1586,12 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.enemySearchTicks = ENEMY_SEARCH_TICKS
       this.enemyRecoveryTicks = 0
       this.enemyStimulusTicks = 0
-      if (this.chapter === 4) this.enemyTargetLockTicks = WATCHER_TARGET_LOCK_TICKS
       if (changedTarget || ['patrol', 'investigate', 'recovery'].includes(this.enemyState)) {
         this.enemyAlertTicks = ENEMY_ALERT_TICKS
       }
       if (this.enemyAlertTicks > 0) {
         this.enemyState = 'alert'
         this.enemyAlertTicks -= 1
-      } else if (this.chapter === 5 && visibleTarget.kind === 'echo' && lowerSealEcho) {
-        this.enemyState = 'lure-hold'
       } else {
         this.enemyState = 'chase'
       }
@@ -2324,17 +1599,18 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         this.facts.add(this.chapter === 5 ? 'guardian-target-echo' : 'lured-by-echo')
         this.enemyDetection = Math.max(0, this.enemyDetection - 1 / 45)
       } else if (this.chapter === 4) {
-        // Detection is a readable warning meter. Failure now requires the
-        // Watcher to physically catch the present Player, never remote damage.
-        this.enemyDetection = Math.min(1, this.enemyDetection + 1 / 75)
+        this.enemyDetection = Math.min(1, this.enemyDetection + 1 / 120)
+        if (this.enemyDetection >= 1) {
+          this.failed = true
+          this.failureReason = 'seen'
+        }
       }
     } else {
       const hadTarget = this.enemyTarget !== undefined
+      this.enemyTarget = undefined
       this.enemyTargetVisible = false
       this.enemyAlertTicks = 0
       this.enemyDetection = Math.max(0, this.enemyDetection - 1 / 180)
-      if (this.enemyTargetLockTicks > 0) this.enemyTargetLockTicks -= 1
-      else this.enemyTarget = undefined
       if (this.enemyStimulusTicks > 0) {
         this.enemyStimulusTicks -= 1
         this.enemyLastKnown.copy(this.enemyStimulusPosition)
@@ -2352,8 +1628,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
     }
     if (this.enemyKnock.lengthSq() > 0.0001) {
-      // Knockback must remain a physical straight-line impulse. It may stop at
-      // cover, but it must never pathfind around a wall into the spike trap.
       this.moveEnemy(enemy, this.enemyKnock)
       this.enemyKnock.multiplyScalar(0.92)
       this.enemyState = 'knocked'
@@ -2362,48 +1636,17 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const distance = direction.length()
       this.faceEnemy(enemy, direction)
       if (this.enemyState === 'chase' && distance > 0.75) {
-        if (this.chapter === 4 && visibleTarget.kind === 'echo') {
-          const lurePosition = this.watcherLurePosition(visibleTarget.position)
-          const lureDirection = lurePosition.sub(enemy.root.position).setY(0)
-          if (lureDirection.length() > 0.18) {
-            this.moveEnemy(enemy, lureDirection.normalize().multiplyScalar(WATCHER_ECHO_LURE_SPEED), true)
-          } else {
-            // The Watcher wants the Echo, but will not voluntarily step onto
-            // the spikes. This is the stable rear-strike window for the Player.
-            this.enemyState = 'lure-hold'
-          }
-        } else {
-          const speed = this.chapter === 5 ? GUARDIAN_CHASE_SPEED : WATCHER_CHASE_SPEED
-          this.moveEnemy(enemy, direction.normalize().multiplyScalar(speed), true)
-        }
+        this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.008 : 0.006))
       }
-      if (
-        this.chapter === 5
-        && visibleTarget.kind === 'player'
-        && this.enemyState === 'chase'
-        && distance < GUARDIAN_CONTACT_DISTANCE
-        && Math.abs(visibleTarget.position.y - enemy.root.position.y) < GUARDIAN_CONTACT_VERTICAL_DELTA
-      ) {
+      if (this.chapter === 5 && visibleTarget.kind === 'player' && this.enemyState === 'chase' && distance < 1.25) {
         this.failed = true
         this.failureReason = 'guardian'
       }
-      if (
-        this.chapter === 4
-        && visibleTarget.kind === 'player'
-        && this.enemyState === 'chase'
-        && distance < WATCHER_CONTACT_DISTANCE
-        && Math.abs(visibleTarget.position.y - enemy.root.position.y) < WATCHER_CONTACT_VERTICAL_DELTA
-      ) {
-        this.failed = true
-        this.failureReason = 'seen'
-      }
     } else if (this.enemyState === 'investigate') {
       const direction = this.enemyLastKnown.clone().sub(enemy.root.position).setY(0)
-      if (this.chapter === 5) {
+      if (direction.length() > 0.28) {
         this.faceEnemy(enemy, direction)
-      } else if (direction.length() > 0.28) {
-        this.faceEnemy(enemy, direction)
-        this.moveEnemy(enemy, direction.normalize().multiplyScalar(0.021), true)
+        this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.012 : 0.021))
       } else {
         this.enemyForward.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.018).normalize()
         enemy.root.rotation.y = Math.atan2(this.enemyForward.x, this.enemyForward.z)
@@ -2436,7 +1679,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       z: enemy.root.quaternion.z,
       w: enemy.root.quaternion.w,
     })
-    this.updateEnemyPresentation(enemy, visibleTarget?.position)
   }
 
   private updateTrapHazards(): void {
@@ -2453,18 +1695,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       this.enemyDefeated = true
       this.enemyState = 'trapped'
       this.enemyTargetVisible = false
-      this.enemyTargetLockTicks = 0
       this.facts.add('watcher-trapped')
       this.spawnWave(trap.root.position, 0xe95757)
     }
-    // The beacon makes the spikes read as the intended knockback target.
-    // It intensifies while the Watcher is committed at the trap edge.
+    // 시각: 트랩은 항상 위험 표시 (dim red), enemy가 위에 있으면 더 밝게 (빨간 위험 경고)
     const redColor = 0xe95757
-    const watcherCommitted = hasEnemy || this.enemyState === 'lure-hold'
-    const pulse = 1 + Math.sin(this.currentTick * 0.2) * 0.18
-    const targetHousing = watcherCommitted ? 1.6 * pulse : 0.35
-    const targetRails = watcherCommitted ? 2.4 * pulse : 0.7
-    const targetSpikes = watcherCommitted ? 2.6 * pulse : 0.9
+    const targetHousing = hasEnemy ? 1.6 : 0.35
+    const targetRails = hasEnemy ? 2.4 : 0.7
+    const targetSpikes = hasEnemy ? 2.6 : 0.9
     const housing = trap.root.getObjectByName('TrapHousing')
     if (housing instanceof THREE.Mesh && housing.material instanceof THREE.MeshStandardMaterial) {
       housing.material.emissive.setHex(redColor)
@@ -2479,22 +1717,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (spikes instanceof THREE.Mesh && spikes.material instanceof THREE.MeshStandardMaterial) {
       spikes.material.emissive.setHex(redColor)
       this.setEmissiveIntensity(spikes, targetSpikes)
-    }
-    const targetRing = trap.root.getObjectByName('TrapTargetRing')
-    if (targetRing instanceof THREE.Mesh && targetRing.material instanceof THREE.MeshStandardMaterial) {
-      targetRing.material.emissive.setHex(redColor)
-      targetRing.material.emissiveIntensity = watcherCommitted ? 3.4 * pulse : 1.45 * pulse
-      targetRing.scale.setScalar(watcherCommitted ? 1.05 + 0.06 * Math.sin(this.currentTick * 0.2) : 1)
-    }
-    const lureBeacon = trap.root.getObjectByName('TrapLureBeacon')
-    if (lureBeacon instanceof THREE.Mesh && lureBeacon.material instanceof THREE.MeshStandardMaterial) {
-      lureBeacon.material.emissive.setHex(redColor)
-      lureBeacon.material.emissiveIntensity = watcherCommitted ? 2.6 * pulse : 0.8
-      lureBeacon.material.opacity = this.enemyDefeated ? 0.03 : watcherCommitted ? 0.28 : 0.1
-    }
-    const trapLight = trap.root.getObjectByName('TrapTargetLight')
-    if (trapLight instanceof THREE.PointLight) {
-      trapLight.intensity = this.enemyDefeated ? 0.25 : watcherCommitted ? 3.3 * pulse : 1.1
     }
   }
 
@@ -2516,9 +1738,9 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         && upperHeldByPlayer
         && this.facts.has('core-receiver')
         && this.facts.has('guardian-defeated')
-        && !this.facts.has('dual-seal')
       ) {
         this.facts.add('dual-seal')
+        if (this.escapeTicks === 0) this.escapeTicks = 35 * 60
       }
     }
   }
@@ -2545,20 +1767,21 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (dynamic.carriedBy) return
     dynamic.carriedBy = actor.kind
     dynamic.body.tag.carried = true
-    const physicalCoreCarry = (this.chapter === 3 || this.chapter === 5) && dynamic.body.tag.kind === 'core'
+    const physicalCoreCarry = this.chapter === 3 && dynamic.body.tag.kind === 'core'
     dynamic.body.collider.setSensor(!physicalCoreCarry)
     this.physics.setDynamicCollisionMode(dynamic.body.collider, physicalCoreCarry)
+    dynamic.upperThrowArmed = false
     dynamic.redirectedCurrentFlight = false
     dynamic.body.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, true)
     this.placeCarriedObject(dynamic, actor, true)
-    // Catching transfers the physical Core only; no pickup-time objective state is synthesized.
+    // Ch3 removed: 'core-caught' / 'postCatchFlightArmed' pickup-time effects.
   }
 
   private dropCarried(dynamic: DynamicRecord): void {
     dynamic.carriedBy = undefined
     dynamic.body.tag.carried = false
     dynamic.body.collider.setSensor(false)
-    this.physics.setDynamicCollisionMode(dynamic.body.collider, true)
+    this.physics.setDynamicCollisionMode(dynamic.body.collider, false)
     dynamic.body.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true)
     dynamic.body.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
     // 직후 catch volume에 재 pickup 방지 (0.5초 cooldown)
@@ -2595,6 +1818,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
   private fillReceiver(core: DynamicRecord): boolean {
     if (core.carriedBy || this.receiverFilled || core.body.body.bodyType() !== RAPIER.RigidBodyType.Dynamic) return false
 
+    if (this.chapter === 5 && (!core.upperThrowArmed || !this.facts.has('core-thrown-down') || core.body.body.linvel().y > 0.35)) return false
     this.receiverFilled = true
     core.carriedBy = undefined
     core.body.tag.carried = false
@@ -2722,14 +1946,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (this.chapter === 4) {
       return this.facts.has('watcher-trapped')
     }
-    return this.facts.has('final-door-opened')
-      && this.escapeTicks > 0
-  }
-
-  private chapterFiveDoorReleased(): boolean {
     return this.facts.has('core-receiver')
       && this.facts.has('guardian-defeated')
       && this.facts.has('dual-seal')
+      && this.escapeTicks > 0
   }
 
   private canExit(): boolean {
@@ -2757,9 +1977,13 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     const target = to.clone().add(new THREE.Vector3(0, 0.62, 0))
     const direction = target.clone().sub(eye)
     const distance = direction.length()
-    const fovRadians = this.enemyFovRadians()
+    const fovRadians = this.enemyState === 'patrol'
+      ? Math.PI * 0.62
+      : this.enemyState === 'recovery'
+        ? Math.PI * 0.72
+        : Math.PI * 0.94
     if (!canSeeTarget({
-      position: this.vec(eye), forward: this.vec(this.enemyForward), range: this.enemyViewRange(),
+      position: this.vec(eye), forward: this.vec(this.enemyForward), range: this.chapter === 5 ? 8.5 : 7.2,
       fovRadians, maxVerticalDelta: 5,
     }, { position: this.vec(target), radius: 0.32 })) return false
     const hit = this.physics.castRay(
@@ -2772,300 +1996,30 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     return !hit
   }
 
-  private enemyFovRadians(): number {
-    return this.enemyState === 'patrol'
-      ? Math.PI * 0.62
-      : this.enemyState === 'recovery'
-        ? Math.PI * 0.72
-        : Math.PI * 0.94
-  }
-
-  private enemyViewRange(): number {
-    return this.chapter === 5 ? 8.5 : 7.2
-  }
-
-  private updateWatcherVisionGeometry(fovRadians: number): void {
-    const sector = this.watcherVisionSector
-    const boundary = this.watcherVisionBoundary
-    if (!sector || !boundary || Math.abs(this.watcherVisionFov - fovRadians) < 0.0001) return
-    this.watcherVisionFov = fovRadians
-    const range = this.enemyViewRange()
-    const segments = 32
-    const sectorAttribute = sector.geometry.getAttribute('position') as THREE.BufferAttribute
-    const sectorPositions = sectorAttribute.array as Float32Array
-    sectorPositions.set([0, 0, 0], 0)
-    const points: THREE.Vector3[] = []
-    for (let index = 0; index <= segments; index += 1) {
-      const angle = -fovRadians / 2 + (fovRadians * index) / segments
-      const point = new THREE.Vector3(Math.sin(angle) * range, 0, Math.cos(angle) * range)
-      points.push(point)
-      sectorPositions.set([point.x, point.y, point.z], (index + 1) * 3)
-    }
-    sectorAttribute.needsUpdate = true
-    sector.geometry.computeBoundingSphere()
-
-    const boundaryAttribute = boundary.geometry.getAttribute('position') as THREE.BufferAttribute
-    const boundaryPositions = boundaryAttribute.array as Float32Array
-    let cursor = 0
-    const writePoint = (point: THREE.Vector3): void => {
-      boundaryPositions.set([point.x, point.y, point.z], cursor)
-      cursor += 3
-    }
-    const center = new THREE.Vector3()
-    writePoint(center)
-    writePoint(points[0] ?? center)
-    writePoint(center)
-    writePoint(points.at(-1) ?? center)
-    for (let index = 0; index < segments; index += 1) {
-      writePoint(points[index] ?? center)
-      writePoint(points[index + 1] ?? center)
-    }
-    boundaryAttribute.needsUpdate = true
-    boundary.geometry.computeBoundingSphere()
-  }
-
-  private updateEnemyPresentation(enemy: DeviceRecord, visibleTarget?: THREE.Vector3): void {
-    if (this.chapter !== 4 && this.chapter !== 5) return
-    const guardian = this.chapter === 5
-    const dormant = guardian && this.enemyState === 'dormant'
-    const defeated = this.enemyDefeated || this.enemyState === 'trapped'
-    const acquired = this.enemyTargetVisible && Boolean(visibleTarget)
-    const searching = ['alert', 'investigate'].includes(this.enemyState)
-    const color = dormant
-      ? 0x625b72
-      : acquired
-        ? guardian && this.enemyTarget === 'echo' ? 0xd66bff : 0xff4f6d
-        : searching ? 0xffbd4a : guardian ? 0xa579ff : 0x49d9ff
-    const pulse = 1 + Math.sin(this.currentTick * 0.22) * (acquired ? 0.13 : 0.045)
-
-    this.updateWatcherVisionGeometry(this.enemyFovRadians())
-    if (this.watcherVisionSector) {
-      this.watcherVisionSector.visible = !defeated && !dormant
-      this.watcherVisionSector.material.color.setHex(color)
-      this.watcherVisionSector.material.opacity = acquired
-        ? 0.18 + this.enemyDetection * 0.12
-        : searching ? 0.15 : 0.1
-    }
-    if (this.watcherVisionBoundary) {
-      this.watcherVisionBoundary.visible = !defeated && !dormant
-      this.watcherVisionBoundary.material.color.setHex(color)
-      this.watcherVisionBoundary.material.opacity = acquired ? 0.98 : searching ? 0.88 : 0.7
-    }
-    if (this.watcherStatusRing) {
-      this.watcherStatusRing.visible = !defeated
-      this.watcherStatusRing.material.color.setHex(color)
-      this.watcherStatusRing.material.emissive.setHex(color)
-      this.watcherStatusRing.material.emissiveIntensity = dormant ? 0.25 : acquired ? 3.2 : searching ? 2.4 : 1.7
-      this.watcherStatusRing.material.opacity = dormant ? 0.24 : 0.86
-      this.watcherStatusRing.scale.setScalar(pulse)
-      this.watcherStatusRing.rotation.z = this.currentTick * 0.012
-    }
-    if (this.watcherSensorEye) {
-      this.watcherSensorEye.visible = !defeated
-      this.watcherSensorEye.material.color.setHex(color)
-      this.watcherSensorEye.material.emissive.setHex(color)
-      this.watcherSensorEye.material.emissiveIntensity = dormant ? 0.16 : acquired ? 4.5 : searching ? 3.2 : 2.4
-      this.watcherSensorEye.scale.setScalar(pulse)
-    }
-    if (this.watcherTargetBeam) {
-      this.watcherTargetBeam.visible = acquired && !dormant && !defeated
-      this.watcherTargetBeam.material.color.setHex(color)
-      if (acquired && visibleTarget) {
-        enemy.root.updateMatrixWorld(true)
-        const localTarget = enemy.root.worldToLocal(visibleTarget.clone())
-        const position = this.watcherTargetBeam.geometry.getAttribute('position') as THREE.BufferAttribute
-        position.setXYZ(0, 0, 0.72, 0.5)
-        position.setXYZ(1, localTarget.x, localTarget.y, localTarget.z)
-        position.needsUpdate = true
-        this.watcherTargetBeam.geometry.computeBoundingSphere()
-      }
-    }
-
-    if (guardian) {
-      const exposed = acquired
-        && this.enemyTarget === 'echo'
-        && this.deviceHeldBy('lower-seal', 'echo')
-        && !defeated
-      if (this.guardianFrontShield) {
-        this.guardianFrontShield.visible = !defeated
-        this.guardianFrontShield.material.color.setHex(exposed ? 0x8c6ab8 : dormant ? 0x4f465b : 0xff5e7a)
-        this.guardianFrontShield.material.emissive.setHex(exposed ? 0x3a2358 : dormant ? 0x231d2a : 0xb21f49)
-        this.guardianFrontShield.material.emissiveIntensity = exposed ? 0.45 : dormant ? 0.12 : 2.6
-        this.guardianFrontShield.material.opacity = exposed ? 0.22 : dormant ? 0.26 : 0.82
-        this.guardianFrontShield.scale.setScalar(dormant ? 0.96 : pulse)
-      }
-      if (this.guardianRearSeal) {
-        this.guardianRearSeal.visible = !defeated
-        this.guardianRearSeal.material.emissiveIntensity = exposed ? 5.2 : dormant ? 0.18 : 1.1
-        this.guardianRearSeal.material.opacity = exposed ? 1 : dormant ? 0.22 : 0.58
-        this.guardianRearSeal.scale.setScalar(exposed ? pulse * 1.14 : 1)
-      }
-      if (this.guardianRearSealRing) {
-        this.guardianRearSealRing.visible = !defeated
-        this.guardianRearSealRing.material.emissiveIntensity = exposed ? 4.4 : dormant ? 0.12 : 0.9
-        this.guardianRearSealRing.material.opacity = exposed ? 0.96 : dormant ? 0.18 : 0.5
-        this.guardianRearSealRing.rotation.z = exposed ? -this.currentTick * 0.025 : 0
-      }
-      if (this.guardianLowerTether) {
-        this.guardianLowerTether.visible = !defeated
-        this.guardianLowerTether.material.opacity = exposed
-          ? 0.86
-          : this.facts.has('core-receiver') ? 0.2 : 0.06
-        this.guardianLowerTether.material.color.setHex(exposed ? 0xe589ff : 0x7b5a9b)
-      }
-      const arena = this.root.getObjectByName('GuardianArenaRing')
-      if (arena instanceof THREE.Mesh && arena.material instanceof THREE.MeshBasicMaterial) {
-        arena.material.color.setHex(dormant ? 0x5b5269 : exposed ? 0xd66bff : color)
-        arena.material.opacity = dormant ? 0.08 : exposed ? 0.42 : 0.2
-        arena.scale.setScalar(exposed ? pulse : 1)
-      }
-      if (this.finalEscapeGuide) {
-        this.finalEscapeGuide.visible = this.escapeTicks > 0 && !this.complete
-        const urgency = this.escapeTicks > 0 ? 1 - this.escapeTicks / (CHAPTERS[4]?.escapeTimeTicks ?? 15 * 60) : 0
-        const guidePulse = 0.9 + Math.sin(this.currentTick * (0.18 + urgency * 0.3)) * 0.2
-        for (const child of this.finalEscapeGuide.children) {
-          child.scale.setScalar(guidePulse)
-          if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
-            child.material.opacity = 0.48 + urgency * 0.45
-            child.material.emissiveIntensity = 1.8 + urgency * 3.2
-          }
-        }
-      }
-    }
-
-    let animation: CharacterState = 'Idle'
-    if (defeated) animation = 'Defeat'
-    else if (this.enemyState === 'knocked') animation = 'Hit'
-    else if (this.enemyState === 'lure-hold') animation = guardian ? 'Interact' : 'Attack'
-    else if (this.enemyState === 'chase') animation = 'Run'
-    else if (['patrol', 'investigate', 'recovery'].includes(this.enemyState)) animation = 'Walk'
-    if (this.enemyAnimator && (this.enemyAnimator.state() !== animation || animation === 'Walk' || animation === 'Run')) {
-      this.enemyAnimator.play(animation, animation === 'Run' ? 4.6 : 1.8)
-    }
-  }
-
   private faceEnemy(enemy: DeviceRecord, direction: THREE.Vector3): void {
     if (direction.lengthSq() <= 0.0001) return
     this.enemyForward.copy(direction).setY(0).normalize()
     enemy.root.rotation.y = Math.atan2(this.enemyForward.x, this.enemyForward.z)
   }
 
-  private watcherLurePosition(echoPosition: THREE.Vector3): THREE.Vector3 {
-    const trap = this.devices.get('spike-trap')
-    if (!trap) return echoPosition.clone()
-    const awayFromEcho = trap.root.position.clone().sub(echoPosition).setY(0)
-    if (awayFromEcho.lengthSq() <= 0.0001) awayFromEcho.copy(this.enemyForward).multiplyScalar(-1)
-    return trap.root.position.clone().add(awayFromEcho.normalize().multiplyScalar(WATCHER_TRAP_STANDOFF))
-  }
-
-  private moveEnemy(enemy: DeviceRecord, displacement: THREE.Vector3, steerAroundObstacles = false): void {
+  private moveEnemy(enemy: DeviceRecord, displacement: THREE.Vector3): void {
     const distance = displacement.length()
     if (distance <= 0.0001) return
-    const desiredDirection = displacement.clone().normalize()
-    if (!this.enemyPathBlocked(enemy, desiredDirection, distance + 0.58)) {
-      enemy.root.position.add(displacement)
-      return
-    }
-    if (!steerAroundObstacles) return
-
-    // A visible target can sit just beyond a wall corner: the center LOS ray
-    // clears the corner while one of the body-width movement rays still clips
-    // it. The old direct-only move retried that blocked vector forever. Probe
-    // deterministic left/right arcs and prefer the route with useful forward
-    // progress plus the longest clear look-ahead. No random choice or hidden
-    // navigation state is introduced, so rewind/replay stays deterministic.
-    const candidates = [-Math.PI / 4, Math.PI / 4, -Math.PI / 2, Math.PI / 2]
-      .map((angle) => ({ angle, direction: desiredDirection.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), angle) }))
-      .filter(({ direction }) => !this.enemyPathBlocked(enemy, direction, distance + 0.58))
-      .map(({ angle, direction }) => {
-        const clearProbeCount = [0.9, 1.5, 2.2]
-          .filter((probeDistance) => !this.enemyPathBlocked(enemy, direction, probeDistance)).length
-        const progress = Math.max(0, direction.dot(desiredDirection))
-        return {
-          angle,
-          direction,
-          score: clearProbeCount * 0.6 + progress,
-        }
-      })
-      .sort((a, b) => b.score - a.score || Math.abs(a.angle) - Math.abs(b.angle) || a.angle - b.angle)
-
-    const steering = candidates[0]?.direction
-    if (!steering) return
-    enemy.root.position.addScaledVector(steering, distance)
-    this.faceEnemy(enemy, steering)
-  }
-
-  private enemyPathBlocked(enemy: DeviceRecord, direction: THREE.Vector3, maxToi: number): boolean {
+    const direction = displacement.clone().normalize()
     const side = new THREE.Vector3(-direction.z, 0, direction.x)
-    return [-0.46, 0, 0.46].some((offset) => this.physics.castRay(
+    const blocked = [-0.46, 0, 0.46].some((offset) => this.physics.castRay(
       this.vec(enemy.root.position.clone().add(new THREE.Vector3(0, 0.45, 0)).addScaledVector(side, offset)),
       this.vec(direction),
-      maxToi,
+      distance + 0.58,
       ENEMY_RAY_EXCLUSIONS,
       SOLID_SIGHT_KINDS,
     ) !== undefined)
-  }
-
-  /** Make the one-way rule legible from either side without changing physics. */
-  private setOneWayWallPresentation(root: THREE.Object3D, playerOnWestSide: boolean, playerOnEastSide: boolean): void {
-    this.setPresentationMaterial(root.getObjectByName('OneWayWallPassArrows'), 0x7be9ff, playerOnWestSide ? 2.8 : 0.35)
-    this.setPresentationMaterial(root.getObjectByName('OneWayWallLockBars'), 0xff5c79, playerOnEastSide ? 3.1 : 0.38)
-    this.setPresentationMaterial(root.getObjectByName('OneWayWallBeacons'), playerOnEastSide ? 0xff5c79 : 0x7be9ff, playerOnEastSide ? 2.5 : 1.7)
-    const westField = root.getObjectByName('OneWayWallWestField')
-    const eastField = root.getObjectByName('OneWayWallEastField')
-    if (westField instanceof THREE.Mesh && westField.material instanceof THREE.MeshBasicMaterial) {
-      westField.material.color.setHex(0x5ee4ff)
-      westField.material.opacity = playerOnWestSide ? 0.08 : 0.2
-    }
-    if (eastField instanceof THREE.Mesh && eastField.material instanceof THREE.MeshBasicMaterial) {
-      eastField.material.color.setHex(playerOnEastSide ? 0xff5c79 : 0x7f244a)
-      eastField.material.opacity = playerOnEastSide ? 0.68 : 0.36
-    }
-    const light = root.getObjectByName('OneWayWallLight')
-    if (light instanceof THREE.PointLight) {
-      light.color.setHex(playerOnEastSide ? 0xff5c79 : 0x7be9ff)
-      light.intensity = playerOnEastSide ? 2.8 : playerOnWestSide ? 2.5 : 1.25
-    }
-  }
-
-  /** Visual-only open/closed feedback for the Player-only return gate. */
-  private setReturnGatePresentation(root: THREE.Object3D, open: boolean): void {
-    const panels = root.getObjectByName('ReturnGateDoorPanels')
-    panels?.children.forEach((panel) => {
-      const target = Number(open ? panel.userData.openZ : panel.userData.closedZ)
-      if (Number.isFinite(target)) panel.position.z = THREE.MathUtils.lerp(panel.position.z, target, 0.22)
-    })
-    this.setPresentationMaterial(root.getObjectByName('ReturnGateDoorPanels'), open ? 0x63ffd5 : 0xff5c79, open ? 2.4 : 1.35)
-    this.setPresentationMaterial(root.getObjectByName('ReturnGateStatusRings'), open ? 0x63ffd5 : 0xff5c79, open ? 3.1 : 1.2)
-    const closedField = root.getObjectByName('ReturnGateClosedField')
-    if (closedField instanceof THREE.Mesh && closedField.material instanceof THREE.MeshBasicMaterial) {
-      closedField.material.color.setHex(0xff5c79)
-      closedField.material.opacity = THREE.MathUtils.lerp(closedField.material.opacity, open ? 0.04 : 0.56, 0.22)
-    }
-    const openField = root.getObjectByName('ReturnGateOpenField')
-    if (openField instanceof THREE.Mesh && openField.material instanceof THREE.MeshBasicMaterial) {
-      openField.material.color.setHex(0x63ffd5)
-      openField.material.opacity = THREE.MathUtils.lerp(openField.material.opacity, open ? 0.34 : 0, 0.22)
-    }
-    const light = root.getObjectByName('ReturnGateLight')
-    if (light instanceof THREE.PointLight) {
-      light.color.setHex(open ? 0x63ffd5 : 0xff5c79)
-      light.intensity = open ? 3.3 : 2.1
-    }
-  }
-
-  private setPresentationMaterial(object: THREE.Object3D | undefined, color: number, intensity: number): void {
-    object?.traverse((part) => {
-      if (!(part instanceof THREE.Mesh) && !(part instanceof THREE.InstancedMesh)) return
-      const materials = Array.isArray(part.material) ? part.material : [part.material]
-      for (const material of materials) {
-        if (material instanceof THREE.MeshStandardMaterial) {
-          material.color.setHex(color)
-          material.emissive.setHex(color)
-          material.emissiveIntensity = intensity
-        }
+    if (!blocked) {
+      const next = enemy.root.position.clone().add(displacement)
+      if (this.chapter !== 5 || next.distanceToSquared(enemy.basePosition) <= 0.65 ** 2) {
+        enemy.root.position.copy(next)
       }
-    })
+    }
   }
 
   private spawnWave(position: THREE.Vector3, color: number): void {
@@ -3128,12 +2082,6 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       : new THREE.MeshStandardMaterial({ color, roughness, metalness, emissive, emissiveIntensity: emissive ? 0.8 : 0, transparent: opacity < 1, opacity, depthWrite: opacity >= 1 })
     this.materials.push(material)
     return material
-  }
-
-  private cloneMaterial(material: THREE.Material): THREE.Material {
-    const clone = material.clone()
-    this.materials.push(clone)
-    return clone
   }
 
   private vec(vector: THREE.Vector3): Vec3 {
