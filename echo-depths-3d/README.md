@@ -6,10 +6,10 @@ The game is a Vite static application written in strict TypeScript. Three.js ren
 
 ## Current release evidence
 
-Snapshot: 2026-08-25, Asia/Seoul.
+Snapshot: 2026-08-29, Asia/Seoul.
 
-- The Chapter 4–5 temporal-mastery work is isolated on `feat/ch4-ch5-temporal-mastery`, based on the still-open Chapter 3 repair branch `fix/echo2-ch3-structural`. It replaces scripted enemy outcomes with live field-of-view, Rapier line-of-sight, cover, target selection, patrol/alert/investigate/chase/recovery, positional strikes, physical knockback/traps, one physical Core, powered traversal, and live two-actor seals. `main`, the Chapter 3 repair branch, the public deployment, sibling projects, and assets remain unchanged by this work.
-- Local final gates pass on the feature tree: `npm ci` reports 0 vulnerabilities, the strict production build transforms 38 modules, Vitest passes 126/126 across 17 files, and Playwright passes 25/25 in 24.6 minutes. The four new Chapter 4–5 desktop/mobile full-solution captures were regenerated in a focused 4/4 run in 6.9 minutes.
+- The 2026-08-29 Chapter 3–5 audit removes five misleading or redundant props/mechanisms, synchronizes authored chapter metadata with the physical layouts, blocks Chapter 3's through-shutter Core pickup shortcut, restores Chapter 4 patrol motion and a stable Echo-lure strike window, and widens/repositions Chapter 5's powered-platform and Guardian-flank route.
+- Current local gates pass: `npm ci` installs 59 packages and reports one low-severity advisory; the strict production build transforms 38 modules; Vitest passes 135/135 across 18 files; and the full manually hosted Playwright suite passes 28/28 in 29.3 minutes. Chapters 3–5 were also visually inspected in the browser with no page-console warnings or errors.
 
 - `npm ci`, strict TypeScript, and the final Vite production build pass on the recovered tree.
 - Vitest passes all 96 tests across 16 test files, including device-audio transition/loop regression, camera-obstruction continuity, vertical orbit, responsive reversal, compact-scanner construction/active-feedback, industrial device assembly, and Chapters 3–5 completion regressions.
@@ -38,20 +38,19 @@ Exact GitHub, candidate, production, build-log, and public verification evidence
 Requirements: Node.js and npm. The recorded local machine uses Node.js `v22.17.0` and npm `10.9.2`.
 
 ```powershell
-npm ci
-npm run dev
+cmd /c "npm ci"
+cmd /c "npm run dev"
 ```
 
 Vite serves the development build at `http://127.0.0.1:4537`.
 
 ```powershell
-npm test -- --run
-npm run build
-npm run preview
-npm run test:e2e
+cmd /c "npm test -- --run"
+cmd /c "npm run build"
+cmd /c "npm run preview"
 ```
 
-The preview server uses `http://127.0.0.1:4538`. See `TEST.md` for verified automation and the remaining human-review boundary.
+On this Windows PC, do not invoke `npm run test:e2e`. Start Vite manually on `127.0.0.1:4537` with `VITE_E2E_DEBUG_API=1`, then run Playwright with `PLAYWRIGHT_BASE_URL=http://127.0.0.1:4537`; the exact commands are in `TEST.md`. The preview server uses `http://127.0.0.1:4538`.
 
 ## Controls
 
@@ -92,7 +91,7 @@ The current runtime tape limit is 15 seconds. A cyan/magenta route line, timelin
 
 1. **THE FIRST DESCENT** — record the tutorial lever and a final plate hold, then climb the stair and jump route through the gate.
 2. **COUNTERWEIGHT HALL** — let the echo hold the lower lift lever, ride upward, and drop the upper crate onto the lower weight plate.
-3. **THE SPLIT ATRIUM** — have the echo throw the core and hold the bridge lever; catch, redirect, and socket the core from the present route.
+3. **THE SPLIT ATRIUM** — record the one real Core being thrown from the west lane, cross the separate player-only route to open the transfer shutter, collect that same Core on the east side, and socket it in the receiver.
 4. **THE WATCHER'S GALLERY** — record the Echo ringing the physical bell and remaining visible, stay behind cover, climb the real upper flank, strike from the rear and above, and let the resulting physical knockback carry the Watcher into the spike trap before using the released exit.
 5. **THE PARADOX WELL** — use the first Echo recording to carry and throw the one physical Core into the receiver, replace it with a second recording that ends on the lower seal, ride the powered platform, make the Guardian truly see the Echo, break the rear seal from above, hold the upper seal at the same time, and escape through the released final door within 35 seconds.
 

@@ -156,5 +156,14 @@ The user requested two things: (1) reframe the chapter 1 clear condition so that
 - 배포는 Vercel 토큰 부재로 미수행. 기존 production URL https://echo-depths-3d.vercel.app 유지.
 - 코드 구현·빌드·테스트 전부 통과. 남은 항목: human-review(자동화 불가) + 선택적 재배포.
 
+## 2026-08-29 — Chapter 3–5 audit repair
+
+- Completed a source/layout/browser audit of terrain continuity, puzzle reachability, dummy objects, redundant mechanisms, and late-chapter pacing.
+- Chapter 3 now enforces the intended physical Core transfer; Chapter 4 patrol and Echo lure behavior are stable and readable; Chapter 5 uses one powered platform with wider critical landings and a clear upper route.
+- Removed decorative or configured objects that suggested rules they did not implement. The remaining authored objects either support traversal, cover, interaction feedback, or the chapter's causal puzzle chain.
+- Local gates pass: strict build, Vitest 135/135, Playwright 28/28 from the required manual Vite server, and clean Chapter 3–5 browser/console inspection.
+- Subjective fun assessment: Chapter 3 provides the clearest physical handoff payoff; Chapter 4 has the strongest stealth/action climax after the lure hold repair; Chapter 5 has the richest two-recording orchestration but remains the most cognitively demanding. Real-device feel and unaided player discovery remain human-only judgments.
+- GitHub and Vercel release evidence will be added after remote verification.
+
 
 

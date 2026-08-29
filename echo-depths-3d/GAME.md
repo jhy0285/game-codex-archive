@@ -97,26 +97,25 @@ An actor alone does not satisfy the authored cargo requirement in the pure devic
 
 ### Chapter 3 — THE SPLIT ATRIUM
 
-**Rules combined:** cross-height throwing, generous catching, directional redirect, a momentary bridge lever, and a rotating bridge.
+**Rules combined:** one canonical Core across rewind, cross-height throwing, a shuttered transfer lane, a separate player-only one-way crossing, and a final physical receiver.
 
-The player and core begin on the west upper shelf. A wide physical descent leads to the lower catch area and the east-floor receiver/exit route. The aligned bridge is a visible cooperation signal while its active state keeps the exit dependency live.
+The player and Core begin on the west upper shelf. Three broad steps descend to the lower player route. The northern lane is reserved for the Core and remains shuttered until the live Player has crossed east; the southern one-way crossing rejects carried or thrown cargo. The two routes reunite only after the Echo transfers the same physical Core into the east catch basin.
 
 **Solution:**
 
-1. Begin recording, pick up `memory-core` with `E`, face the lower atrium/catch route, hold `K` or right mouse to preview the arc, and release to throw.
-2. Continue the recorded route to `bridge-lever`, press and hold `E`, and finish the tape at the lever.
-3. After rewind, take the present route toward the lower catch area. The upper shelf now connects to atrium-lower through three descent stairs south of the shelf (top surfaces y=2.0, y=1.0, y=0.2), so the player steps south off the upper shelf and down through the stairs to atrium-lower while the echo repeats the throw.
-4. Hold `E` inside the catch volume to receive the echo-thrown core. The world catch uses a forgiving proximity check and does not demand a single exact frame.
-5. Use the bridge while the echo keeps it aligned. Throw the core toward the east receiver, then strike the loose core with a directional attack to redirect its horizontal velocity.
-6. Land the redirected core in `core-receiver`, cross the east route, and use the exit.
+1. Begin recording, pick up `memory-core` with `E`, align with the northern transfer lane, and throw toward the closed `transfer-shutter`.
+2. Continue the recording south down `descent-step-1` through `descent-step-3`, cross the cargo-rejecting `atrium-one-way` route from west to east, and finish the tape after the live Player reaches x > 4.
+3. Rewind leaves the present Player east, which physically lowers the transfer shutter. The Echo repeats the west-side pickup and throw with the same rewound Core; no clone is spawned.
+4. Let the thrown Core land in the east catch basin. Walk to it from the east side, pick it up, go around the south end of `atrium-catch-rail`, and throw it into `core-receiver`.
+5. Cross the opened east route and use the exit.
 
-Victory requires an echo-held bridge lever, a player catch of the echo-thrown core, a directional redirect, receiver fill, and exit use. Socketing after the redirect also records the completed core route.
+Victory requires only receiver fill and live Player exit use. Interaction reach is side-aware at the transfer shutter, so the present Player cannot collect the west-side Core through the closed barrier and skip the Echo transfer.
 
 ### Chapter 4 — THE WATCHER'S GALLERY
 
 **Rules combined:** a deterministic patrol, facing and field of view, Rapier line-of-sight, wall/pillar occlusion, auditory investigation, visible Echo bait, alert/investigate/chase/recovery states, directional rear attack, height leverage, physical knockback, and a spike hazard.
 
-The Watcher owns a real world position and facing. Each fixed tick it tests both Player and Echo against range, state-dependent FOV, and a cover ray; chooses an actually visible target; preserves last-known/stimulus positions for investigation; and returns through recovery to its patrol. `lure-bell` supplies only a world-space sound stimulus—the bell does not assign a target or defeat state. Patrol, chase, investigation, and knockback displacement use three parallel wall/door clearance rays across the enemy's width. The upper flank is reached through three stepped platforms, and the Watcher has no conventional damage goal.
+The Watcher owns a real world position and facing. Each fixed tick it tests both Player and Echo against range, state-dependent FOV, and a cover ray; chooses an actually visible target; preserves last-known/stimulus positions for investigation; and returns through recovery to its patrol. Only authored elevators and moving platforms enter the platform interpolator, so the Watcher's `to` patrol endpoint cannot reset it to spawn each tick. `lure-bell` supplies a world-space sound stimulus rather than assigning a target or defeat state. After a bell-ringing Echo becomes the visible target, the Watcher holds at a readable standoff just beyond the trap instead of drifting out of the flank window. The qualifying strike still requires that Echo target plus rear direction and real height leverage; reach is measured in the horizontal plane so satisfying the height rule does not paradoxically consume the attack range. Patrol, chase, investigation, and knockback displacement use three parallel wall/door clearance rays across the enemy's width. The upper flank is reached through three stepped platforms, and the Watcher has no conventional damage goal.
 
 **Solution:**
 
@@ -132,7 +131,7 @@ Normal contact or repeated damage does not satisfy the room. The objective model
 
 **Rules combined:** three height bands, a climbable well ramp, one physical Core transferred through time, a descending receiver entry, a powered vertical platform, live Guardian perception and target switching, a rear/high seal strike, Echo lower seal, Player upper seal, and a timed escape.
 
-The lower start holds the sole `paradox-core` and `lower-seal`. The physical `well-ramp` climbs to the middle lip; the exposed `power-receiver` sits below and west of that lip so the same Core must enter while descending. The middle height contains the Guardian. Core power starts the vertical `well-platform`, which physically carries the present Player to the upper route, `guardian-flank`, `upper-seal`, and final exit.
+The lower start holds the sole `paradox-core` and `lower-seal`. The physical `well-ramp` climbs to the middle lip; the exposed `power-receiver` sits below and west of that lip so the same Core must enter while descending. The middle height contains the Guardian. Core power starts the only vertical mover, `well-platform`, whose widened dock overlaps both the middle and upper landings before the present Player continues across `guardian-flank`, `upper-seal`, and the final exit.
 
 **Solution:**
 

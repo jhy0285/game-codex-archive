@@ -1,17 +1,17 @@
 # ECHO DEPTHS Verification Record
 
-Snapshot: 2026-08-25, Asia/Seoul.
+Snapshot: 2026-08-29, Asia/Seoul.
 
 ## Current result
 
 | Layer | Command or method | Result |
 | --- | --- | --- |
-| Strict TypeScript | `npx tsc --noEmit` / build compiler | PASS |
-| Production bundle | `npm run build` | PASS — 38 modules; JS 3,645.22 kB, CSS 22.71 kB |
-| Unit, pure-rule, state, and physics regression tests | `npx vitest run` | PASS — 17 files, 126 tests |
-| Playwright functional and layout coverage | local `npx playwright test` with external base URL unset | PASS — 25/25 in 24.6 minutes, including all existing Chapter 1–3 positive/negative regressions and four real-input Chapter 4–5 desktop/mobile completions |
-| Chapter 4–5 success captures | focused desktop/mobile Playwright rerun with `ECHO_DEPTHS_SCREENSHOT_DIR` | PASS — 4/4 in 6.9 minutes; four PNG artifacts generated from successful physical routes |
-| 2026-08-25 external release | Git/Vercel inspection | No deployment or production promotion performed; `main`, `fix/echo2-ch3-structural`, existing production, assets, and siblings unchanged |
+| Dependency install | `cmd /c "npm ci"` | PASS — 59 packages installed; one low-severity advisory reported |
+| Strict TypeScript and production bundle | `cmd /c "npm run build"` | PASS — 38 modules; JS 3,646.07 kB, CSS 22.71 kB |
+| Unit, pure-rule, state, layout, and physics regression tests | `cmd /c "npm test -- --run"` | PASS — 18 files, 135 tests |
+| Playwright functional and layout coverage | manually hosted Vite at `127.0.0.1:4537` plus external `PLAYWRIGHT_BASE_URL` | PASS — 28/28 in 29.3 minutes, including Chapter 3 shortcut negatives, Chapter 4 patrol and desktop/mobile completion, and Chapter 5 desktop/mobile completion |
+| Chapter 3–5 visual and console audit | in-app browser against the same manual Vite server | PASS — all three chapter starts render cleanly; console warning/error collection is empty |
+| 2026-08-29 external release | Git/Vercel inspection | Pending until the verified source commit is pushed and a candidate passes before promotion |
 | Local production-bundle smoke | `PLAYWRIGHT_BASE_URL=http://127.0.0.1:4541 npm run test:production` | PASS — 6/6 in 1.1 minutes |
 | PC movement and camera continuity | Unit camera/motor checks plus real browser mouse drag then `W` movement | PASS — continuous 30 Hz obstruction sampling, bounded vertical orbit, smooth release, decisive reversal, and live keyboard movement |
 | Chapter 2 desktop route | Playwright manual-step browser route | PASS — echo-held lift, board, cargo plate, and exit in 54.2 seconds |
@@ -48,16 +48,29 @@ The local machine reports Node.js `v22.17.0` and npm `10.9.2`. The build command
 From `echo-depths-3d/`:
 
 ```powershell
-npm ci
-npm test -- --run
-npm run build
-npm run test:e2e
+cmd /c "npm ci"
+cmd /c "npm test -- --run"
+cmd /c "npm run build"
+```
+
+On this Windows PC, start the development server in one terminal and keep it running:
+
+```powershell
+$env:VITE_E2E_DEBUG_API = '1'
+cmd /c "npm run dev -- --host 127.0.0.1 --port 4537"
+```
+
+Then run Playwright from a second terminal with the external server URL. Do not run `npm run test:e2e` directly on this machine.
+
+```powershell
+$env:PLAYWRIGHT_BASE_URL = 'http://127.0.0.1:4537'
+cmd /c "npx playwright test --workers=1"
 ```
 
 Run the local game directly when visual inspection is needed:
 
 ```powershell
-npm run dev
+cmd /c "npm run dev"
 ```
 
 Development base URL: `http://127.0.0.1:4537`.
@@ -65,7 +78,7 @@ Development base URL: `http://127.0.0.1:4537`.
 Production-bundle preview:
 
 ```powershell
-npm run preview
+cmd /c "npm run preview"
 ```
 
 Preview base URL: `http://127.0.0.1:4538`.
@@ -191,7 +204,7 @@ Browser verification is only final when one coherent run covers:
 4. real keyboard movement, jump, interaction, directional attack, throw, dash, camera movement, camera-heading carry, and echo recording/replay;
 5. Chapter 1 lever plus echo plate;
 6. Chapter 2 echo lever, elevator height, and cargo plate;
-7. Chapter 3 echo core throw, catch, redirect, receiver, and bridge;
+7. Chapter 3 one-Core rewind, separated player/Core lanes, closed/open transfer shutter, east-side pickup, receiver, and shortcut rejection;
 8. Chapter 4 real bell stimulus, cover, actual Echo visibility, rear/high strike, physical knockback-to-trap, released door, and exit;
 9. Chapter 5 one real Core carried/thrown by the first Echo, replacement Echo lower-seal occupancy, actual Guardian visibility/target switch, powered-platform traversal, rear/high seal break, live simultaneous devices, final-door release, timer, and exit;
 10. ending statistics, final rank, full replay reset, and chapter restart reset;

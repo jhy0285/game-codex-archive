@@ -256,5 +256,15 @@ Chapter 1s echo-plate fact was previously gated to actor?.kind === echo, but PLA
 - 배포: Vercel 토큰/로그인 없음 → 신규 배포 미수행. 기존 production URL https://echo-depths-3d.vercel.app 유지.
 - 결과: 코드 구현·빌드·단위/브라우저 테스트 전부 통과. 남은 작업은 human-review(자동화 불가)와 선택적 재배포. 진행 상황은 `progress.md`, 남은 작업은 `TASKS.md` 참조.
 
+## 2026-08-29 — Chapter 3–5 audit and repair
+
+- Audited the three late chapters from config through Rapier world state, rendered layout, full browser routes, and negative shortcuts. Removed ambiguous dressing and unreachable/dummy mechanisms rather than leaving objects that implied nonexistent puzzle rules.
+- Chapter 3 now rejects Core pickup through the transfer shutter until that same physical Core has crossed the barrier. Chapter metadata matches the vertical layout and no longer duplicates the exit with a fake gate objective.
+- Found that the generic platform update treated the Watcher's patrol `to` endpoint as a moving-platform destination and reset the enemy to spawn every tick. Restricting interpolation to platform/elevator kinds restores patrol motion. A bell-ringing visible Echo now creates a stable trap-side lure hold, and horizontal reach preserves the separately enforced rear/high strike requirement.
+- Chapter 5 now has one canonical powered mover, a wider landing and Guardian flank, and no tall pillar blocking the critical upper route. Redundant `well-elevator`, dummy traps, and misleading props were removed.
+- Removed unused Cloudflare/OpenAI Sites Vite plugins that required absent worker/hosting files; the project remains a strict static Vite build with `dist/client` output for the existing Vercel project.
+- Local verification: `npm ci` installed 59 packages with one low-severity advisory; strict build passed with 38 modules; Vitest passed 135/135 across 18 files; manually hosted Playwright passed 28/28 in 29.3 minutes. In-app browser inspection of Chapters 3–5 found no console warnings/errors.
+- GitHub push and the candidate → promotion → production verification sequence remain pending at this entry.
+
 
 

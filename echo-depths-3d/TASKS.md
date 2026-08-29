@@ -217,3 +217,15 @@ The protected siblings `404-not-found`, `boss-forge`, `echo-heist`, `patch-run`,
   - [ ] promotion 후 https://echo-depths-3d.vercel.app 재검증
 - [ ] **문서 동기화** — material 변경 시 README/AGENTS/CODEX_LOG/progress/TASKS 일치 유지.
 - [ ] ⚠️ **e2e 실행 규칙** — 이 PC에서는 Playwright 자동 webServer 사용 금지, 외부 Vite + `PLAYWRIGHT_BASE_URL` 방식만. `HANDOFF.md` §4 참조.
+
+## 2026-08-29 — Chapter 3–5 terrain, bug, clutter, and fun audit
+
+- [x] Cross-check Chapter 3–5 config IDs, spawns, exits, terrain, movers, props, objectives, and browser routes against the actual layouts.
+- [x] Prevent the Chapter 3 present Player from collecting the west-side Core through the closed transfer shutter; require the Core to cross physically before east-side pickup.
+- [x] Remove the Chapter 3 duplicate gate objective and the misleading `west-cog` prop.
+- [x] Restore Chapter 4 Watcher patrol movement by excluding enemies from platform interpolation; require a bell-ringing visible Echo and hold the lured Watcher in a readable high/rear strike lane.
+- [x] Remove the Chapter 4 dummy void trap and `gallery-log` prop; replace the stale navigation test with a real patrol regression.
+- [x] Remove Chapter 5's redundant second elevator, dummy void trap, `well-fuel`, and `upper-pillar`; widen the powered dock and Guardian flank and move the tall pillar away from the critical route.
+- [x] Remove incomplete Cloudflare/OpenAI Sites build plugins from this ordinary Vite project; keep the verified Vercel output at `dist/client`.
+- [x] Pass `npm ci`, strict production build, Vitest 135/135, full Playwright 28/28, and Chapter 3–5 visual/console inspection.
+- [ ] Push the verified source to `origin/main`, validate a Vercel candidate, promote it, and revalidate the public production alias.

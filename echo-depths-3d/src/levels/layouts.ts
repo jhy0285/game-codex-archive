@@ -193,7 +193,6 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       { id: 'west-ruin', source: 'environment', modelIndex: 4, position: [-7.75, 2.95, -1.8], scale: 0.34, solid: true },
       { id: 'east-pillar', source: 'environment', modelIndex: 10, position: [8.35, 0.45, -2.6], scale: 0.3, solid: true },
       { id: 'atrium-crate', source: 'environment', modelIndex: 12, position: [0.1, 0.2, -3.2], scale: 0.34, solid: true },
-      { id: 'west-cog', source: 'resource', modelIndex: 0, position: [-7.4, 3.1, 4.35], scale: 0.38, solid: true },
     ],
   },
   4: {
@@ -224,7 +223,6 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       { id: 'gallery-doorway', source: 'environment', modelIndex: 5, position: [-8.2, 0.45, -2.5], scale: 0.33, solid: true },
       { id: 'cover-supplies', source: 'environment', modelIndex: 13, position: [-5.85, 0.45, -2.85], scale: 0.32, solid: true },
       { id: 'trap-torch', source: 'environment', modelIndex: 15, position: [7.1, 0.75, 3.7], scale: 0.32 },
-      { id: 'gallery-log', source: 'resource', modelIndex: 2, position: [-7.9, 0.56, 1.2], scale: 0.38, solid: true },
     ],
   },
   5: {
@@ -242,7 +240,7 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
       // A readable high flank connects the moving-platform landing to the
       // Guardian's rear quarter. It is close enough for the real strike cone,
       // but only after the Guardian has turned toward the lower Echo route.
-      floor('guardian-flank', [3.0, 4.65, 1.35], [1.15, 0.25, 1.2], 'trim'),
+      floor('guardian-flank', [3.0, 4.65, 1.35], [1.55, 0.25, 1.2], 'trim'),
       floor('escape-a', [4.5, 3.7, 3.5], [1.0, 0.25, 1.0]),
       floor('escape-b', [6.0, 4.4, 3.1], [1.0, 0.25, 1.0]),
       wall('well-north', [0, 4.0, -4.8], [10.5, 4, 0.35]),
@@ -252,20 +250,17 @@ export const CHAPTER_LAYOUTS: Readonly<Record<StageNumber, ChapterLayout>> = {
     devices: [
       { id: 'paradox-core', kind: 'core', position: [-5.7, 1.1, 2.0] },
       { id: 'power-receiver', kind: 'receiver', position: [-7.0, 0.92, -0.8] },
-      { id: 'well-elevator', kind: 'elevator', position: [-0.2, 0.35, -2.6], size: [1.25, 0.25, 1.25], to: [-0.2, 2.4, -2.6] },
-      { id: 'well-platform', kind: 'platform', position: [3.05, 2.8, -1.8], size: [0.7, 0.2, 1.05], to: [3.05, 5.25, -1.8] },
+      { id: 'well-platform', kind: 'platform', position: [3.4, 2.8, -1.8], size: [1.1, 0.2, 1.05], to: [3.4, 5.25, -1.8] },
       { id: 'guardian', kind: 'enemy', position: [1.7, 3.58, 2.5], size: [0.7, 0.9, 0.7] },
       { id: 'lower-seal', kind: 'plate', position: [-3.1, 0.52, 3.6], size: [1.05, 0.12, 1.05] },
       { id: 'upper-seal', kind: 'lever', position: [6.2, 5.82, -1.7] },
       { id: 'final-door', kind: 'door', position: [8.0, 7.0, 0.3], size: [0.32, 2.15, 1.2] },
       { id: 'exit', kind: 'exit', position: [8.85, 5.78, 0.3] },
     ],
-    pillars: [[-6.7, 0.5, -1.9], [-2.5, 0.5, -2.2], [1.7, 3.0, 0.3], [6.7, 5.6, 2.6]],
+    pillars: [[-6.7, 0.5, -1.9], [-2.5, 0.5, -2.2], [1.7, 3.0, 0.3], [9.2, 5.6, 2.9]],
     decor: [
       { id: 'well-doorway', source: 'environment', modelIndex: 3, position: [-8.7, 0.45, -2.5], scale: 0.34, solid: true },
       { id: 'well-supplies', source: 'environment', modelIndex: 12, position: [-6.8, 0.45, -2.5], scale: 0.32, solid: true },
-      { id: 'upper-pillar', source: 'environment', modelIndex: 10, position: [8.3, 5.55, 2.6], scale: 0.3, solid: true },
-      { id: 'well-fuel', source: 'resource', modelIndex: 1, position: [-8.1, 0.56, 1.0], scale: 0.4, solid: true },
       { id: 'mid-torch', source: 'environment', modelIndex: 15, position: [3.45, 3.1, -3.6], scale: 0.3 },
     ],
   },

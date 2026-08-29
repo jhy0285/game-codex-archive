@@ -552,6 +552,26 @@ describe('DungeonWorld authored runtime contracts', () => {
     }
   })
 
+  it('rejects a high rear Watcher strike when a visible Echo has not rung the bell', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const echo = actor('echo', 'echo', [-0.8, 1.08, 3.1])
+      const player = actor('player', 'player', [3.0, 3.1, -1.2])
+      stepWorld(world, physics, 1, [player, echo])
+      expect(world.debugState().enemies.watcher).toMatchObject({ target: 'echo', targetVisible: true })
+      expect(world.debugState().facts).toContain('lured-by-echo')
+      const strikeDirection = new THREE.Vector3()
+        .subVectors(new THREE.Vector3(2.4, 0.98, -0.4), player.position)
+        .setY(0)
+        .normalize()
+      expect(world.attack(player, strikeDirection)).toBe('shield')
+      expect(world.debugState().facts).not.toContain('watcher-trapped')
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
   it('clears Chapter 4 only after real Echo acquisition and a high rear strike into the trap', async () => {
     const { physics, world } = await createWorld(4)
     try {
@@ -559,16 +579,18 @@ describe('DungeonWorld authored runtime contracts', () => {
       echo.interactHeld = true
       const player = actor('player', 'player', [3.0, 3.1, -1.2])
       expect(world.interact(echo)).toBe('lever')
+      expect(world.debugState().facts).toContain('lure-bell:echo')
       expect(world.debugState().facts).not.toContain('lured-by-echo')
       expect(world.debugState().enemies.watcher?.target).toBeUndefined()
-      stepWorld(world, physics, 1, [player, echo])
-      expect(world.debugState().facts).toContain('lured-by-echo')
-      const acquired = world.debugState().enemies.watcher
-      expect(acquired, JSON.stringify(acquired)).toMatchObject({ target: 'echo', targetVisible: true })
       const strikeDirection = new THREE.Vector3()
         .subVectors(new THREE.Vector3(2.4, 0.98, -0.4), player.position)
         .setY(0)
         .normalize()
+      expect(world.attack(player, strikeDirection)).toBe('shield')
+      stepWorld(world, physics, 1, [player, echo])
+      expect(world.debugState().facts).toContain('lured-by-echo')
+      const acquired = world.debugState().enemies.watcher
+      expect(acquired, JSON.stringify(acquired)).toMatchObject({ target: 'echo', targetVisible: true })
       expect(world.attack(player, strikeDirection), JSON.stringify({ player: player.position, state: world.debugState() })).toBe('watcher')
 
       for (let tick = 2; tick < 90 && !world.debugState().enemies.watcher?.defeated; tick += 1) {
@@ -584,6 +606,31 @@ describe('DungeonWorld authored runtime contracts', () => {
       expect(world.interact(player)).toBe('exit')
       world.afterPhysics([player, echo])
       expect(world.complete).toBe(true)
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('holds the Echo-lured Watcher in the authored high-flank knockback lane', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      const echo = actor('echo', 'echo', [-0.982, 1.264, 3.048])
+      echo.interactHeld = true
+      const player = actor('player', 'player', [2.895, 3.365, -1.084])
+      expect(world.interact(echo)).toBe('lever')
+      for (let tick = 1; tick <= 360 && world.debugState().enemies.watcher?.state !== 'lure-hold'; tick += 1) {
+        stepWorld(world, physics, tick, [player, echo])
+      }
+      const lured = world.debugState().enemies.watcher
+      if (!lured) throw new Error('Watcher state is missing')
+      expect(lured).toMatchObject({ state: 'lure-hold', target: 'echo', targetVisible: true })
+      const strikeDirection = new THREE.Vector3(lured.position.x - player.position.x, 0, lured.position.z - player.position.z).normalize()
+      expect(world.attack(player, strikeDirection), JSON.stringify({ lured, player: player.position })).toBe('watcher')
+      for (let tick = 361; tick <= 480 && !world.debugState().enemies.watcher?.defeated; tick += 1) {
+        stepWorld(world, physics, tick, [player, echo])
+      }
+      expect(world.debugState().enemies.watcher, JSON.stringify(world.debugState())).toMatchObject({ state: 'trapped', defeated: true })
     } finally {
       world.dispose()
       physics.dispose()
@@ -616,6 +663,20 @@ describe('DungeonWorld authored runtime contracts', () => {
       const lateAcquired = world.debugState().enemies.watcher
       expect(lateAcquired, JSON.stringify(lateAcquired)).toMatchObject({ target: 'echo', targetVisible: true })
       expect(world.debugState().facts).toContain('lured-by-echo')
+    } finally {
+      world.dispose()
+      physics.dispose()
+    }
+  })
+
+  it('keeps the Watcher moving along its authored patrol lane', async () => {
+    const { physics, world } = await createWorld(4)
+    try {
+      for (let tick = 1; tick <= 12; tick += 1) stepWorld(world, physics, tick, [])
+      const watcher = world.debugState().enemies.watcher
+      if (!watcher) throw new Error('Watcher state is missing')
+      expect(watcher.position.x).toBeLessThan(2.2)
+      expect(physics.record('watcher')?.body.translation().x).toBeLessThan(2.22)
     } finally {
       world.dispose()
       physics.dispose()
@@ -833,7 +894,9 @@ describe('DungeonWorld authored runtime contracts', () => {
     const { physics, scene, world } = await createWorld(4)
     try {
       const echo = actor('echo', 'echo', [-0.8, 0.72, 3.1])
+      echo.interactHeld = true
       const player = actor('player', 'player', [3.0, 3.1, -1.2])
+      expect(world.interact(echo)).toBe('lever')
       stepWorld(world, physics, 1, [player, echo])
       expect(world.attack(player, new THREE.Vector3(-0.6, 0, 0.8).normalize())).toBe('watcher')
       const wave = scene.getObjectByName('TemporalWave')
@@ -1152,6 +1215,28 @@ describe('DungeonWorld authored runtime contracts', () => {
       const t = core.body.translation()
       // The core must NOT have crossed to x > shutter.x + 1
       expect(t.x, 'core should be west of the closed shutter').toBeLessThan(initialT.x + 0.6)
+    } finally { world.dispose(); physics.dispose() }
+  })
+
+  it('Ch3 M2 — live Player cannot collect the Core through the transfer shutter', async () => {
+    const { physics, world } = await createWorld(3)
+    try {
+      const core = physics.record('memory-core')
+      if (!core) throw new Error('memory-core missing')
+      core.body.setTranslation({ x: 2.4, y: 0.88, z: 1.6 }, true)
+      core.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      physics.step(); world.afterPhysics([])
+
+      const eastPlayer = actor('player', 'player', [4.05, 0.9, 1.6])
+      expect(world.nearestInteractable(eastPlayer.position)).toBeUndefined()
+      expect(world.interact(eastPlayer)).toBeUndefined()
+      expect(world.captureSnapshot().dynamics['memory-core']?.carriedBy).toBeUndefined()
+
+      core.body.setTranslation({ x: 4.4, y: 0.88, z: 1.6 }, true)
+      physics.step(); world.afterPhysics([])
+      expect(world.captureSnapshot().coreCrossedTransferShutter).toBe(true)
+      expect(world.interact(eastPlayer)).toBe('core')
+      expect(world.captureSnapshot().dynamics['memory-core']?.carriedBy).toBe('player')
     } finally { world.dispose(); physics.dispose() }
   })
 

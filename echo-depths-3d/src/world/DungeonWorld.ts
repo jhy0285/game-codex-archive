@@ -112,6 +112,7 @@ export type DungeonWorldSnapshot = {
   devices: Record<string, DeviceSnapshot>
   dynamics: Record<string, DynamicSnapshot>
   receiverFilled: boolean
+  coreCrossedTransferShutter: boolean
   enemyState: string
   enemyTarget?: ActorKind
   enemyDefeated: boolean
@@ -160,6 +161,8 @@ const ENEMY_ALERT_TICKS = 18
 const ENEMY_SEARCH_TICKS = 150
 const ENEMY_RECOVERY_TICKS = 72
 const ENEMY_STIMULUS_TICKS = 180
+const WATCHER_ECHO_LURE_SPEED = 0.032
+const WATCHER_TRAP_STANDOFF = 0.95
 const WATCHER_REAR_DOT_MAX = -0.25
 const GUARDIAN_REAR_DOT_MAX = -0.45
 
@@ -208,6 +211,7 @@ export class DungeonWorld {
   private enemyStimulusTicks = 0
   private readonly enemyStimulusPosition = new THREE.Vector3()
   private receiverFilled = false
+  private coreCrossedTransferShutter = false
   private currentTick = 0
   private platformPhaseOffset = 0
   private exitRequestedBy: ActorKind | undefined
@@ -298,9 +302,8 @@ export class DungeonWorld {
       this.facts.add(`${definition.id}:${actor.kind}`)
       if (definition.id === 'tutorial-lever') this.facts.add('tutorial-lever')
       if (definition.id === 'lure-bell') {
-        // The bell is only an audible world-space stimulus. It never grants a
-        // target or puzzle fact by itself; the Watcher must still acquire an
-        // actor through its real FOV and line-of-sight checks.
+        // The bell is an audible world-space stimulus. A valid vulnerability
+        // still requires the Echo to have rung it and remain the visible target.
         this.enemyStimulusPosition.copy(candidate.root.position)
         this.enemyStimulusTicks = ENEMY_STIMULUS_TICKS
         this.enemyLastKnown.copy(candidate.root.position)
@@ -378,7 +381,13 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
     }
     const enemy = this.devices.get(this.chapter === 5 ? 'guardian' : 'watcher')
-    if (enemy && !this.enemyDefeated && enemy.root.position.distanceTo(actor.position) < 2.6) {
+    // Rear strikes intentionally require vertical leverage. Measure their reach
+    // on the horizontal plane so the required height does not paradoxically
+    // consume most of the attack range before the cone test even runs.
+    const enemyHorizontalDistance = enemy
+      ? Math.hypot(enemy.root.position.x - actor.position.x, enemy.root.position.z - actor.position.z)
+      : Number.POSITIVE_INFINITY
+    if (enemy && !this.enemyDefeated && enemyHorizontalDistance < 2.6) {
       const horizontalToActor = actor.position.clone().sub(enemy.root.position).setY(0)
       const actorSideDot = horizontalToActor.lengthSq() > 0.0001
         ? horizontalToActor.normalize().dot(this.enemyForward)
@@ -408,7 +417,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
         return 'shield'
       }
       const heightAdvantage = actor.position.y - enemy.root.position.y
-      if (actor.kind !== 'player' || actorSideDot > WATCHER_REAR_DOT_MAX || heightAdvantage < 0.8) {
+      if (
+        actor.kind !== 'player'
+        || this.enemyTarget !== 'echo'
+        || !this.enemyTargetVisible
+        || !this.facts.has('lure-bell:echo')
+        || actorSideDot > WATCHER_REAR_DOT_MAX
+        || heightAdvantage < 0.8
+      ) {
         this.failureReason = 'watcher-facing'
         return 'shield'
       }
@@ -614,6 +630,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       devices,
       dynamics,
       receiverFilled: this.receiverFilled,
+      coreCrossedTransferShutter: this.coreCrossedTransferShutter,
       enemyState: this.enemyState,
       enemyDefeated: this.enemyDefeated,
       enemyDirection: this.enemyDirection,
@@ -640,6 +657,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     this.facts.clear()
     for (const fact of snapshot.facts) this.facts.add(fact)
     this.receiverFilled = snapshot.receiverFilled
+    this.coreCrossedTransferShutter = snapshot.coreCrossedTransferShutter
     this.enemyState = snapshot.enemyState
     this.enemyTarget = remapActor(snapshot.enemyTarget)
     this.enemyDefeated = snapshot.enemyDefeated
@@ -1277,6 +1295,10 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     for (const device of this.devices.values()) {
       const { definition } = device
       if (!definition.to || !device.body) continue
+      // Enemy patrol endpoints also use `to`; only authored moving surfaces
+      // belong in this interpolation loop. Resetting an enemy here erased every
+      // movement update on the following tick and froze the Watcher at spawn.
+      if (definition.kind !== 'elevator' && definition.kind !== 'platform') continue
       let amount = 0
       if (definition.kind === 'elevator') {
         const powered = this.chapter === 2
@@ -1506,6 +1528,13 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const size = device.definition.size ?? [1.4, 1.4, 1.6]
       const openAtX = device.definition.openAtX ?? 0
       const player = actors.find((a) => a.kind === 'player')
+      const core = this.dynamics.get('memory-core')
+      if (core && !core.carriedBy) {
+        const corePosition = core.body.body.translation()
+        const enteredEastCatch = corePosition.x >= device.basePosition.x + size[0] / 4
+          && Math.abs(corePosition.z - device.basePosition.z) <= size[2] / 2 + 0.6
+        if (enteredEastCatch) this.coreCrossedTransferShutter = true
+      }
       const isOpen = !!player && player.position.x >= openAtX
       // The authored transform is immutable. Opening lowers the full collider
       // beneath the lower floor instead of stacking offsets every tick or
@@ -1636,7 +1665,20 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       const distance = direction.length()
       this.faceEnemy(enemy, direction)
       if (this.enemyState === 'chase' && distance > 0.75) {
-        this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.008 : 0.006))
+        if (this.chapter === 4 && visibleTarget.kind === 'echo') {
+          const lurePosition = this.watcherLurePosition(visibleTarget.position)
+          const lureDirection = lurePosition.sub(enemy.root.position).setY(0)
+          if (lureDirection.length() > 0.18) {
+            this.moveEnemy(enemy, lureDirection.normalize().multiplyScalar(WATCHER_ECHO_LURE_SPEED))
+          } else {
+            // Hold just beyond the spikes, facing the Echo. This creates the
+            // readable high-rear strike window instead of letting the Watcher
+            // wander all the way to the bell and out of the authored flank.
+            this.enemyState = 'lure-hold'
+          }
+        } else {
+          this.moveEnemy(enemy, direction.normalize().multiplyScalar(this.chapter === 5 ? 0.008 : 0.006))
+        }
       }
       if (this.chapter === 5 && visibleTarget.kind === 'player' && this.enemyState === 'chase' && distance < 1.25) {
         this.failed = true
@@ -1901,6 +1943,7 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     let bestDistance = radius
     for (const device of this.devices.values()) {
       if (!['lever', 'crate', 'core', 'receiver', 'exit'].includes(device.definition.kind)) continue
+      if (!this.isDeviceReachable(position, device)) continue
       const distance = device.root.position.distanceTo(position)
       if (distance < bestDistance) {
         best = device
@@ -1908,6 +1951,18 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
       }
     }
     return best
+  }
+
+  private isDeviceReachable(position: THREE.Vector3, device: DeviceRecord): boolean {
+    if (this.chapter !== 3 || device.definition.id !== 'memory-core') return true
+    const shutter = this.devices.get('transfer-shutter')
+    if (!shutter) return true
+    if (this.coreCrossedTransferShutter) return true
+    const size = shutter.definition.size ?? [1.4, 1.4, 1.6]
+    const coreIsInTransferLane = Math.abs(device.root.position.z - shutter.basePosition.z) <= size[2] / 2 + 0.6
+    const actorIsEast = position.x >= (shutter.definition.openAtX ?? shutter.basePosition.x)
+    const coreIsWest = device.root.position.x < shutter.basePosition.x
+    return !(coreIsInTransferLane && actorIsEast && coreIsWest)
   }
 
   private configureInteractionOutline(outline: THREE.BoxHelper, name: string): void {
@@ -2000,6 +2055,14 @@ throwOrDrop(actor: ActorContext, direction: THREE.Vector3): string | undefined {
     if (direction.lengthSq() <= 0.0001) return
     this.enemyForward.copy(direction).setY(0).normalize()
     enemy.root.rotation.y = Math.atan2(this.enemyForward.x, this.enemyForward.z)
+  }
+
+  private watcherLurePosition(echoPosition: THREE.Vector3): THREE.Vector3 {
+    const trap = this.devices.get('spike-trap')
+    if (!trap) return echoPosition.clone()
+    const awayFromEcho = trap.root.position.clone().sub(echoPosition).setY(0)
+    if (awayFromEcho.lengthSq() <= 0.0001) awayFromEcho.copy(this.enemyForward).multiplyScalar(-1)
+    return trap.root.position.clone().add(awayFromEcho.normalize().multiplyScalar(WATCHER_TRAP_STANDOFF))
   }
 
   private moveEnemy(enemy: DeviceRecord, displacement: THREE.Vector3): void {
